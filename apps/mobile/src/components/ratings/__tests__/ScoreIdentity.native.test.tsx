@@ -76,3 +76,22 @@ it("distinguishes unrated and established ratings without displaying a hidden de
   expect(screen.getByText("500.00")).toBeVisible();
   expect(screen.queryByText("Not rated")).toBeNull();
 });
+
+it("renders a guest’s avatar and identity without exposing a supplied account rating", async () => {
+  const guest = { ...player, name: "Saturday Guest", guestName: "Saturday Guest", username: null };
+  await render(
+    <ScoreIdentity
+      player={guest}
+      showGameRating
+      gameRating={{ userId: "player", score: 799, delta: 1, provisional: false }}
+    />,
+    { wrapper: NativeTestProviders },
+  );
+  expect(screen.getByText("Saturday Guest")).toBeVisible();
+  expect(screen.getByText("Guest")).toBeVisible();
+  expect(screen.queryByText("Username unavailable")).toBeNull();
+  expect(screen.queryByRole("image", { name: "Game rating" })).toBeNull();
+  expect(screen.queryByText("799.00")).toBeNull();
+  const artwork = screen.container.queryAll((node) => typeof node.props.d === "string");
+  expect(artwork.length).toBeGreaterThan(0);
+});

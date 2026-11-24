@@ -133,3 +133,21 @@ it("composes source loading/errors and paging without owning or starting request
       .closest('[data-slot="game-select-control"]'),
   ).toBeNull();
 });
+
+it("allows non-dismissal keys to reach the Select search field", async () => {
+  const change = vi.fn(),
+    close = vi.fn();
+  renderWithI18n(
+    <RatingGameSelect selectedId={null} games={[azul]} onChange={vi.fn()} onClose={close}>
+      <SearchInput value="" onChange={change} label="Filter games" placeholder="Filter games" />
+    </RatingGameSelect>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: /Board game/ }));
+  const input = await screen.findByRole("searchbox", { name: "Filter games" });
+  const down = fireEvent.keyDown(input, { key: "a", code: "KeyA" });
+  expect(down).toBe(true);
+  fireEvent.change(input, { target: { value: "a" } });
+  expect(change).toHaveBeenCalledWith("a");
+  expect(close).not.toHaveBeenCalled();
+  expect(screen.getByRole("listbox")).toBeVisible();
+});

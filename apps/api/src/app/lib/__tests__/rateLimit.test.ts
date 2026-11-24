@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { pruneRateLimitBuckets, rateLimit } from "../rateLimit";
 
 describe("rateLimit", () => {
@@ -23,4 +23,27 @@ describe("rateLimit", () => {
     const r = rateLimit("k2", 5, 60_000);
     expect(r.remaining).toBe(4);
   });
+});
+
+it("prunes expired windows without resetting a still-active account bucket", () => {
+  vi.useFakeTimers();
+  try {
+    pruneRateLimitBuckets(0);
+    vi.setSystemTime(new Date("2030-01-01T12:00:00Z"));
+    const maxAge = 1_000;
+    expect(rateLimit("older", 1, maxAge).allowed).toBe(true);
+    vi.advanceTimersByTime(500);
+    expect(rateLimit("recent", 1, maxAge).allowed).toBe(true);
+    vi.advanceTimersByTime(500);
+    pruneRateLimitBuckets(maxAge);
+    expect(rateLimit("older", 1, maxAge)).toMatchObject({ allowed: true, remaining: 0 });
+    expect(rateLimit("recent", 1, maxAge)).toMatchObject({
+      allowed: false,
+      remaining: 0,
+      retryAfterSeconds: 1,
+    });
+  } finally {
+    pruneRateLimitBuckets(0);
+    vi.useRealTimers();
+  }
 });

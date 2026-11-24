@@ -28,12 +28,20 @@ it.each([
   "selects the public feedback for $action ($error)",
   async ({ action, error, message }) => {
     const { result } = await renderHook(useMutationFeedback, { wrapper: NativeTestProviders });
-    await act(() => result.current.onError?.(new Error(error), action));
+    const onError = result.current.onError;
+    if (!onError) throw new Error("Expected the native mutation error presenter");
+    await act(() => onError(new Error(error), action));
     // HeroUI also renders the hidden layout copy while measuring the toast.
     expect(await screen.findAllByText(message, { includeHiddenElements: true })).not.toHaveLength(
       0,
     );
     if (error !== message)
       expect(screen.queryByText(error, { includeHiddenElements: true })).toBeNull();
+    if (action === "link_bgg" && error === "BGG user not found")
+      expect(
+        screen.queryAllByText("Could not link BoardGameGeek account", {
+          includeHiddenElements: true,
+        }),
+      ).toHaveLength(0);
   },
 );

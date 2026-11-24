@@ -5,6 +5,7 @@ import type {
   ProfileView,
 } from "@board-game-organizer/schemas";
 import {
+  bggAccountQuery,
   clearSessionQueryCache,
   profileActivitiesQuery,
   profileViewKeys,
@@ -14,6 +15,7 @@ import { useAppStore } from "@board-game-organizer/store";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterAll, afterEach, beforeEach, expect, it, vi } from "vitest";
+import UserProfilePage from "@/app/(tabs)/profiles/[userId]/page";
 import { installBrowserIntersections } from "@/test-fixtures/browserIntersections";
 import { renderWithI18n } from "@/test-utils";
 import { ProfileActivities } from "../ProfileActivities";
@@ -284,4 +286,87 @@ it("scopes activity filters and returned rows to the current authenticated viewe
       ?.url.searchParams.has("kind"),
   ).toBe(false);
   expect(useAppStore.getState().profileViews[viewKey()]?.activityKind ?? "").toBe("");
+});
+
+it("keeps another player's published collection browsable when access to the viewer's BGG account is denied", async () => {
+  const own = {
+    id: 71,
+    username: "private-viewer-bgg",
+    avatarUrl: null,
+    snapshot: "private-viewer-snapshot",
+    syncedAt: "2030-06-01T10:00:00.000Z",
+  };
+  const collection = { snapshot: "published-subject-snapshot" };
+  const requests: URL[] = [];
+  let ownAllowed = true;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string, init?: RequestInit) => {
+      const url = new URL(input);
+      requests.push(url);
+      expect(init?.method ?? "GET").toBe("GET");
+      expect(new Headers(init?.headers).get("authorization")).toBe("Bearer token-viewer");
+      if (url.pathname === "/api/profiles/subject")
+        return Response.json({ ...subject, collection });
+      if (url.pathname === "/api/profiles/subject/activities")
+        return Response.json({ items: [], nextCursor: null });
+      if (url.pathname === "/api/bgg/account")
+        return ownAllowed
+          ? Response.json({ active: own, pending: null })
+          : Response.json({ error: "Account unavailable" }, { status: 403 });
+      if (url.pathname === "/api/bgg/collection")
+        return Response.json({
+          snapshot: collection.snapshot,
+          items: [
+            {
+              ...game,
+              name: "Published game",
+              year: 2020,
+              average: 7,
+              rank: 57,
+              minPlayMinutes: 20,
+              maxPlayMinutes: 30,
+              averageWeight: 2,
+              categories: ["Strategy"],
+              suggestedPlayers: null,
+              source: "collection",
+              userRating: null,
+              isExpansion: false,
+              wishlist: false,
+            },
+          ],
+          nextCursor: null,
+          counts: { withExpansions: 1, withoutExpansions: 1, wishlist: 0 },
+        });
+      throw new Error(`Unexpected published collection request: ${url.pathname}`);
+    }),
+  );
+  renderWithI18n(
+    <QueryClientProvider client={client}>
+      {await UserProfilePage({ params: Promise.resolve({ userId: "subject" }) })}
+    </QueryClientProvider>,
+  );
+  fireEvent.click(await screen.findByRole("tab", { name: "Collection" }));
+  expect(await screen.findByText("Published game")).toBeVisible();
+  const common = screen.getByRole("button", { name: "In common" });
+  await waitFor(() => expect(common).toBeEnabled());
+  ownAllowed = false;
+  await act(() =>
+    client.invalidateQueries({ queryKey: bggAccountQuery(options()).queryKey, exact: true }),
+  );
+  await waitFor(() => expect(common).toBeDisabled());
+  expect(
+    screen.getByText("Synchronize your BGG collection to find games in common."),
+  ).toBeVisible();
+  expect(screen.getByText("Published game")).toBeVisible();
+  expect(screen.queryByText(own.username)).toBeNull();
+  expect(
+    requests
+      .filter((url) => url.pathname === "/api/bgg/collection")
+      .map((url) => [
+        url.searchParams.get("subjectId"),
+        url.searchParams.get("snapshot"),
+        url.searchParams.get("commonSnapshot"),
+      ]),
+  ).toEqual([["subject", collection.snapshot, null]]);
 });

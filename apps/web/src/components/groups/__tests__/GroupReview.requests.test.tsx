@@ -6,9 +6,9 @@ import { clearSessionQueryCache, groupRecordKeys } from "@board-game-organizer/s
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterAll, afterEach, beforeEach, expect, it, vi } from "vitest";
+import GroupReviewPage from "@/app/(tabs)/moderation/[groupId]/page";
 import { groupRecord } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
-import { GroupReview } from "../GroupReview";
 
 const sdk = vi.hoisted(() => {
   const previousApiUrl = process.env.NEXT_PUBLIC_API_URL;
@@ -98,17 +98,17 @@ afterAll(() => {
   if (sdk.previousApiUrl === undefined) delete process.env.NEXT_PUBLIC_API_URL;
   else process.env.NEXT_PUBLIC_API_URL = sdk.previousApiUrl;
 });
-function mount() {
+async function mount() {
   return renderWithI18n(
     <QueryClientProvider client={client}>
-      <GroupReview groupId={group.id} />
+      {await GroupReviewPage({ params: Promise.resolve({ groupId: group.id }) })}
     </QueryClientProvider>,
   );
 }
 
 it("retries an unavailable review from its real error action without changing the group or acknowledging notices", async () => {
   readStatus = 503;
-  mount();
+  await mount();
   expect(await screen.findByText("Could not load group review")).toBeVisible();
   expect(screen.queryByText(pendingGroup.name)).toBeNull();
   expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
@@ -127,7 +127,7 @@ it("approves the exact displayed revision with a fresh token and blocks another 
   blockedWrite = new Promise<Response>((resolve) => {
     release = resolve;
   });
-  mount();
+  await mount();
   await screen.findByText(pendingGroup.name);
   sdk.getToken.mockResolvedValue("fresh-review-token");
   fireEvent.click(screen.getByRole("button", { name: "Approve" }));
@@ -160,7 +160,7 @@ it("approves the exact displayed revision with a fresh token and blocks another 
 
 it("validates whitespace, trims the accepted rejection reason, and permits a deliberate retry after an authoritative refusal", async () => {
   writeStatus = 400;
-  mount();
+  await mount();
   await screen.findByText(pendingGroup.name);
   fireEvent.change(screen.getByRole("textbox", { name: "Rejection reason" }), {
     target: { value: "   " },
@@ -195,7 +195,7 @@ it("validates whitespace, trims the accepted rejection reason, and permits a del
 });
 
 it("removes review actions after a newer authoritative revision completes moderation elsewhere", async () => {
-  mount();
+  await mount();
   await screen.findByText(pendingGroup.name);
   fireEvent.change(screen.getByRole("textbox", { name: "Rejection reason" }), {
     target: { value: "Unsaved explanation" },
@@ -218,7 +218,7 @@ it("removes review actions after a newer authoritative revision completes modera
 });
 
 it("hides cached proposal fields immediately after review authorization is revoked", async () => {
-  mount();
+  await mount();
   await screen.findByText(pendingGroup.name);
   readStatus = 403;
   await act(async () =>
@@ -229,4 +229,21 @@ it("hides cached proposal fields immediately after review authorization is revok
   expect(screen.queryByRole("textbox", { name: "Rejection reason" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
   expect(requests).toEqual([]);
+});
+
+it("keeps review in verification when both an approval response and its authoritative reread are unavailable", async () => {
+  await mount();
+  await screen.findByText(pendingGroup.name);
+  const initialReads = readPaths.filter((path) => path.endsWith("/review")).length;
+  readStatus = writeStatus = 503;
+  fireEvent.click(screen.getByRole("button", { name: "Approve" }));
+  expect(await screen.findByText("Checking saved changes")).toBeVisible();
+  expect(screen.queryByText("Review completed")).toBeNull();
+  expect(screen.getByRole("button", { name: "Approve" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Reject" })).toBeDisabled();
+  expect(readPaths.filter((path) => path.endsWith("/review")).length).toBeGreaterThan(initialReads);
+  expect(requests.map(({ body }) => body)).toEqual([
+    { decision: "approve", version: pendingGroup.version },
+  ]);
+  expect(sdk.push).toHaveBeenCalledExactlyOnceWith("/moderation");
 });

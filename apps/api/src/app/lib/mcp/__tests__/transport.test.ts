@@ -209,6 +209,27 @@ it("hands the canonical page and original query to the browse widget", async () 
   ).resolves.toMatchObject({ isError: true, structuredContent: { status: 403 } });
 });
 
+it.each([
+  ["browse without a list", { mode: "browse" }],
+  [
+    "browse with record references",
+    { ...selection, mode: "browse", list: { source: "list_groups" } },
+  ],
+  ["selection without records", { mode: "selection" }],
+  ["selection with a browse list", { ...selection, list: { source: "list_groups" } }],
+])("rejects %s before fetching any records", async (_description, args) => {
+  vi.mocked(authenticateMcp).mockResolvedValue({ userId: "user_mcp", scopes: [BGO_READ_SCOPE] });
+
+  await expect(renderRecords(args)).resolves.toMatchObject({
+    isError: true,
+    structuredContent: { status: 400, error: "INVALID_INPUT" },
+  });
+  expect(listGroups).not.toHaveBeenCalled();
+  expect(eventDetail).not.toHaveBeenCalled();
+  expect(tableDetail).not.toHaveBeenCalled();
+  expect(groupDetail).not.toHaveBeenCalled();
+});
+
 it("returns HTTP 401 when a provided OAuth token cannot be authenticated", async () => {
   const result = await POST(request("tools/list", {}, { Authorization: "Bearer invalid" }));
   expect(result.status).toBe(401);

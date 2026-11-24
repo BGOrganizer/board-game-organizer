@@ -1,7 +1,9 @@
 import { clearSessionQueryCache } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import type { ReactElement } from "react";
 import { afterEach, expect, it, vi } from "vitest";
+import NewEventPage from "@/app/(tabs)/events/new/page";
 import {
   eventId,
   groupRecord,
@@ -61,17 +63,14 @@ const guide = {
 };
 const clients: QueryClient[] = [];
 function mount(
-  props: { eventId?: string; draftId?: string } = { eventId },
+  props: { eventId?: string; draftId?: string; fromGroup?: string } = { eventId },
   cache = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   }),
+  content: ReactElement = <EventWizard {...props} />,
 ) {
   clients.push(cache);
-  return renderWithI18n(
-    <QueryClientProvider client={cache}>
-      <EventWizard {...props} />
-    </QueryClientProvider>,
-  );
+  return renderWithI18n(<QueryClientProvider client={cache}>{content}</QueryClientProvider>);
 }
 function fixture(input: string) {
   const url = new URL(input);
@@ -136,7 +135,7 @@ it("uses real demonstrator and catalog pickers, preserves expanded table state a
       return Response.json(fixture(input));
     }),
   );
-  mount();
+  mount({ eventId, fromGroup: group.id });
   await openTables();
   await expandFirst();
   fireEvent.click(screen.getByRole("button", { name: "Choose demonstrator" }));
@@ -150,8 +149,13 @@ it("uses real demonstrator and catalog pickers, preserves expanded table state a
   const addGuest = screen.getByRole("button", { name: "Add a guest" }) as HTMLButtonElement;
   fireEvent.change(guestInput, { target: { value: "   " } });
   expect(addGuest.disabled).toBe(true);
+  fireEvent.keyDown(guestInput, { key: "Enter" });
+  expect(guestInput).toBeVisible();
   fireEvent.change(guestInput, { target: { value: "  Guest Guide  " } });
-  fireEvent.click(addGuest);
+  fireEvent.keyDown(guestInput, { key: "Enter", isComposing: true });
+  expect(guestInput).toBeVisible();
+  expect(writes).toHaveLength(0);
+  fireEvent.keyDown(guestInput, { key: "Enter" });
   expect(screen.getByText("Guest Guide")).toBeTruthy();
   expect(writes).toHaveLength(0);
   fireEvent.click(screen.getByRole("button", { name: "Choose demonstrator" }));
@@ -190,7 +194,7 @@ it("uses real demonstrator and catalog pickers, preserves expanded table state a
     ],
   });
   expect(JSON.stringify(writes[0])).not.toContain("demonstratorGuestName");
-  expect(navigation.replace).toHaveBeenCalledWith(`/events/${eventId}`);
+  expect(navigation.replace).toHaveBeenCalledWith(`/events/${eventId}?fromGroup=${group.id}`);
   // Allow the full picker sequence to finish on the Raspberry's single test worker.
 }, 15_000);
 
@@ -278,12 +282,16 @@ it("retries an event-detail denial without exposing a writable substitute draft"
   expect(navigation.replace).not.toHaveBeenCalled();
 });
 
-it("refuses a missing creation recovery instead of creating a new event implicitly", () => {
+it("refuses a missing creation recovery instead of creating a new event implicitly", async () => {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: string) => Response.json(fixture(input))),
   );
-  mount({ draftId: "missing-draft" });
+  mount(
+    {},
+    undefined,
+    await NewEventPage({ searchParams: Promise.resolve({ draftId: "missing-draft" }) }),
+  );
   const back = screen.getByRole("button", { name: "Back" });
   expect(back.textContent).toBe("");
   const previous = navigation.back.mock.calls.length;
@@ -352,4 +360,50 @@ it("blocks first-step exit while an Event edit is still saving after reentry", a
   const respond = finish;
   await act(async () => respond(Response.json({ ...event, version: event.version + 1 })));
   await waitFor(() => expect(screen.getByRole("button", { name: "Back" })).toBeEnabled());
+});
+
+it("requires a currently authorized host group even when an older editable event links to it", async () => {
+  const writes: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string, init?: RequestInit) => {
+      if (init?.method && init.method !== "GET") writes.push(init.method);
+      if (new URL(input).pathname === `/api/groups/${group.id}`)
+        return Response.json({ ...group, role: "accepted", canInvite: false });
+      return Response.json(fixture(input));
+    }),
+  );
+  mount();
+  await screen.findByRole("textbox", { name: "Event name" });
+  await screen.findByRole("button", { name: /Group$/ });
+  fireEvent.click(screen.getByRole("button", { name: "Next" }));
+  expect(
+    await screen.findByText("An approved group and its administrator are required."),
+  ).toBeVisible();
+  expect(screen.getByRole("button", { name: "1. Event" })).toHaveAttribute("aria-current", "step");
+  expect(screen.queryByRole("button", { name: "Save event" })).toBeNull();
+  expect(writes).toEqual([]);
+});
+
+it("stays on the schedule step until at least one complete date is entered", async () => {
+  const writes: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string, init?: RequestInit) => {
+      if (init?.method && init.method !== "GET") writes.push(init.method);
+      return Response.json(fixture(input));
+    }),
+  );
+  mount({});
+  fireEvent.change(await screen.findByRole("textbox", { name: "Event name" }), {
+    target: { value: "Friends game night" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Next" }));
+  await screen.findByRole("group", { name: /^Date and time$/ });
+  fireEvent.click(screen.getByRole("button", { name: "Next" }));
+  expect(screen.getByText("Choose at least one valid date and time.")).toBeVisible();
+  expect(screen.getByRole("button", { name: "3. Tables" })).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  expect(screen.getByRole("textbox", { name: "Event name" })).toHaveValue("Friends game night");
+  expect(writes).toEqual([]);
 });

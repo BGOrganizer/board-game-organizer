@@ -294,3 +294,65 @@ it("coalesces native end events while a page is pending and requires a deliberat
   expect(await screen.findByText("Recovered activity table")).toBeVisible();
   expect(pages()).toHaveLength(2);
 });
+
+it("refreshes a stale network feed only after returning to its active panel and renders a fresh victory", async () => {
+  const fixture = (current: boolean) => (
+    <MainListFixture>
+      <ListActivityContext value={{ current }}>
+        <CommunityActivities />
+      </ListActivityContext>
+    </MainListFixture>
+  );
+  const view = await render(fixture(false));
+  expect(await screen.findByText("First activity table")).toBeVisible();
+  const reads = () =>
+    listFixture.reads.filter((url) => url.pathname === "/api/community/activities").length;
+  expect(reads()).toBe(1);
+  const client = listFixture.client;
+  if (!client) throw new Error("Expected the active fixture query client");
+  const key = communityActivitiesQuery(
+    { ...listOptions(), getToken: async () => "fresh" },
+    "all",
+  ).queryKey;
+  listFixture.activities = [{ ...listActivity("Winning activity table"), outcome: "won" }];
+  await act(() => client.invalidateQueries({ queryKey: key, exact: true, refetchType: "none" }));
+  expect(screen.getByText("First activity table")).toBeVisible();
+  expect(reads()).toBe(1);
+
+  await view.rerender(fixture(true));
+  expect(await screen.findByRole("link", { name: "Winning activity table" })).toBeVisible();
+  expect(screen.getByText(/played and won at table/)).toBeVisible();
+  expect(screen.queryByText("First activity table")).toBeNull();
+  expect(reads()).toBe(2);
+});
+
+it("clears a saved activity type through the real All activity types option", async () => {
+  await installNativePopoverMeasurements();
+  const key = JSON.stringify([listApi, "owner"]);
+  useAppStore.getState().setCommunityView(key, { activityKind: "played" });
+  await render(
+    <MainListFixture>
+      <Community />
+    </MainListFixture>,
+  );
+  expect(await screen.findByText("First activity table")).toBeVisible();
+  expect(screen.getByText("Game played")).toBeVisible();
+  expect(
+    listFixture.reads.some(
+      (url) =>
+        url.pathname === "/api/community/activities" && url.searchParams.get("kind") === "played",
+    ),
+  ).toBe(true);
+  await positionMeasuredSelect(screen.getByRole("combobox", { name: "Activity type" }));
+  await fireEvent.press(
+    screen.getByRole("option", { name: "All activity types", includeHiddenElements: true }),
+  );
+  await waitFor(() => expect(useAppStore.getState().communityViews[key]?.activityKind).toBe(""));
+  await waitFor(() =>
+    expect(
+      listFixture.reads.some(
+        (url) => url.pathname === "/api/community/activities" && !url.searchParams.has("kind"),
+      ),
+    ).toBe(true),
+  );
+});

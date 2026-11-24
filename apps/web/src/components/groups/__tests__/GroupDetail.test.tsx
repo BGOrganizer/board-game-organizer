@@ -1,9 +1,15 @@
 import { groupRecordKeys } from "@board-game-organizer/shared";
+import { setupI18n } from "@lingui/core";
+import { I18nProvider } from "@lingui/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import type { ReactElement } from "react";
 import { afterEach, expect, it, vi } from "vitest";
+import GroupBanPage from "@/app/(tabs)/groups/[groupId]/ban/page";
+import GroupPage from "@/app/(tabs)/groups/[groupId]/page";
 import { groupRecord, plannedEvent } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
+import { messages as italian } from "../../../../../../messages/it.js";
 import { GroupDetail } from "../GroupDetail";
 
 function contactReadResponse(url: string, init?: RequestInit) {
@@ -33,16 +39,17 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.clearAllMocks();
 });
-function mount(initialTab: "info" | "members" | "events" = "info") {
+function mount(
+  initialTab: "info" | "members" | "events" = "info",
+  content: ReactElement = <GroupDetail groupId={groupRecord.id} initialTab={initialTab} />,
+) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   renderWithI18n(
     <>
       <header data-testid="app-header"></header>
-      <QueryClientProvider client={client}>
-        <GroupDetail groupId={groupRecord.id} initialTab={initialTab} />
-      </QueryClientProvider>
+      <QueryClientProvider client={client}>{content}</QueryClientProvider>
     </>,
   );
   return client;
@@ -456,4 +463,113 @@ it("reports a definite deletion rejection after immediate navigation and restore
   );
   await waitFor(() => expect(client.getQueryData(key)).toEqual(previous));
   expect(navigation.feedback.onSuccess).not.toHaveBeenCalled();
+});
+
+it("loads the Group members from a moderation deep link after an explicit retry", async () => {
+  const group = { ...groupRecord, pendingRequestCount: 1 };
+  let denied = true;
+  const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
+    const contacts = contactReadResponse(url, init);
+    if (contacts) return contacts;
+    const path = new URL(url).pathname;
+    if (path === `/api/groups/${group.id}`) {
+      return denied ? Response.json({ error: "FORBIDDEN" }, { status: 403 }) : Response.json(group);
+    }
+    return Response.json({ items: [], nextCursor: null });
+  });
+  vi.stubGlobal("fetch", fetcher);
+  mount("members", await GroupBanPage({ params: Promise.resolve({ groupId: group.id }) }));
+  const error = await screen.findByRole("alert");
+  expect(error).toHaveTextContent("Could not load group details");
+  expect(screen.queryByText(group.name)).toBeNull();
+  denied = false;
+  fireEvent.click(within(error).getByRole("button", { name: "Try again" }));
+  expect(await screen.findByRole("tab", { name: /Members/, selected: true })).toBeVisible();
+  expect(screen.getByRole("img", { name: "Requests to review" })).toBeVisible();
+  expect(
+    fetcher.mock.calls.filter(([url]) => new URL(url).pathname === `/api/groups/${group.id}`),
+  ).toHaveLength(2);
+});
+
+it("shows Details when a deep link asks for the Events tab on a group the viewer may not browse", async () => {
+  const reads: URL[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string, init?: RequestInit) => {
+      const url = new URL(input);
+      reads.push(url);
+      if (url.pathname === `/api/groups/${groupRecord.id}`)
+        return Response.json({
+          ...groupRecord,
+          type: "PUBLIC",
+          role: "none",
+          canViewEvents: false,
+          canViewRankings: false,
+          canInvite: false,
+          canEdit: false,
+        });
+      return contactReadResponse(input, init) ?? Response.json({ items: [], nextCursor: null });
+    }),
+  );
+  mount("events");
+  expect(await screen.findByRole("tab", { name: "Details", selected: true })).toBeVisible();
+  expect(screen.queryByRole("tab", { name: "Events" })).toBeNull();
+  expect(screen.queryByRole("tab", { name: "Rankings" })).toBeNull();
+  expect(reads.some((url) => url.pathname === "/api/events")).toBe(false);
+});
+
+it("loads the Italian resource notifications on a localized Group detail", async () => {
+  const fetchNotifications = vi.fn();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string, init?: RequestInit) => {
+      const url = new URL(input);
+      if (url.pathname === `/api/groups/${groupRecord.id}`) return Response.json(groupRecord);
+      if (url.pathname === "/api/notifications/changes") {
+        fetchNotifications(url.searchParams.get("locale"), url.searchParams.get("id"));
+        return Response.json({
+          asOf: groupRecord.createdAt,
+          changes: [],
+          nextCursor: null,
+          tabCounts: { details: 0, members: 0, tables: 0, participants: 0 },
+        });
+      }
+      return contactReadResponse(input, init) ?? Response.json({ items: [], nextCursor: null });
+    }),
+  );
+  const i18n = setupI18n({ locale: "it", messages: { it: italian } });
+  mount(
+    "info",
+    <I18nProvider i18n={i18n}>
+      <GroupDetail groupId={groupRecord.id} />
+    </I18nProvider>,
+  );
+  await waitFor(() => expect(fetchNotifications).toHaveBeenCalledWith("it", groupRecord.id));
+  expect(fetchNotifications).not.toHaveBeenCalledWith("en", groupRecord.id);
+  expect(await screen.findByRole("tab", { name: "Dettagli", selected: true })).toBeVisible();
+});
+
+it("falls back to Details for a direct Group link with an unsupported tab", async () => {
+  const reads: URL[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string, init?: RequestInit) => {
+      const url = new URL(input);
+      reads.push(url);
+      if (url.pathname === `/api/groups/${groupRecord.id}`) return Response.json(groupRecord);
+      return contactReadResponse(input, init) ?? Response.json({ items: [], nextCursor: null });
+    }),
+  );
+  mount(
+    "info",
+    await GroupPage({
+      params: Promise.resolve({ groupId: groupRecord.id }),
+      searchParams: Promise.resolve({ tab: "unknown" }),
+    }),
+  );
+  expect(await screen.findByRole("tab", { name: "Details", selected: true })).toBeVisible();
+  expect(screen.getByRole("tab", { name: "Events", selected: false })).toBeVisible();
+  expect(screen.getByRole("tab", { name: "Members", selected: false })).toBeVisible();
+  expect(reads.some((url) => url.pathname.endsWith("/members"))).toBe(false);
+  expect(reads.some((url) => url.pathname === "/api/events")).toBe(false);
 });

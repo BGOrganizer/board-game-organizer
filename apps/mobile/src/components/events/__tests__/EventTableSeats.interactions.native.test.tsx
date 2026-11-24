@@ -99,7 +99,10 @@ beforeEach(() => {
           nextCursor: isPending ? null : cursor,
         });
       }
-      if (url.pathname === `/api/events/${table.eventId}`) return json(plannedEvent);
+      if (url.pathname === `/api/events/${table.eventId}`)
+        return json({ ...plannedEvent, canManage: table.canManage });
+      if (url.pathname === `/api/events/${table.eventId}/tables/${table.id}/guests/${bobId}`)
+        return json({ guestName: "Guest Player", dateVotes: {}, locationVotes: {}, gameVotes: {} });
       if (url.pathname === `/api/events/${table.eventId}/tables/${table.id}`) return json(table);
       if (url.pathname === `/api/events/${table.eventId}/tables`)
         return json({ items: [table], nextCursor: null });
@@ -506,5 +509,103 @@ it("rejects hidden or obsolete roster ends, avoids failed-page loops and retries
   expect(reads.filter((url) => url.searchParams.get("cursor") === cursor)).toHaveLength(2);
   await scrollNativeListToEnd(list, 4600);
   expect(reads.filter((url) => url.searchParams.get("cursor") === cursor)).toHaveLength(2);
+  expect(writes).toEqual([]);
+});
+
+it("opens the selected guest ballot from the actual roster and removes controls when manager authority is revoked", async () => {
+  table = {
+    ...table,
+    adminUserId: "owner",
+    canManage: true,
+    groupType: null,
+    gameVoteRequired: true,
+    occupiedSeatIndices: [0],
+    acceptedCount: 1,
+    seatedCount: 1,
+  };
+  accepted = [
+    registration("guest:55555555-5555-4555-8555-555555555555", bobId, {
+      kind: "GUEST",
+      guestName: "Guest Player",
+    }),
+  ];
+  const view = await render(<Fixture />);
+  await ready("@Guest Player");
+  await press("Edit guest votes: Guest Player");
+  const hidden = { includeHiddenElements: true };
+  expect(await screen.findByText("Edit guest votes", hidden)).toBeOnTheScreen();
+  expect(await screen.findByRole("button", { name: "Chess: Yes", ...hidden })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Vote", ...hidden })).toBeDisabled();
+  const guestPath = `/api/events/${table.eventId}/tables/${table.id}/guests/${bobId}`;
+  expect(reads.filter((url) => url.pathname === guestPath)).toHaveLength(1);
+  await view.rerender(<Fixture active={false} />);
+  expect(screen.queryByText("Edit guest votes", hidden)).toBeNull();
+  table = { ...table, canManage: false };
+  await view.rerender(<Fixture />);
+  expect(await screen.findByText("@Guest Player")).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Edit guest votes: Guest Player" })).toBeNull();
+  expect(screen.queryByText("Edit guest votes", hidden)).toBeNull();
+  expect(reads.filter((url) => url.pathname === guestPath)).toHaveLength(1);
+});
+
+it("delays the empty waiting message for a full historical roster until its last page is known", async () => {
+  table = {
+    ...table,
+    eventStatus: "CONFIRMED",
+    occupiedSeatIndices: undefined,
+    maxPlayers: 2,
+    acceptedCount: 2,
+    seatedCount: 2,
+  };
+  accepted = [registration("bob", bobId, { position: "FROZEN" })];
+  cursor = "last-seat-page";
+  nextPage = Promise.resolve(
+    json({
+      items: [registration("second", secondId, { position: "FROZEN", seatIndex: 1 })],
+      nextCursor: null,
+    }),
+  );
+  await render(<Fixture />);
+  await ready("@bob");
+  expect(screen.getByText("Waiting list")).toBeVisible();
+  expect(screen.queryByText("No players waiting")).toBeNull();
+  await press("Load more");
+
+  expect(await screen.findByText("@second")).toBeVisible();
+  expect(await screen.findByText("No players waiting")).toBeVisible();
+  expect(reads.filter((url) => url.searchParams.get("cursor") === cursor)).toHaveLength(1);
+});
+
+it("closes the actual guest ballot without submitting and allows reopening the unchanged choices", async () => {
+  table = {
+    ...table,
+    adminUserId: "owner",
+    canManage: true,
+    groupType: null,
+    gameVoteRequired: true,
+    occupiedSeatIndices: [0],
+    acceptedCount: 1,
+    seatedCount: 1,
+  };
+  accepted = [
+    registration("guest:55555555-5555-4555-8555-555555555555", bobId, {
+      kind: "GUEST",
+      guestName: "Guest Player",
+    }),
+  ];
+  const hidden = { includeHiddenElements: true };
+  await render(<Fixture />);
+  await ready("@Guest Player");
+  await press("Edit guest votes: Guest Player");
+  const yes = await screen.findByRole("button", { name: "Chess: Yes", ...hidden });
+  await userEvent.setup().press(yes);
+  expect(screen.getByRole("button", { name: "Vote", ...hidden })).toBeEnabled();
+  const close = screen.getByLabelText("Close", hidden);
+  await userEvent.setup().press(close);
+  await waitFor(() => expect(screen.queryByText("Edit guest votes", hidden)).toBeNull());
+
+  await press("Edit guest votes: Guest Player");
+  await screen.findByRole("button", { name: "Chess: Yes", ...hidden });
+  expect(screen.getByRole("button", { name: "Vote", ...hidden })).toBeDisabled();
   expect(writes).toEqual([]);
 });

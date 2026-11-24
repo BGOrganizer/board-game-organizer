@@ -58,7 +58,8 @@ const review = (): TableInviteReviewResponse => ({
   },
   table: {
     id: plannedTable.id,
-    name: "Invited planning table",
+    name: "Ignored legacy title",
+    order: plannedTable.order,
     games: [...plannedTable.games, { ...plannedTable.games[0], gameId: 2 }],
     gamesDetail: [
       ...plannedTable.gamesDetail,
@@ -208,7 +209,7 @@ test(claimScenario, async () => {
   mode = "claim";
   const result = await measureRenders(<InviteLanding token={token} />, {
     scenario: async () => {
-      expect(await screen.findByText("Invited planning table")).toBeVisible();
+      expect(await screen.findByText("Table #1")).toBeVisible();
       expect(screen.getByText(/Accepting makes you friends with @inviter/)).toBeVisible();
       expect(writes).toEqual([]);
       expect(screen.getByRole("button", { name: "Accept invitation" })).toBeDisabled();

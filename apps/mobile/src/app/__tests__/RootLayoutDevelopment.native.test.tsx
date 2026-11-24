@@ -5,8 +5,8 @@ const bootstrap = vi.hoisted(() => {
   const sink = vi.fn();
   console.error = sink;
   vi.stubGlobal("__DEV__", true);
-  vi.stubEnv("EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY", "");
-  vi.stubEnv("EXPO_PUBLIC_SENTRY_DSN", "");
+  vi.stubEnv("EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY", undefined);
+  vi.stubEnv("EXPO_PUBLIC_SENTRY_DSN", undefined);
   return { error, sink };
 });
 

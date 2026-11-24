@@ -1,6 +1,7 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type {
   CreatePlannedEventInput,
+  EventProposal,
   EventProposalResponse,
   GroupMembership,
   JoinTableInput,
@@ -7338,4 +7339,75 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     ).toEqual([]);
     expect(await db.collection(COLLECTIONS.RATING_EVENTS).countDocuments()).toBe(0);
   });
+});
+
+it("scopes transactional proposal removal to pending games by the departing table member", async () => {
+  const eventId = randomUUID(),
+    firstTableId = randomUUID(),
+    secondTableId = randomUUID();
+  const at = new Date().toISOString();
+  const rows = [
+    {
+      key: "remove",
+      userId: GUEST,
+      status: "PENDING",
+      payload: { kind: "game", tableId: firstTableId, gameId: 10 },
+    },
+    {
+      key: "keep accepted",
+      userId: GUEST,
+      status: "ACCEPTED",
+      payload: { kind: "game", tableId: firstTableId, gameId: 11 },
+    },
+    {
+      key: "keep sibling",
+      userId: GUEST,
+      status: "PENDING",
+      payload: { kind: "game", tableId: secondTableId, gameId: 12 },
+    },
+    {
+      key: "keep dates",
+      userId: GUEST,
+      status: "PENDING",
+      payload: { kind: "date", day: "2027-12-28", startTime: "18:30" },
+    },
+    {
+      key: "keep other author",
+      userId: OTHER,
+      status: "PENDING",
+      payload: { kind: "game", tableId: firstTableId, gameId: 10 },
+    },
+  ] as const;
+  const proposals = rows.map(({ key, ...row }) => ({
+    ...row,
+    id: randomUUID(),
+    eventId,
+    groupId: null,
+    payloadKey: createHash("sha256").update(JSON.stringify(row.payload)).digest("hex"),
+    label: key,
+    clientRequestId: randomUUID(),
+    requestHash: createHash("sha256").update(key).digest("hex"),
+    version: 1,
+    submittedEventVersion: 1,
+    createdAt: at,
+    updatedAt: at,
+  }));
+  const collection = db.collection<EventProposal>(COLLECTIONS.EVENT_PROPOSALS);
+  await collection.insertMany(proposals);
+  await expect(
+    transaction(async ({ eventRecords }) => {
+      await eventRecords.removePendingProposals(eventId, GUEST, firstTableId);
+      throw new Error("rollback scoped departure");
+    }),
+  ).rejects.toThrow("rollback scoped departure");
+  expect(await collection.countDocuments({ eventId })).toBe(5);
+  await transaction(({ eventRecords }) =>
+    eventRecords.removePendingProposals(eventId, GUEST, firstTableId),
+  );
+  expect((await collection.find({ eventId }).toArray()).map(({ id }) => id).sort()).toEqual(
+    proposals
+      .slice(1)
+      .map(({ id }) => id)
+      .sort(),
+  );
 });

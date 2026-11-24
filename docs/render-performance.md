@@ -4,12 +4,12 @@ Web and mobile have separate Vitest rendering suites using React Testing Library
 Testing Library respectively, with `@callstack/reassure-measure`, Reassure's measurement module.
 There is no Jest runner. Versions are locked in the app manifests and `bun.lock`.
 
-**Reassure measurement jobs are disabled.** The six-workspace coverage matrix, separate Site
-checks, MongoDB integration and native tooling still run. Comparator and paired-helper tests are
-part of ordinary suites. Run a local measurement only when explicitly requested.
+Branch, Preview and Main CI run Web and Mobile Reassure jobs and publish paired reports. The
+reports surface regression results independently of the coverage and deployment gates. The
+comparator and paired-helper unit tests run in the ordinary Web suite.
 
-For explicit resumption, the retained commands use the Node.js and Bun versions required by
-[AGENTS.md](../AGENTS.md), from the repository root:
+Run local measurements with the Node.js and Bun versions required by [AGENTS.md](../AGENTS.md),
+from the repository root:
 
 ```sh
 bun install --frozen-lockfile
@@ -108,18 +108,40 @@ Reassure samples. Include repeated selection, retained local state and fresh aut
 where relevant. Do not replace the measured component with a stand-in or count calls in place of
 React Profiler commits.
 
+Measure each first-party React component either as a scenario root or through a verified scenario
+that renders it. Account for components reachable only through a route, an opened disclosure,
+authoritative responses or provider effects. Check runtime reachability in a separate
+coverage-instrumented pass. Use uninstrumented Reassure runs for the render counts and durations
+reported by the comparison jobs.
+
 Calibrate commit-count ceilings from repeated runs with the same fixtures. Both suites record
 explicit scenario ceilings in `apps/{web,mobile}/performance/renderCommitBudgets.ts` and reject
-additional commits, unknown scenarios and invalid samples. Recheck a changed scenario before updating its
-ceiling; do not raise budgets merely to obtain a passing run. Duration samples remain recorded
-separately: a deterministic commit-count contract is not a native latency guarantee.
+additional commits, unknown scenarios and invalid samples. Portable multi-commit budgets allow
+a total of two commits above the ceiling across ten samples and a maximum mean increase of 0.2.
+Hosted runs of unchanged components occasionally observed either one or two extra commits in an
+individual list, popover or tab transition. Single-commit scenarios keep a strict ceiling on every
+sample. An excess exceeding two commits, in one sample or across several, fails. Recheck a changed
+scenario before updating its
+ceiling; do not raise budgets merely to obtain a passing run. Native detail and score-save
+scenarios deliver actual Query notifications within the React action to avoid a timer racing
+the next interaction. The score-save fixture releases the held HTTP response separately so the
+pending edit and the authoritative receipt both contribute to the result. Duration samples remain
+recorded separately: a deterministic commit-count contract is not a native latency guarantee.
 
 ## Paired statistical CI checks
 
-The retained, currently disabled Branch/PR and Main jobs define each app's complete suite against
-an approved baseline and the current checkout in the **same job, consecutively**. The two checkouts have separate locked
-installations; both installations finish before either timing run. Web and mobile have independent
-jobs and reports. Their durations are never compared with each other or with another runner.
+The Branch/PR and Main jobs measure each app's approved baseline and the current checkout in the
+**same job, consecutively**. The baseline runs the scenarios with calibrated commit ceilings in its
+own budget inventory. The current checkout runs the entire suite and must report each of its approved
+scenarios. This preserves measured history when a previously paused suite contains uncalibrated
+cases. The two checkouts have separate locked installations, completed before either timing run.
+Web and mobile have independent reports and use separate comparisons. The artifact name includes
+the workflow attempt so a retry can preserve its own measurements.
+
+The Web baseline at `13c84d3e` predates updates to the numbered table label, clickable vote choices
+and restored HeroUI tab indicators. The three affected scenarios run in the full candidate suite
+with their observed ceilings and current behavior assertions. Comparisons against that historical
+revision report the three as additions.
 
 PR uses its immutable base SHA; a branch push resolves the repository's default branch to the
 actual checked-out SHA. Main uses the push event's previous SHA. The candidate is the actual
@@ -132,7 +154,9 @@ commands above remain useful for development, but are not an approved historical
 
 The helper starts the installed baseline Vitest process, then the installed current process, with
 the same worker flags. It records actual installed React, renderer, Testing Library, Reassure,
-Vitest and relevant native adapter/compiler versions, plus configuration/setup digests. Different
+Vitest and relevant native adapter/compiler versions, plus configuration/setup digests.
+Web's coverage settings are outside the instrumentation digest because the exact benchmark
+configuration disables coverage. Different
 product locks, app versions, HeroUI or generated CSS remain visible without being equated to test
 instrumentation. Unsupported instrumentation changes fail the comparison and require review;
 do not relabel another host's saved report as this job's baseline.
@@ -140,11 +164,13 @@ do not relabel another host's saved report as this job's baseline.
 The [comparison wrapper](../scripts/performance/compare-render-reports.mjs) uses the official
 `@callstack/reassure-compare` package directly in a fresh Node process. It validates the current
 named budget inventory, ten raw render counts, ten duration samples including removed outliers,
-one warmup and each calibrated commit ceiling before accepting the report. Official errors,
-statistically significant duration increases and removed scenarios fail the gate. Improvements,
-added scenarios, warnings and stability remain in the output; stability has no invented automatic
-threshold. A render-count ceiling is a separate deterministic gate, not a substitute for the
-upstream statistical calculation.
+one warmup and each calibrated commit ceiling before accepting the report. The historical report
+must include every scenario selected from the baseline checkout's budgets. Official errors,
+statistically significant duration increases of at least 0.2 ms and 15%, and removed scenarios fail the
+gate. One Web reactivation run observed shifts up to 0.152 ms with identical application code
+and scenario assertions. A second run with the same application code observed phase drift up to
+12.35% on previously matched scenarios. The report retains smaller timing differences, improvements, added
+scenarios, warnings and stability. The commit-count ceilings remain independently enforced.
 
 The approved initial main, `466220e26f672ad8de644e0a2c2ce223f02879df`, has no performance harness.
 Only that exact no-harness source may bootstrap: current runs normally, every current scenario is
@@ -236,10 +262,9 @@ boundaries need test adapters. A component test with controlled snapshot props d
 an API request, cache reconciliation or remote notification delivery works.
 
 Use [Reassure's methodology](https://oss.callstack.com/reassure/docs/methodology/) to assess noise
-and significance before selecting duration budgets. The retained suites enforce calibrated
-render-commit budgets and the paired statistical policy when explicitly resumed. While Reassure
-is paused, PR/Main do not run or require these measurements; no full-suite performance success is
-attested. The initial no-harness bootstrap is explicitly unpaired.
+and significance before selecting duration budgets. Branch, Preview and Main enforce the calibrated
+commit budgets and paired comparisons in their Reassure jobs. The initial no-harness bootstrap is
+explicitly unpaired.
 These checks do not establish native latency or E2E acceptance. Native acceptance and profiling remain defined in
 [verification](verification-and-acceptance.md), [native profiling](native-performance.md) and
 [the Maestro guide](../apps/mobile/.maestro/README.md). Report executed scenarios and their limits;

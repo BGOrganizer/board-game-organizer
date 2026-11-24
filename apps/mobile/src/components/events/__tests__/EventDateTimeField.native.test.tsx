@@ -5,7 +5,7 @@ import type {
 } from "@react-native-community/datetimepicker";
 import { act, cleanup, fireEvent, render, screen, userEvent } from "@testing-library/react-native";
 import type { ComponentProps } from "react";
-import { Platform, View } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import { EventDateTimeField } from "../EventDateTimeField";
@@ -91,6 +91,7 @@ beforeEach(() => {
 });
 afterEach(async () => {
   await cleanup();
+  vi.useRealTimers();
   if (platformDescriptor) Object.defineProperty(Platform, "OS", platformDescriptor);
 });
 
@@ -342,3 +343,36 @@ it.each(["cancel", "done"] as const)(
     expect(screen.queryByTestId("sdk-ios-date-picker")).toBeNull();
   },
 );
+
+it("uses the current event-zone calendar day for a time-only field without an explicit day", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2030-06-03T09:00:00Z"));
+  const f = await fixture({ mode: "time", timeZone: "Pacific/Honolulu", value: "10:30" });
+  await f.press();
+  expect(request().value).toEqual(new Date("2030-06-02T10:30Z"));
+  await answer(request(), "set", "2040-02-04T11:45Z");
+  expect(change).toHaveBeenCalledExactlyOnceWith("2030-06-02T11:45");
+});
+
+it("keeps an unbounded iOS draft after a picker dismissal event and drops it on overlay close", async () => {
+  Object.defineProperty(Platform, "OS", { configurable: true, value: "ios" });
+  const f = await fixture();
+  await f.press();
+  const picker = screen.getByTestId("sdk-ios-date-picker");
+  const configured = sdk.ios.mock.calls.at(-1)?.[0];
+  expect(configured?.minimumDate).toBeUndefined();
+  expect(configured?.maximumDate).toBeUndefined();
+  await fireEvent(picker, "change", event("dismissed"));
+  expect(sdk.ios.mock.calls.at(-1)?.[0].value).toEqual(new Date("2030-06-03T10:30Z"));
+  expect(change).not.toHaveBeenCalled();
+
+  const overlays = screen.container.queryAll(
+    (node) =>
+      typeof node.props.onStartShouldSetResponder === "function" &&
+      StyleSheet.flatten(node.props.style)?.position === "absolute",
+  );
+  expect(overlays).toHaveLength(1);
+  await userEvent.setup().press(overlays[0]);
+  expect(screen.queryByTestId("sdk-ios-date-picker")).toBeNull();
+  expect(change).not.toHaveBeenCalled();
+});

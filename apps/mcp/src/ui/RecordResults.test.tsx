@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import "@testing-library/jest-dom/vitest";
 import { setupI18n } from "@lingui/core";
 import { I18nProvider } from "@lingui/react";
 import type { App } from "@modelcontextprotocol/ext-apps";
@@ -12,13 +13,19 @@ import {
   optionId,
   plannedEvent,
   plannedTable,
+  tableId,
 } from "@/test-fixtures/eventRecords";
 import { messages } from "../../../../messages/en";
-import { isRecordResultOperation, RecordResults } from "./RecordResults";
+import { isRecordResultOperation, RecordResults, readRecordDetail } from "./RecordResults";
+import { WidgetNavigation } from "./WidgetNavigation";
 
 const openLink = vi.fn(async () => ({}));
 const callServerTool = vi.fn();
-const app = { openLink, callServerTool } as unknown as App;
+const app = {
+  openLink,
+  callServerTool,
+  getHostContext: () => ({ displayMode: "inline" }),
+} as unknown as App;
 const i18n = setupI18n({ locale: "en", messages: { en: messages } });
 const pages = <T,>(items: T[], nextCursor: string | null = null) => ({ items, nextCursor });
 const renderResult = (operation: string, data: unknown, input?: unknown) =>
@@ -176,3 +183,118 @@ it("removes group cards and paging controls when the server denies a later page"
   expect(screen.queryByRole("button", { name: "Open group: Friday group" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
 });
+
+it("keeps non-history table sections titled Tables and rejects invalid events and tables", () => {
+  const view = renderResult("list_table_history", pages([]), { query: { section: "waiting" } });
+  expect(screen.getByRole("heading", { name: "Tables" })).toBeTruthy();
+  view.unmount();
+  for (const [operation, invalid, message] of [
+    ["get_event", { ...plannedEvent, status: "UNKNOWN" }, "Could not load event"],
+    ["get_table", { ...plannedTable, minPlayers: "4" }, "Could not load table"],
+    ["get_group", { ...groupRecord, memberCount: null }, "Could not load group"],
+  ] as const) {
+    expect(readRecordDetail(operation, invalid)).toBeUndefined();
+    const invalidView = renderResult(operation, invalid);
+    expect(screen.getByRole("alert").textContent).toBe(message);
+    invalidView.unmount();
+  }
+  expect(readRecordDetail("list_events", plannedEvent)).toBeUndefined();
+  expect(renderResult("search_users", {}).container).toBeEmptyDOMElement();
+});
+
+it("shows a pending event page, deduplicates by ID and keeps contextual event arguments", async () => {
+  const next = Promise.withResolvers<unknown>();
+  const input = { query: { groupId: optionId, limit: 1 } };
+  callServerTool.mockReturnValueOnce(next.promise);
+  renderResult("list_events", pages([plannedEvent], "page"), input);
+  fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+  expect(await screen.findByLabelText("Loading…")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Open event: Friday games" })).toBeTruthy();
+  next.resolve({
+    structuredContent: {
+      operation: "list_events",
+      data: pages([
+        { ...plannedEvent, name: "Renamed Friday games" },
+        { ...plannedEvent, id: optionId, name: "Saturday games" },
+      ]),
+    },
+  });
+  expect(await screen.findByRole("button", { name: "Open event: Saturday games" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Open event: Renamed Friday games" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Open event: Friday games" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+  expect(callServerTool).toHaveBeenCalledWith(
+    { name: "list_events", arguments: { query: { ...input.query, cursor: "page" } } },
+    { signal: expect.any(AbortSignal) },
+  );
+});
+
+it.each([
+  [
+    "get_event",
+    { ...plannedEvent, groupId: groupRecord.id, description: "Friday schedule" },
+    "Friday schedule",
+    "Tables",
+    "get_event",
+    { params: { eventId } },
+  ],
+  [
+    "get_table",
+    { ...plannedTable, groupId: groupRecord.id },
+    null,
+    "Event",
+    "get_event",
+    { params: { eventId } },
+  ],
+  [
+    "get_group",
+    groupRecord,
+    null,
+    "Rankings",
+    "get_group",
+    { params: { groupId: groupRecord.id } },
+  ],
+] as const)(
+  "offers internal quick links for %s without making a detail card self-navigable",
+  async (operation, data, description, label, target, args) => {
+    const receipt = target === "get_group" ? groupRecord : plannedEvent;
+    callServerTool.mockResolvedValueOnce({
+      structuredContent: { operation: target, data: receipt },
+    });
+    render(
+      <I18nProvider i18n={i18n}>
+        <QueryClientProvider
+          client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+        >
+          <WidgetNavigation
+            app={app}
+            input={{ params: { eventId, tableId } }}
+            output={{ operation, data, viewerUserId: "host-user" }}
+            render={(output, input) => (
+              <RecordResults
+                app={app}
+                operation={output.operation}
+                data={output.data}
+                input={input}
+                viewerUserId="host-user"
+                renderGameRow={(game) => <p>{game.name}</p>}
+              />
+            )}
+          />
+        </QueryClientProvider>
+      </I18nProvider>,
+    );
+    expect(screen.queryByRole("button", { name: /^Open (group|table|event):/ })).toBeNull();
+    if (description) expect(screen.getByText(description)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: label }));
+    await waitFor(() =>
+      expect(callServerTool).toHaveBeenCalledWith(
+        { name: target, arguments: args },
+        { signal: expect.any(AbortSignal) },
+      ),
+    );
+    expect(await screen.findByRole("button", { name: "Back" })).toBeVisible();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(openLink).not.toHaveBeenCalled();
+  },
+);

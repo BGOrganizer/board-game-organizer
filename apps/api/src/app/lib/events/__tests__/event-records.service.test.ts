@@ -17,7 +17,10 @@ import {
   addTableGuestSchema,
   createPlannedEventSchema,
   editPlannedEventSchema,
+  isGuestParticipantId,
+  MAX_EVENT_OPTIONS,
 } from "@board-game-organizer/schemas";
+import { MongoServerError } from "mongodb";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EventRecordsService } from "../event-records.service";
 
@@ -2881,6 +2884,44 @@ describe("public scheduling, deadline and membership consequences", () => {
       expect(await f.service.activityResource(guest, event.id, id)).toMatchObject({
         href: `/events/${event.id}/tables/${id}`,
       });
+      expect(await f.service.activityResource(guest, event.id)).not.toHaveProperty("groupId");
+      const outsideTable = { ...f.tables.get(id)!, id: other, order: 1, confirmed: undefined };
+      f.tables.set(other, outsideTable);
+      expect(await f.service.tables(guest, event.id, { limit: 2 })).toMatchObject({
+        items: [{ id, personalAccessOnly: true, groupId: null }],
+        nextCursor: null,
+      });
+      expect(await f.service.seats(guest, event.id, id, { limit: 1 })).toMatchObject({
+        items: [{ userId: owner, position: "FROZEN", email: null, gameVotes: {} }],
+        nextCursor: expect.any(String),
+      });
+      expect(f.repo.registrationsPage).toHaveBeenLastCalledWith(
+        id,
+        "ACCEPTED",
+        { limit: 1 },
+        roster?.confirmed?.playerIds,
+      );
+      expect(await f.service.tableLeaderboard(guest, event.id, id, { limit: 1 })).toMatchObject({
+        scope: "GLOBAL",
+        items: [{ userId: guest, globalRating: { userId: guest } }],
+      });
+      await expect(f.service.seats(guest, event.id, other, { limit: 2 })).rejects.toMatchObject({
+        code: "TABLE_NOT_FOUND",
+      });
+      await expect(
+        f.service.tableLeaderboard(guest, event.id, other, { limit: 2 }),
+      ).rejects.toMatchObject({ code: "TABLE_NOT_FOUND" });
+      await expect(f.service.activityResource(guest, event.id, other)).rejects.toMatchObject({
+        code: "TABLE_NOT_FOUND",
+      });
+      f.tables.delete(other);
+      f.relationships.isBlocked.mockImplementation(
+        async (viewer, target) => viewer === guest && target === owner,
+      );
+      await expect(f.service.detail(guest, event.id)).rejects.toMatchObject({
+        code: "EVENT_NOT_FOUND",
+      });
+      f.relationships.isBlocked.mockResolvedValue(false);
       await expect(
         f.service.remove(guest, event.id, { version: frozen!.version }),
       ).rejects.toMatchObject({ code: "GROUP_BANNED" });
@@ -3611,6 +3652,67 @@ describe("private participant proposals", () => {
         }),
     };
   }
+  it("returns the same catalog metadata when proposing a game and viewing the canonical table", async () => {
+    const f = await prepared();
+    const suggestedPlayers = {
+      totalVotes: 5,
+      fetchedAt: "2026-12-01T00:00:00.000Z",
+      rows: [
+        { players: 2, orMore: false, best: 5, recommended: 0, notRecommended: 0, sampleCount: 5 },
+      ],
+    };
+    const details = { categories: ["Strategy"], averageWeight: 2.8, suggestedPlayers };
+    f.games.findByIds.mockImplementation(async (ids) =>
+      ids.map((id) => ({ id, name: `Game ${id}`, maxPlayMinutes: 60, ...details })),
+    );
+    await f.service.join(guest, f.e.id, id, f.participation(f.e.id, id));
+    const submitted = await f.submit(guest, { kind: "game", tableId: id, gameId: 2 });
+    expect(submitted).toMatchObject({ game: { id: 2, ...details } });
+    expect(await f.service.tableDetail(owner, f.e.id, id)).toMatchObject({
+      gamesDetail: [{ id: 1, ...details }],
+    });
+  });
+
+  it("keeps a pending date proposal reviewable if later edits fill the option list", async () => {
+    const f = await prepared();
+    await f.service.join(guest, f.e.id, id, f.participation(f.e.id, id));
+    const pending = await f.submit(guest, date("2027-02-01"));
+    const event = f.events.get(f.e.id)!;
+    const full = {
+      ...event,
+      dates: Array.from({ length: MAX_EVENT_OPTIONS }, (_, index) => ({
+        id: index === 0 ? event.dates[0].id : randomUUID(),
+        day: `2027-01-${String(index + 3).padStart(2, "0")}`,
+      })),
+    };
+    await f.service.update(owner, event.id, {
+      version: event.version,
+      name: event.name,
+      dates: full.dates,
+      locations: event.locations,
+      timeZone: event.timeZone,
+      startTime: event.startTime,
+      tables: [],
+      removedTableIds: [],
+    });
+    f.repo.saveProposal.mockClear();
+    const before = clone(f.events.get(event.id));
+    await expect(f.submit(guest, date("2027-02-02"))).rejects.toMatchObject({
+      status: 409,
+      code: "PROPOSAL_OPTION_LIMIT",
+    });
+    await expect(
+      f.service.reviewProposal(owner, f.e.id, pending.id, {
+        action: "accept",
+        version: pending.version,
+        eventVersion: f.version(),
+      }),
+    ).rejects.toMatchObject({ status: 409, code: "PROPOSAL_OPTION_LIMIT" });
+    expect(f.repo.saveProposal).not.toHaveBeenCalled();
+    expect(f.proposals.get(pending.id)?.status).toBe("PENDING");
+    expect(f.events.get(event.id)).toEqual(before);
+  });
+
   it.each(["accept", "reject"] as const)(
     "groups duplicate game suggestions and atomically %s every pending author with private batch readback",
     async (action) => {
@@ -4588,7 +4690,7 @@ describe("independent Event access, enrollment and verified game capacity", () =
 });
 
 describe("immutable private Event results audience", () => {
-  async function finished(type: "PRIVATE" | "PUBLIC", share = false) {
+  async function finished(type: "PRIVATE" | "PUBLIC", share = false, guestParticipant = guest) {
     const f = setup(type),
       e = await f.create();
     f.events.set(e.id, {
@@ -4600,11 +4702,18 @@ describe("immutable private Event results audience", () => {
     });
     f.tables.set(id, {
       ...f.tables.get(id)!,
-      confirmed: { gameId: 1, playerIds: [guest, waiter], startsAt: "2027-01-03T09:00:00.000Z" },
+      confirmed: {
+        gameId: 1,
+        playerIds: [guestParticipant, waiter],
+        startsAt: "2027-01-03T09:00:00.000Z",
+        ...(isGuestParticipantId(guestParticipant)
+          ? { guestPlayers: [{ participantId: guestParticipant, name: "Carla" }] }
+          : {}),
+      },
       resultDraft: {
         lowerWins: false,
         entries: [
-          { userId: guest, score: "3" },
+          { userId: guestParticipant, score: "3" },
           { userId: waiter, score: null },
         ],
         tieBreaks: [],
@@ -4716,6 +4825,32 @@ describe("immutable private Event results audience", () => {
     f.groups.ban.mockResolvedValue(null);
     f.events.delete(f.done.id);
     await expect(f.service.detail("viewer", f.done.id)).rejects.toMatchObject({ status: 404 });
+  });
+  it("lets a former player see only their finished result and never expands guest participation to social access", async () => {
+    const guestParticipant = `guest:${randomUUID()}`;
+    const f = await finished("PRIVATE", true, guestParticipant);
+    expect(await f.service.detail(waiter, f.done.id)).toMatchObject({ sharedResultsOnly: true });
+    const result = await f.service.tableDetail(waiter, f.done.id, id);
+    expect(result.resultProfiles).toContainEqual(
+      expect.objectContaining({
+        userId: guestParticipant,
+        name: "Carla",
+        guestName: "Carla",
+        email: null,
+        username: null,
+      }),
+    );
+    expect(f.relationships.isFriend).not.toHaveBeenCalledWith(waiter, guestParticipant);
+    await expect(f.service.detail("external-viewer", f.done.id)).rejects.toMatchObject({
+      status: 403,
+    });
+
+    f.groups.membership.mockResolvedValue({ status: "ACCEPTED" });
+    f.relationships.isBlocked.mockImplementation(async (_viewer, target) => target === owner);
+    await expect(f.service.activityResource(waiter, f.done.id, id, true)).rejects.toMatchObject({
+      status: 404,
+      code: "EVENT_NOT_FOUND",
+    });
   });
   it("never grants early/provisional access and cannot change sharing once finalization commits", async () => {
     const f = await finished("PRIVATE", true);
@@ -5280,4 +5415,543 @@ it("requires a fresh roster review when catalog recovery changes an Assisted all
   expect(fresh.version).toBe(snapshot.version);
   expect(fresh.seatedCount).toBe(3);
   expect(fresh.allocationKey).not.toBe(snapshot.allocationKey);
+});
+
+describe("canonical planning and roster boundaries", () => {
+  it("does not rewrite a public booking after cutoff when its member leaves the group", async () => {
+    const f = setup("PUBLIC");
+    const event = await f.create();
+    const invite = await f.service.register(owner, event.id, id, guest);
+    vi.setSystemTime(new Date(event.bookingClosesAt!));
+    f.repo.save.mockClear();
+    f.repo.saveRegistration.mockClear();
+    f.notifications.notifyMany.mockClear();
+    await f.service.membershipDeparted(other, guest, "LEFT");
+    expect(f.registrations.get(invite.id)).toMatchObject({ status: "PENDING" });
+    expect(f.repo.save).not.toHaveBeenCalled();
+    expect(f.repo.saveRegistration).not.toHaveBeenCalled();
+    expect(f.notifications.notifyMany).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])(
+    "removes a pending invite and demonstrator duty on public departure, keeping independent consent: %s",
+    async (accepted) => {
+      const f = setup("PUBLIC");
+      const event = await f.service.create(owner, {
+        ...body(),
+        groupId: other,
+        endsAt: "2027-01-03T18:00:00Z",
+        bookingClosesAt: "2027-01-02T08:00:00Z",
+        tables: [
+          { ...body().tables[0], demonstratorUserId: guest },
+          { ...body().tables[0], id: other, startsAt: "2027-01-03T14:00:00Z" },
+        ],
+      });
+      const pending = await f.service.register(owner, event.id, other, guest);
+      const participation = accepted
+        ? await f.service.join(guest, event.id, id, f.participation(event.id, id))
+        : null;
+      f.notifications.notifyMany.mockClear();
+      await f.service.membershipDeparted(other, guest, "LEFT");
+      expect(f.registrations.get(pending.id)?.status).toBe("CANCELLED");
+      if (participation) expect(f.registrations.get(participation.id)?.status).toBe("ACCEPTED");
+      expect(f.tables.get(id)).not.toHaveProperty("demonstratorUserId");
+      expect(f.repo.cancelUser).not.toHaveBeenCalled();
+      expect(f.notifications.notifyMany.mock.calls.flatMap(([rows]) => rows)).toContainEqual(
+        expect.objectContaining({
+          kind: accepted ? "event_updated" : "event_booking_removed",
+          recipientUserId: guest,
+        }),
+      );
+    },
+  );
+
+  it("fails cleanly when a departure references a deleted group", async () => {
+    const f = setup("PUBLIC");
+    f.groups.find.mockResolvedValue(null);
+    await expect(f.service.membershipDeparted(other, guest, "LEFT")).rejects.toMatchObject({
+      code: "GROUP_NOT_FOUND",
+    });
+    expect(f.repo.groupEvents).not.toHaveBeenCalled();
+  });
+
+  it("does not accept a standalone invitation after the host blocks the recipient", async () => {
+    const f = setup();
+    const event = await f.create();
+    const invite = await f.service.register(owner, event.id, id, guest);
+    f.relationships.isBlocked.mockImplementation(
+      async (actor, target) => actor === owner && target === guest,
+    );
+    f.repo.saveRegistration.mockClear();
+    f.notifications.notifyMany.mockClear();
+    await expect(f.accept(invite)).rejects.toMatchObject({
+      status: 403,
+      code: "BLOCKED_PARTICIPANT",
+    });
+    expect(f.registrations.get(invite.id)?.status).toBe("PENDING");
+    expect(f.repo.saveRegistration).not.toHaveBeenCalled();
+    expect(f.notifications.notifyMany).not.toHaveBeenCalled();
+  });
+
+  it("keeps a valid decline from writing if its table disappeared after loading the invitation", async () => {
+    const f = setup();
+    const event = await f.create();
+    const invite = await f.service.register(owner, event.id, id, guest);
+    f.tables.delete(id);
+    f.repo.saveRegistration.mockClear();
+    await expect(
+      f.service.registrationAction(guest, invite.id, {
+        action: "decline",
+        version: invite.version,
+      }),
+    ).rejects.toMatchObject({ status: 404, code: "TABLE_NOT_FOUND" });
+    expect(f.registrations.get(invite.id)?.status).toBe("PENDING");
+    expect(f.repo.saveRegistration).not.toHaveBeenCalled();
+    expect(f.notifications.acknowledgeItems).not.toHaveBeenCalled();
+  });
+
+  it("revalidates public time conflicts when accepting an existing invite", async () => {
+    const f = setup("PUBLIC");
+    const event = await f.service.create(owner, {
+      ...body(),
+      groupId: other,
+      endsAt: "2027-01-03T18:00:00Z",
+      bookingClosesAt: "2027-01-02T08:00:00Z",
+      tables: [body().tables[0], { ...body().tables[0], id: other }],
+    });
+    const invite = await f.service.register(owner, event.id, id, guest);
+    const target = f.tables.get(other)!;
+    f.tables.set(other, { ...target, demonstratorUserId: guest });
+    f.repo.saveRegistration.mockClear();
+    await expect(f.accept(invite)).rejects.toMatchObject({
+      status: 409,
+      code: "TABLE_TIME_CONFLICT",
+    });
+    expect(f.registrations.get(invite.id)?.status).toBe("PENDING");
+    expect(f.repo.saveRegistration).not.toHaveBeenCalled();
+  });
+
+  it.each([11000, 91])(
+    "handles an insertion failure for a guest from MongoDB code %i",
+    async (code) => {
+      const f = setup();
+      const event = await f.create();
+      const failure = new MongoServerError({ message: "Guest registration insert failed", code });
+      f.repo.saveRegistration.mockRejectedValueOnce(failure);
+      const addition = f.service.addGuest(owner, event.id, id, { name: "Mara", requestId: other });
+      if (code === 11000) {
+        await expect(addition).rejects.toMatchObject({
+          status: 409,
+          code: "GUEST_REQUEST_CONFLICT",
+        });
+      } else {
+        await expect(addition).rejects.toBe(failure);
+      }
+      expect(f.registrations.size).toBe(0);
+      expect(f.repo.save).not.toHaveBeenCalled();
+    },
+  );
+
+  it("requires the requested table to belong to the event for guest and seat-management operations", async () => {
+    const f = setup();
+    const event = await f.create();
+    const foreign = { ...f.tables.get(id)!, id: other, eventId: randomUUID() };
+    f.tables.set(other, foreign);
+    const input = { version: event.version, allocationKey: "a".repeat(64), registrations: [] };
+    await expect(f.service.seatOrderSnapshot(owner, event.id, other)).rejects.toMatchObject({
+      code: "TABLE_NOT_FOUND",
+    });
+    await expect(f.service.reorderSeats(owner, event.id, other, input)).rejects.toMatchObject({
+      code: "TABLE_NOT_FOUND",
+    });
+    await expect(
+      f.service.addGuest(owner, event.id, other, { name: "Mara", requestId: randomUUID() }),
+    ).rejects.toMatchObject({ code: "TABLE_NOT_FOUND" });
+    expect(f.repo.saveRegistration).not.toHaveBeenCalled();
+  });
+
+  it("returns guest and unmirrored account rows in the roster and validates the submitted seat count", async () => {
+    const f = setup();
+    const event = await f.create();
+    const addition = await f.service.addGuest(owner, event.id, id, {
+      name: "Mara",
+      requestId: other,
+    });
+    const invite = await f.service.register(owner, event.id, id, guest);
+    f.users.findByIds.mockResolvedValue([]);
+    const snapshot = await f.service.seatOrderSnapshot(owner, event.id, id);
+    expect(snapshot.registrations).toEqual([
+      expect.objectContaining({ id: addition.id, name: "Mara", username: null, seatIndex: 0 }),
+      expect.objectContaining({ id: invite.id, name: null, username: null, seatIndex: 1 }),
+    ]);
+    expect(f.users.findByIds).toHaveBeenLastCalledWith([guest]);
+    f.repo.saveRegistration.mockClear();
+    await expect(
+      f.service.reorderSeats(owner, event.id, id, {
+        version: snapshot.version,
+        allocationKey: snapshot.allocationKey,
+        seatedCount: 1,
+        registrations: snapshot.registrations.map(({ id, version, seatIndex }) => ({
+          id,
+          version,
+          locked: false,
+          seatIndex,
+        })),
+      }),
+    ).rejects.toMatchObject({ status: 400, code: "INVALID_SEAT_COUNT" });
+    expect(f.repo.saveRegistration).not.toHaveBeenCalled();
+  });
+
+  it("rejects an oversized manager roster before loading any profiles", async () => {
+    const f = setup();
+    const event = await f.create();
+    for (let sequence = 0; sequence < 1001; sequence++) {
+      const key = randomUUID();
+      f.registrations.set(key, {
+        id: key,
+        eventId: event.id,
+        tableId: id,
+        userId: `queued-${sequence}`,
+        kind: "SELF",
+        status: "ACCEPTED",
+        priorityAt: event.createdAt,
+        sequence,
+        version: 1,
+        gameVotes: {},
+        createdAt: event.createdAt,
+        updatedAt: event.updatedAt,
+      });
+    }
+    f.users.findByIds.mockClear();
+    await expect(f.service.seatOrderSnapshot(owner, event.id, id)).rejects.toMatchObject({
+      status: 409,
+      code: "ROSTER_TOO_LARGE",
+    });
+    expect(f.users.findByIds).not.toHaveBeenCalled();
+  });
+
+  it("keeps the confirmed epoch and roster when the event is confirmed again", async () => {
+    const f = setup("PRIVATE");
+    const event = await f.create();
+    await f.service.join(owner, event.id, id, f.participation(event.id, id));
+    await f.service.join(guest, event.id, id, f.participation(event.id, id));
+    await f.confirm(event.id);
+    const snapshot = clone(f.events.get(event.id));
+    f.repo.save.mockClear();
+    f.repo.saveTable.mockClear();
+    await expect(f.confirm(event.id)).rejects.toMatchObject({
+      status: 409,
+      code: "EVENT_NOT_PLANNING",
+    });
+    expect(f.events.get(event.id)).toEqual(snapshot);
+    expect(f.repo.save).not.toHaveBeenCalled();
+    expect(f.repo.saveTable).not.toHaveBeenCalled();
+  });
+
+  it.each([null, "PUBLIC"] as const)(
+    "rechecks a conflict after a seated participant consented: %s",
+    async (scope) => {
+      const f = setup(scope);
+      const event = await f.create();
+      await f.service.join(owner, event.id, id, f.participation(event.id, id));
+      if (scope) await f.service.join(guest, event.id, id, f.participation(event.id, id));
+      else await f.accept(await f.service.register(owner, event.id, id, guest));
+      expect((await f.service.detail(owner, event.id)).agreement?.agreed).toBe(true);
+      if (scope) {
+        f.groups.ban.mockImplementation(async (_group, target) =>
+          target === guest
+            ? {
+                id: randomUUID(),
+                groupId: other,
+                userId: guest,
+                adminUserId: owner,
+                until: null,
+                createdAt: event.createdAt,
+                updatedAt: event.updatedAt,
+              }
+            : null,
+        );
+      } else
+        f.relationships.isBlocked.mockImplementation(async (_actor, target) => target === guest);
+      f.repo.saveTable.mockClear();
+      await expect(f.confirm(event.id)).rejects.toMatchObject({
+        code: scope ? "GROUP_BANNED" : "BLOCKED_PARTICIPANT",
+      });
+      expect(f.events.get(event.id)?.status).toBe("PLANNING");
+      expect(f.repo.saveTable).not.toHaveBeenCalled();
+    },
+  );
+});
+
+describe("partial table edits and public period boundaries", () => {
+  const edit = (event: PlannedEventResponse) => ({
+    name: event.name,
+    version: event.version,
+    dates: event.dates,
+    locations: event.locations,
+    timeZone: event.timeZone,
+    startTime: event.startTime,
+    endsAt: event.endsAt,
+    bookingClosesAt: event.bookingClosesAt,
+    tables: [],
+    removedTableIds: [],
+  });
+
+  it("rejects an event creation by an accepted member without an organization role", async () => {
+    const f = setup("PRIVATE");
+    await expect(f.service.create(guest, { ...body(), groupId: other })).rejects.toMatchObject({
+      status: 403,
+      code: "GROUP_ADMIN_REQUIRED",
+    });
+    expect(f.events.size).toBe(0);
+    expect(f.repo.create).not.toHaveBeenCalled();
+    expect(f.repo.saveTable).not.toHaveBeenCalled();
+  });
+
+  it("preserves default agreement for historical records without planning options", async () => {
+    const f = setup("PRIVATE");
+    const event = await f.create();
+    await f.service.join(owner, event.id, id, f.participation(event.id, id));
+    await f.service.join(guest, event.id, id, f.participation(event.id, id));
+    const before = await f.service.detail(guest, event.id);
+    const {
+      planningMode: _mode,
+      playerPreference: _preference,
+      allowBestReduction: _allow,
+      ...legacy
+    } = f.events.get(event.id)!;
+    f.events.set(event.id, legacy);
+    expect(before.agreement?.agreed).toBe(true);
+    expect((await f.service.detail(guest, event.id)).agreement).toEqual(before.agreement);
+  });
+
+  it.each([
+    { label: "foreign removal", code: "TABLE_NOT_FOUND", removedTableIds: [other] },
+    {
+      label: "simultaneous edit and removal",
+      code: "TABLE_CHANGED_AND_REMOVED",
+      removedTableIds: [id],
+      tables: body().tables,
+    },
+    { label: "empty retained set", code: "EVENT_TABLE_LIMIT", removedTableIds: [id] },
+    {
+      label: "oversized retained set",
+      code: "EVENT_TABLE_LIMIT",
+      tables: Array.from({ length: 20 }, () => {
+        const { id: _id, ...copy } = body().tables[0];
+        return copy;
+      }),
+    },
+    {
+      label: "changed coordinates under a retained location id",
+      code: "OPTION_ID_REUSED",
+      locations: [{ ...location, latitude: 42.1 }],
+    },
+  ])("rejects $label without mutating any table", async ({ label: _label, code, ...patch }) => {
+    const f = setup("PRIVATE");
+    const event = await f.create();
+    const input = editPlannedEventSchema.parse({ ...edit(event), ...patch });
+    f.repo.saveTable.mockClear();
+    await expect(f.service.update(owner, event.id, input)).rejects.toMatchObject({
+      status: 400,
+      code,
+    });
+    expect(f.repo.removeTable).not.toHaveBeenCalled();
+    expect(f.repo.saveTable).not.toHaveBeenCalled();
+    expect(f.repo.save).not.toHaveBeenCalled();
+  });
+
+  it("assigns a canonical ID to an added table and retains an unchanged historical manual duration", async () => {
+    const f = setup("PRIVATE");
+    const event = await f.create();
+    const old = f.tables.get(id)!;
+    f.tables.set(id, {
+      ...old,
+      seatedCapacity: 2,
+      games: [{ gameId: 1, durationMinutes: 75, durationSource: "MANUAL" }],
+    });
+    const { id: _id, ...otherTable } = body().tables[0];
+    await f.service.update(owner, event.id, {
+      ...edit(event),
+      tables: [
+        { ...body().tables[0], games: [{ gameId: 1, manualDurationMinutes: 75 }] },
+        otherTable,
+      ],
+    });
+    expect(f.tables.get(id)).toMatchObject({
+      games: [{ gameId: 1, durationMinutes: 75, durationSource: "MANUAL" }],
+      seatedCapacity: 2,
+    });
+    expect([...f.tables.values()]).toEqual([
+      expect.objectContaining({ id, order: 0 }),
+      expect.objectContaining({ id: expect.stringMatching(/^[a-f0-9-]{36}$/), order: 1 }),
+    ]);
+    expect(f.tables.size).toBe(2);
+  });
+
+  it("uses the same public registration eligibility for event and table readers before and after cutoff", async () => {
+    const f = setup("PUBLIC");
+    const event = await f.create();
+    f.groups.membership.mockResolvedValue(null);
+    expect(await f.service.detail(guest, event.id)).toMatchObject({ canRegister: true });
+    expect(await f.service.tableDetail(guest, event.id, id)).toMatchObject({ canRegister: true });
+    vi.setSystemTime(new Date(event.bookingClosesAt!));
+    expect(await f.service.detail(guest, event.id)).toMatchObject({ canRegister: false });
+    expect(await f.service.tableDetail(guest, event.id, id)).toMatchObject({ canRegister: false });
+  });
+
+  it("does not allow two overlapping public tables to assign the same demonstrator", async () => {
+    const f = setup("PUBLIC");
+    const table = { ...body().tables[0], demonstratorUserId: guest };
+    await expect(
+      f.service.create(owner, {
+        ...body(),
+        groupId: other,
+        endsAt: "2027-01-03T18:00:00Z",
+        bookingClosesAt: "2027-01-02T08:00:00Z",
+        tables: [table, { ...table, id: other }],
+      }),
+    ).rejects.toMatchObject({ status: 409, code: "TABLE_TIME_CONFLICT" });
+    expect(f.repo.create).not.toHaveBeenCalled();
+    expect(f.repo.saveTable).not.toHaveBeenCalled();
+  });
+
+  it.each(["startsAt", "length", "same"] as const)(
+    "protects the timing of a public table with a pending registration: %s",
+    async (change) => {
+      const f = setup("PUBLIC");
+      f.games.findByIds.mockImplementation(async (ids) =>
+        ids.map((id) => ({ id, name: `Game ${id}`, maxPlayMinutes: id === 3 ? 120 : 60 })),
+      );
+      const existing = { ...body().tables[0], games: [{ gameId: 1 }, { gameId: 2 }] };
+      const event = await f.service.create(owner, {
+        ...body(),
+        groupId: other,
+        endsAt: "2027-01-03T18:00:00Z",
+        bookingClosesAt: "2027-01-02T08:00:00Z",
+        tables: [existing],
+      });
+      const invite = await f.service.register(owner, event.id, id, guest);
+      const stored = clone(f.tables.get(id));
+      const current = await f.service.detail(owner, event.id);
+      f.repo.saveTable.mockClear();
+      const changed = f.service.update(owner, event.id, {
+        ...edit(current),
+        tables: [
+          {
+            ...existing,
+            ...(change === "startsAt" ? { startsAt: "2027-01-03T14:00:00Z" } : {}),
+            ...(change === "length" ? { games: [{ gameId: 1 }, { gameId: 3 }] } : {}),
+          },
+        ],
+      });
+      if (change === "same") {
+        await expect(changed).resolves.toMatchObject({ version: current.version + 1 });
+        expect(f.tables.get(id)?.startsAt).toBe(stored?.startsAt);
+      } else {
+        await expect(changed).rejects.toMatchObject({ code: "PUBLIC_SCHEDULE_HAS_REGISTRATIONS" });
+        expect(f.repo.saveTable).not.toHaveBeenCalled();
+        expect(f.tables.get(id)).toEqual(stored);
+      }
+      expect(f.registrations.get(invite.id)?.status).toBe("PENDING");
+    },
+  );
+});
+
+it("separates frozen seats, pending invitations and excluded demonstrators after a public confirmation", async () => {
+  const f = setup("PUBLIC");
+  const actor = "user_demo_queue";
+  const event = await f.service.create(owner, {
+    ...body(),
+    groupId: other,
+    endsAt: "2027-01-03T18:00:00Z",
+    bookingClosesAt: "2027-01-02T08:00:00Z",
+    tables: [
+      body().tables[0],
+      {
+        ...body().tables[0],
+        id: other,
+        startsAt: "2027-01-03T14:00:00Z",
+        demonstratorUserId: actor,
+      },
+    ],
+  });
+  await f.service.join(owner, event.id, id, f.participation(event.id, id));
+  await f.service.join(guest, event.id, id, f.participation(event.id, id));
+  await f.service.join(actor, event.id, other, f.participation(event.id, other));
+  await f.service.register(owner, event.id, id, waiter);
+  const confirmed = await f.confirm(event.id);
+  expect(f.tables.get(id)?.confirmed?.playerIds).toEqual(expect.arrayContaining([owner, guest]));
+  expect(f.tables.get(other)).not.toHaveProperty("confirmed");
+  expect(await f.service.seats(owner, event.id, id, { limit: 2 }, true)).toMatchObject({
+    items: [{ userId: waiter, position: "WAITING", status: "PENDING" }],
+  });
+  expect(await f.service.seats(owner, event.id, other, { limit: 2 })).toMatchObject({
+    items: [{ userId: actor, position: "WAITING", status: "ACCEPTED" }],
+  });
+  const participants = await f.service.participants(owner, event.id, { limit: 10, view: "review" });
+  expect(participants.items).toContainEqual(
+    expect.objectContaining({ userId: guest, position: "FROZEN" }),
+  );
+  expect(participants.items).toContainEqual(
+    expect.objectContaining({ userId: actor, demonstrator: false }),
+  );
+  const replanned = await f.service.transition(owner, event.id, {
+    version: confirmed.version,
+    action: "replan",
+  });
+  const snapshot = clone(f.tables.get(id)?.confirmed);
+  const canonical = f.tables.get(id)!;
+  await f.service.update(owner, event.id, {
+    version: replanned.version,
+    name: replanned.name,
+    timeZone: replanned.timeZone,
+    startTime: replanned.startTime,
+    endsAt: replanned.endsAt,
+    bookingClosesAt: replanned.bookingClosesAt,
+    dates: replanned.dates,
+    locations: replanned.locations,
+    tables: [{ ...body().tables[0], startsAt: canonical.startsAt }],
+    removedTableIds: [],
+  });
+  expect(f.tables.get(id)?.confirmed).toEqual(snapshot);
+});
+
+it("finalizes equal-time tables by canonical order even when input and display names are reversed", async () => {
+  const f = setup("PRIVATE");
+  const event = await f.service.create(owner, {
+    ...body(),
+    groupId: other,
+    tables: [body().tables[0], { ...body().tables[0], id: other, games: [{ gameId: 2 }] }],
+  });
+  for (const tableId of [id, other])
+    for (const player of [owner, guest])
+      await f.service.join(player, event.id, tableId, f.participation(event.id, tableId));
+
+  const confirmed = await f.confirm(event.id);
+  const first = f.tables.get(id)!;
+  const second = f.tables.get(other)!;
+  expect(first.confirmed?.startsAt).toBeTruthy();
+  expect(second.confirmed?.startsAt).toBe(first.confirmed?.startsAt);
+  const entries = [
+    { userId: owner, score: "2" },
+    { userId: guest, score: "1" },
+  ];
+  const result = await f.service.finalize(owner, event.id, {
+    version: confirmed.version,
+    results: [other, id].map((tableId) => ({ tableId, lowerWins: false, entries, tieBreaks: [] })),
+  });
+  expect(result.status).toBe("TERMINATED");
+  expect(f.ratings.applyTableResult).toHaveBeenNthCalledWith(
+    1,
+    expect.objectContaining({ id: event.id }),
+    expect.objectContaining({ id }),
+    expect.any(Object),
+  );
+  expect(f.ratings.applyTableResult).toHaveBeenNthCalledWith(
+    2,
+    expect.objectContaining({ id: event.id }),
+    expect.objectContaining({ id: other }),
+    expect.any(Object),
+  );
 });

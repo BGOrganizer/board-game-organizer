@@ -280,3 +280,44 @@ it("centers both discovery empty states and keeps the input accessible", async (
   expect(screen.getByText(prompt)).toBeVisible();
   expect(screen.queryByText("No groups found")).toBeNull();
 });
+
+it("keeps the first group page usable while suppressing repeated requests for the pending next cursor", async () => {
+  const cursor = "pending-groups";
+  listFixture.cursors.set("/api/groups", cursor);
+  await render(
+    <MainListFixture>
+      <Groups />
+    </MainListFixture>,
+  );
+  expect(await screen.findByText("Private list group")).toBeVisible();
+  let finish!: (response: Response) => void;
+  listFixture.pending.set(
+    "/api/groups",
+    new Promise((resolve) => {
+      finish = resolve;
+    }),
+  );
+  const nextReads = () =>
+    listFixture.reads.filter(
+      (url) => url.pathname === "/api/groups" && url.searchParams.get("cursor") === cursor,
+    );
+  const list = screen.getByTestId("groups-scroll");
+  await scrollListEnd(list);
+  await waitFor(() => expect(nextReads()).toHaveLength(1));
+  expect(screen.getByText("Private list group")).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+  await scrollListEnd(list);
+  expect(nextReads()).toHaveLength(1);
+
+  await act(() => {
+    listFixture.pending.delete("/api/groups");
+    finish(
+      listJson({
+        items: [listGroup("Next authorized group", { id: listId(4) })],
+        nextCursor: null,
+      }),
+    );
+  });
+  expect(await screen.findByText("Next authorized group")).toBeVisible();
+  expect(screen.getByText("Private list group")).toBeVisible();
+});

@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { renderWithI18n } from "@/test-utils";
 import { InviteCard } from "../InviteCard";
+import { InviteCardView } from "../InviteCardView";
 
 const auth = vi.hoisted(() => ({
   isLoaded: true,
@@ -118,4 +119,34 @@ it("surfaces a failed session-token lookup without issuing an unauthorized invit
     "Could not create the invite. Try again.",
   );
   expect(fetch).not.toHaveBeenCalled();
+});
+
+it("lets a read-only host copy an issued invitation without offering a second creation", async () => {
+  const writeText = vi.fn(async () => {});
+  Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+  renderWithI18n(<InviteCardView link={invite(1).link} />);
+  expect(screen.getByText(invite(1).link)).toBeVisible();
+  expect(screen.queryByRole("button", { name: "New invite" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+  expect(await screen.findByRole("button", { name: "Copied!" })).toBeVisible();
+  expect(writeText).toHaveBeenCalledExactlyOnceWith(invite(1).link);
+});
+
+it("ignores an invite authentication token that arrives after the panel closes", async () => {
+  let finish: (token: string) => void = () => {
+    throw new Error("Expected pending invite credential");
+  };
+  auth.getToken.mockReturnValueOnce(
+    new Promise((resolve) => {
+      finish = resolve;
+    }),
+  );
+  const fetch = vi.fn();
+  vi.stubGlobal("fetch", fetch);
+  const view = renderWithI18n(<InviteCard apiUrl="https://api.test.invalid" />);
+  expect(auth.getToken).toHaveBeenCalledOnce();
+  view.unmount();
+  await act(() => finish("old-session-token"));
+  expect(fetch).not.toHaveBeenCalled();
+  expect(screen.queryByRole("button", { name: "Create invite" })).toBeNull();
 });

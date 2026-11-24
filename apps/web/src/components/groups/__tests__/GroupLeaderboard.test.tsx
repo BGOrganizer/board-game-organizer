@@ -1,6 +1,7 @@
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { Leaderboard } from "@/components/ratings/Leaderboard";
+import { LeaderboardView } from "@/components/ratings/LeaderboardView";
 import { renderWithI18n } from "@/test-utils";
 
 const picker = vi.fn();
@@ -265,4 +266,64 @@ it("expands compact player statistics while keeping rank and sorting controls vi
   } finally {
     vi.unstubAllGlobals();
   }
+});
+
+it("changes both sort directions through the desktop table headers", async () => {
+  renderWithI18n(<Leaderboard groupId="test" />);
+  fireEvent.click(screen.getByRole("button", { name: /Board game/ }));
+  fireEvent.click(await screen.findByRole("option", { name: "Azul" }));
+  const rating = screen.getByRole("columnheader", { name: "OpenSkill" });
+  expect(rating).toHaveAttribute("aria-sort", "descending");
+  fireEvent.click(rating);
+  expect(picker).toHaveBeenLastCalledWith(
+    expect.objectContaining({ gameId: 1, sort: "rating", direction: "asc" }),
+  );
+  expect(rating).toHaveAttribute("aria-sort", "ascending");
+  fireEvent.click(screen.getByRole("button", { name: "Sort descending" }));
+  expect(rating).toHaveAttribute("aria-sort", "descending");
+  const wins = screen.getByRole("columnheader", { name: "Wins" });
+  fireEvent.click(wins);
+  expect(picker).toHaveBeenLastCalledWith(expect.objectContaining({ gameId: 1, sort: "gamesWon" }));
+  const order = wins.getAttribute("aria-sort");
+  expect(["ascending", "descending"]).toContain(order);
+  fireEvent.click(wins);
+  expect(wins).toHaveAttribute("aria-sort", order === "ascending" ? "descending" : "ascending");
+});
+
+it("renders shared game results with static columns when the host does not expose sorting", () => {
+  const onMore = vi.fn();
+  renderWithI18n(
+    <LeaderboardView
+      gameId={games[0].id}
+      players={{
+        items: [
+          {
+            userId: "ada",
+            name: "Ada",
+            username: "ada",
+            avatarUrl: null,
+            position: 1,
+            gamesPlayed: 5,
+            gamesWon: 3,
+            nd: 1,
+            rating: 530,
+            provisional: false,
+          },
+        ],
+        isPending: false,
+        isError: false,
+        hasNextPage: true,
+        isFetchingNextPage: false,
+        onRetry: vi.fn(),
+        onMore,
+      }}
+    />,
+  );
+  const table = within(screen.getByRole("grid", { name: "Rankings" }));
+  expect(table.getByText("@ada")).toBeVisible();
+  expect(table.getByRole("columnheader", { name: "Wins" })).toHaveTextContent("Wins");
+  expect(table.getByRole("columnheader", { name: "Wins" })).not.toHaveAttribute("aria-sort");
+  expect(screen.queryByRole("button", { name: /Board game/ })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+  expect(onMore).toHaveBeenCalledOnce();
 });

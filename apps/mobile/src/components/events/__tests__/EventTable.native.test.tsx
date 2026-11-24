@@ -13,9 +13,10 @@ import {
 } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, userEvent, waitFor, within } from "@testing-library/react-native";
-import type { ComponentProps, ReactNode } from "react";
+import { type ComponentProps, createContext, type ReactNode, useContext } from "react";
 import { View } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import TableScreen from "@/app/event/table";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import {
   installNativePopoverMeasurements,
@@ -26,7 +27,11 @@ import {
   plannedTable,
   seat,
 } from "../../../../../web/src/test-fixtures/eventRecords";
-import { EventTable } from "../EventTable";
+import type { EventTable } from "../EventTable";
+
+const RouteParams = createContext<
+  { eventId?: string; tableId?: string; fromEvent?: string } | undefined
+>(undefined);
 
 const API = "https://table-owner-native.test";
 const boundary = vi.hoisted(() => ({
@@ -61,7 +66,7 @@ vi.mock("@clerk/expo", () => ({
 vi.mock("expo-router", () => ({
   useRouter: () => ({ push: boundary.push, dismissTo: boundary.dismissTo }),
   useNavigation: () => ({ getState: () => ({ type: "stack" }) }),
-  useLocalSearchParams: () => boundary.params,
+  useLocalSearchParams: () => ({ ...boundary.params, ...useContext(RouteParams) }),
   Stack: {
     Screen: ({ options: config }: { options: { headerRight?: () => ReactNode } }) => (
       <View testID="native-table-header-actions">{config.headerRight?.()}</View>
@@ -276,11 +281,28 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
-function Fixture(props: Partial<ComponentProps<typeof EventTable>>) {
+function Fixture({
+  eventId = event.id,
+  tableId = table.id,
+  context,
+  incompleteRoute = false,
+  locale,
+}: Partial<ComponentProps<typeof EventTable>> & {
+  incompleteRoute?: boolean;
+  locale?: "en" | "it";
+}) {
   return (
     <QueryClientProvider client={client}>
-      <NativeTestProviders>
-        <EventTable eventId={event.id} tableId={table.id} {...props} />
+      <NativeTestProviders locale={locale}>
+        <RouteParams
+          value={
+            incompleteRoute
+              ? {}
+              : { eventId, tableId, fromEvent: context === "event" ? eventId : undefined }
+          }
+        >
+          <TableScreen />
+        </RouteParams>
       </NativeTestProviders>
     </QueryClientProvider>
   );
@@ -712,4 +734,22 @@ it("drops all cached private panes when the authenticated owner/API changes", as
   expect(screen.getByText("@second-owner")).not.toBe(old);
   expect(reads.at(-1)?.authorization).toBe("Bearer fixture-second-owner");
   expect(writes).toHaveLength(0);
+});
+
+it("keeps an incomplete Expo Table link from reading or creating any unrelated table", async () => {
+  await render(<Fixture incompleteRoute />);
+  expect(screen.queryByTestId("table-overview-tab")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Delete table" })).toBeNull();
+  expect(reads).toEqual([]);
+  expect(writes).toEqual([]);
+});
+
+it("loads the table's notice copy in Italian without acknowledging notices or mutating registration", async () => {
+  await render(<Fixture locale="it" />);
+  await ready();
+  const changes = reads.filter(({ url }) => url.pathname === "/api/notifications/changes");
+  expect(changes).toHaveLength(1);
+  expect(changes[0].url.searchParams.get("locale")).toBe("it");
+  expect(changes[0].url.searchParams.get("id")).toBe(table.id);
+  expect(writes).toEqual([]);
 });

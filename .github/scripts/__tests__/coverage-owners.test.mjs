@@ -11,12 +11,14 @@ import { loadConfigFromFile } from "vite";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const require = createRequire(import.meta.url);
 const metrics = ["lines", "functions", "branches", "statements"];
-const minimumCoverage = 93;
+const minimumCoverage = 98;
 const configs = {};
 for (const [owner, directory, filename = "vitest.config.ts"] of [
   ["shared", "packages/shared"],
   ["web", "apps/web"],
   ["mobile", "apps/mobile"],
+  ["mcp", "apps/mcp"],
+  ["site", "apps/site"],
   ["api", "apps/api"],
   ["api-integration", "apps/api", "vitest.integration.config.ts"],
   ["schemas", "packages/schemas"],
@@ -31,7 +33,7 @@ for (const [owner, directory, filename = "vitest.config.ts"] of [
   configs[owner] = { directory: resolve(root, directory), coverage: loaded.config.test.coverage };
 }
 
-test("every workspace coverage job enforces the 93% minimum on all four metrics", () => {
+test("every workspace coverage job enforces the 98% minimum on all four metrics", () => {
   for (const [name, { coverage }] of Object.entries(configs)) {
     if (name === "api-integration") continue;
     for (const metric of metrics) {

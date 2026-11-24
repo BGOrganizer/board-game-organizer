@@ -364,3 +364,15 @@ it("uses the same canonical cover as catalog search when snapshot artwork is sta
   const result = await f.read({ collection: "1" });
   expect(result.items[0].imageUrl).toBe("https://cf.geekdo-images.com/cover.png");
 });
+
+it("keeps the known BGG categories when mapping owned collection items", async () => {
+  const f = setup();
+  Object.assign(f.state.catalog[0], { categories: ["Economic", "Industry / Manufacturing"] });
+  const result = await f.read({ collection: "1" });
+  expect(result.items[0]).toMatchObject({
+    id: 1,
+    source: "collection",
+    categories: ["Economic", "Industry / Manufacturing"],
+  });
+  expect(result.items[1]).not.toHaveProperty("categories");
+});

@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { GroupedList } from "@/components/common/ui/GroupedList";
+import { installBrowserIntersections } from "@/test-fixtures/browserIntersections";
 import { renderWithI18n } from "@/test-utils";
 import { GameListCard } from "../GameListCard";
 import { GameListRow } from "../GameListRow";
@@ -179,3 +180,42 @@ it.each([false, true])(
     expect(popover.querySelector(".skeleton")).toBeNull();
   },
 );
+
+it("keeps known metadata visible during lookup, then retries an actual failed catalog request", async () => {
+  const browser = installBrowserIntersections();
+  let attempt = 0;
+  let receive: (response: Response) => void = () => {
+    throw new Error("Expected a pending game metadata read");
+  };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string) => {
+      const url = new URL(input);
+      expect(url.pathname).toBe("/api/bgg/thing");
+      expect(url.searchParams.get("ids")).toBe("1");
+      attempt++;
+      return attempt === 1
+        ? new Promise<Response>((resolve) => {
+            receive = resolve;
+          })
+        : Response.json({ items: [{ ...game, rank: 0, maxPlayMinutes: game.minPlayMinutes }] });
+    }),
+  );
+  renderWithI18n(
+    <GameListCard name={game.name} game={{ ...game, average: undefined, categories: undefined }} />,
+  );
+  act(() => browser.intersect());
+  fireEvent.click(screen.getByRole("button", { name: "Game information: Cascadia" }));
+  const panel = within(screen.getByRole("dialog", { name: "Cascadia" }));
+  expect(panel.getByText("30–45 min")).toBeVisible();
+  expect(panel.queryByText("N/A")).toBeNull();
+  await waitFor(() => expect(attempt).toBe(1));
+  await act(() => receive(Response.json({ error: "UNAVAILABLE" }, { status: 503 })));
+  expect(await panel.findByText("Could not load game information")).toBeVisible();
+  expect(panel.getAllByText("N/A").length).toBeGreaterThan(0);
+  fireEvent.click(panel.getByRole("button", { name: "Try again" }));
+  expect(await panel.findByText("Unranked")).toBeVisible();
+  expect(panel.getByText("30 min")).toBeVisible();
+  expect(panel.queryByText("Could not load game information")).toBeNull();
+  expect(attempt).toBe(2);
+});

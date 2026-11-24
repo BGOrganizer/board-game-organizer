@@ -25,24 +25,24 @@ export default defineConfig({
         "../store/src/**/*.{ts,tsx,js,jsx}",
       ].map((pattern) => fileURLToPath(new URL(pattern, import.meta.url)).replaceAll("\\", "/")),
       thresholds: {
-        // Keep each runtime package at 93% independently of the combined report.
+        // Keep each runtime package at 98% independently of the combined report.
         "src/**/*.{ts,tsx,js,jsx}": {
-          lines: 93,
-          functions: 93,
-          branches: 93,
-          statements: 93,
+          lines: 98,
+          functions: 98,
+          branches: 98,
+          statements: 98,
         },
         "../query/src/**/*.{ts,tsx,js,jsx}": {
-          lines: 93,
-          functions: 93,
-          branches: 93,
-          statements: 93,
+          lines: 98,
+          functions: 98,
+          branches: 98,
+          statements: 98,
         },
         "../store/src/**/*.{ts,tsx,js,jsx}": {
-          lines: 93,
-          functions: 93,
-          branches: 93,
-          statements: 93,
+          lines: 98,
+          functions: 98,
+          branches: 98,
+          statements: 98,
         },
         "src/events/hooks/useEventTableRoster.ts": {
           lines: 93,
@@ -289,10 +289,10 @@ export default defineConfig({
           statements: 93,
         },
         "src/events/eventList.ts": { lines: 93, functions: 93, branches: 93, statements: 93 },
-        lines: 93,
-        functions: 93,
-        branches: 93,
-        statements: 93,
+        lines: 98,
+        functions: 98,
+        branches: 98,
+        statements: 98,
         "src/community/communityApi.ts": {
           lines: 93,
           functions: 93,

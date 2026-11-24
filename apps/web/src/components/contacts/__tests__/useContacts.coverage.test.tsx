@@ -547,3 +547,72 @@ it.each([true, false])(
     expect(hook.result.current.isBusy(target.id)).toBe(false);
   },
 );
+
+it.each([200, 400])(
+  "does not report or invalidate a retired account's relationship receipt (HTTP %s)",
+  async (status) => {
+    const { client, getToken, feedback, wrapper } = setup();
+    seedLists(client);
+    const response = deferred();
+    const send = vi.fn(async (_url: string, _init?: RequestInit) => response.promise);
+    vi.stubGlobal("fetch", send);
+    const { result } = renderHook(
+      () => useContactActions(API, "previous-session", getToken, undefined, "viewer", feedback),
+      { wrapper },
+    );
+    let pending: Promise<unknown> | undefined;
+    act(() => {
+      pending = result.current.follow.mutateAsync({ targetUserId: target.id, targetUser: target });
+      void pending.catch(() => undefined);
+    });
+    await waitFor(() => expect(send).toHaveBeenCalledOnce());
+    const [url, request] = send.mock.calls[0];
+    expect(new URL(url).pathname).toBe("/api/relationships");
+    expect(new Headers(request?.headers).get("authorization")).toBe("Bearer fresh-contact-token");
+    await act(async () => {
+      clearSessionQueryCache(client);
+      seedLists(client, "new-viewer");
+      response.resolve(Response.json({ success: status === 200 }, { status }));
+      await pending?.catch(() => undefined);
+    });
+    expect(client.getQueryData(contactSuggestionsKey(API, "viewer"))).toBeUndefined();
+    expect(client.getQueryState(contactSuggestionsKey(API, "new-viewer"))?.isInvalidated).toBe(
+      false,
+    );
+    expect(feedback.onError).not.toHaveBeenCalled();
+    expect(feedback.onSuccess).not.toHaveBeenCalled();
+    expect(send).toHaveBeenCalledOnce();
+  },
+);
+
+it("uses the legacy caller's isolated contacts scope while sending the fresh token for synchronization", async () => {
+  const { client, getToken, feedback, wrapper } = setup();
+  const scope = "prior-sdk-token";
+  const subject = contactSuggestionsKey(API, scope);
+  seedLists(client, scope);
+  seedLists(client, "another-viewer");
+  const request = vi.fn(async (_url: string, _init?: RequestInit) =>
+    Response.json({
+      stored: 1,
+      users: [],
+      registeredIdentifiers: { emails: ["guest@example.test"], phoneNumbers: [] },
+    }),
+  );
+  vi.stubGlobal("fetch", request);
+  const { result } = renderHook(
+    () => useContactActions(API, scope, getToken, undefined, undefined, feedback),
+    { wrapper },
+  );
+  expect(result.current.isBusy(target.id)).toBe(false);
+  await act(async () => {
+    await result.current.syncContacts.mutateAsync({
+      emails: ["guest@example.test"],
+      phoneNumbers: [],
+    });
+  });
+  const [[url, send]] = request.mock.calls;
+  expect(new URL(url).pathname).toBe("/api/contacts/sync");
+  expect(new Headers(send?.headers).get("authorization")).toBe("Bearer fresh-contact-token");
+  expect(client.getQueryData(subject)).toMatchObject({ pages: [{ hasContacts: true }] });
+  expect(client.getQueryData(contactSuggestionsKey(API, "another-viewer"))).toEqual(suggestions());
+});

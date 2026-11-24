@@ -14,9 +14,20 @@ import {
   useReadNotificationAttention,
 } from "@board-game-organizer/shared";
 import { type InfiniteData, QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  renderHook,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
+import { renderWithI18n } from "@/test-utils";
+import { NotificationAttentionScope } from "../NotificationAttentionScope";
+import { NotificationTabBadge } from "../NotificationTabBadge";
 
 const eventId = "11111111-1111-4111-8111-111111111111",
   groupId = "22222222-2222-4222-8222-222222222222",
@@ -433,4 +444,161 @@ it("batches visible IDs, deduplicates reorderings, isolates actors and exposes r
   hook.rerender({ ids: many, userId: "other" });
   await waitFor(() => expect(hook.result.current.error).toBeTruthy());
   expect(hook.result.current.get(many[0])).toBeUndefined();
+});
+
+it("leaves the authorized UI visible after a failed notification read and recovers the indicator through Retry", async () => {
+  let available = false;
+  const requests = vi.fn(async (input: string, init?: RequestInit) => {
+    const url = new URL(input);
+    expect(url.pathname).toBe("/api/notifications/attention");
+    expect(init?.method ?? "GET").toBe("GET");
+    return available
+      ? Response.json({ ...original(), targets: [row(table, 2)] })
+      : Response.json({ error: "UNAVAILABLE" }, { status: 503 });
+  });
+  vi.stubGlobal("fetch", requests);
+  renderWithI18n(
+    <NotificationAttentionScope options={options} targets={[table]}>
+      <p>Open table</p>
+      <NotificationTabBadge target={table} />
+    </NotificationAttentionScope>,
+  );
+  const error = await screen.findByRole("alert");
+  expect(error).toHaveTextContent("Could not load notifications");
+  expect(screen.getByText("Open table")).toBeVisible();
+  expect(screen.queryByRole("img", { name: "Needs attention" })).toBeNull();
+  available = true;
+  fireEvent.click(within(error).getByRole("button", { name: "Try again" }));
+  expect(await screen.findByRole("img", { name: "Needs attention" })).toBeVisible();
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(requests).toHaveBeenCalledTimes(2);
+});
+
+it.each([false, true])(
+  "revalidates stale notification data before acting, with unread notices=%s",
+  async (hasUnread) => {
+    const { client, wrapper } = setup();
+    const query = notificationAttentionQuery(options, targets);
+    client.setQueryData(query.queryKey, original(), { updatedAt: 1 });
+    const freshTime = "2027-01-01T00:01:00.000Z";
+    const next = {
+      ...original(),
+      asOf: freshTime,
+      targets: original().targets.map((count) =>
+        count.target.kind === "table" ? row(table, Number(hasUnread)) : count,
+      ),
+    };
+    const requests = vi.fn(async (_url: string, init?: RequestInit) =>
+      Response.json(init?.method === "PATCH" ? { updated: 1, snapshot: next } : next),
+    );
+    vi.stubGlobal("fetch", requests);
+    const { result } = renderHook(() => useReadNotificationAttention(options), { wrapper });
+    act(() => result.current.read(table));
+    await waitFor(() =>
+      expect(client.getQueryData<NotificationAttentionSnapshot>(query.queryKey)?.asOf).toBe(
+        freshTime,
+      ),
+    );
+    expect(
+      JSON.parse(new URL(requests.mock.calls[0][0]).searchParams.get("targets") ?? "[]"),
+    ).toEqual(expect.arrayContaining([table, event, group]));
+    if (hasUnread) {
+      await waitFor(() => expect(requests).toHaveBeenCalledTimes(2));
+      expect(JSON.parse(String(requests.mock.calls[1][1]?.body))).toEqual({
+        target: table,
+        through: freshTime,
+      });
+    } else {
+      expect(requests.mock.calls.map(([, init]) => init?.method)).toEqual(["GET"]);
+    }
+  },
+);
+
+it("does not acknowledge a fresh cache hit with no new notices or invalid targets", () => {
+  const { client, wrapper } = setup();
+  client.setQueryData(notificationAttentionQuery(options, targets).queryKey, {
+    ...original(),
+    targets: original().targets.map((value) =>
+      value.target.kind === "table" ? row(table, 0) : value,
+    ),
+  });
+  const requests = vi.fn();
+  vi.stubGlobal("fetch", requests);
+  const { result } = renderHook(() => useReadNotificationAttention(options), { wrapper });
+  act(() => {
+    result.current.read(table);
+    result.current.read({ kind: "contact", id: "friend" });
+    result.current.read({ kind: "table", id: "invalid-id" });
+    result.current.read(table, { ...original(), targets: [row(event, 2), row(table, 0)] });
+  });
+  expect(requests).not.toHaveBeenCalled();
+  expect(client.getMutationCache().getAll()).toEqual([]);
+});
+
+it("refetches a cold read and leaves an unconfirmed write observable", async () => {
+  const { client, wrapper } = setup();
+  client.removeQueries({ queryKey: notificationAttentionQuery(options, targets).queryKey });
+  const selected = { ...original(), targets: [row(table, 2)] };
+  const requests = vi.fn(async (_url: string, init?: RequestInit) =>
+    Response.json(
+      init?.method === "PATCH"
+        ? { updated: 2, snapshot: { ...original(), targets: [row(group, 0)] } }
+        : selected,
+    ),
+  );
+  vi.stubGlobal("fetch", requests);
+  const { result } = renderHook(() => useReadNotificationAttention(options), { wrapper });
+  act(() => result.current.read(table));
+  await waitFor(() => expect(result.current.error).toMatchObject({ status: 502 }));
+  expect(
+    JSON.parse(new URL(requests.mock.calls[0][0]).searchParams.get("targets") ?? "[]"),
+  ).toEqual([table]);
+  expect(requests.mock.calls.filter(([, init]) => init?.method === "PATCH")).toHaveLength(1);
+  expect(client.getQueryData(notificationAttentionQuery(options, [table]).queryKey)).toBeDefined();
+});
+
+it.each(["disabled", "missing API", "signed out"] as const)(
+  "does not use existing attention data to acknowledge notifications when %s",
+  (state) => {
+    const { client, wrapper } = setup();
+    const requests = vi.fn();
+    vi.stubGlobal("fetch", requests);
+    const owner =
+      state === "disabled"
+        ? { ...options, enabled: false }
+        : state === "missing API"
+          ? { ...options, apiUrl: "" }
+          : { ...options, userId: "" };
+    const snapshot = original();
+    const { result } = renderHook(() => useReadNotificationAttention(owner), { wrapper });
+    act(() => result.current.read(table, snapshot));
+    expect(requests).not.toHaveBeenCalled();
+    expect(client.getMutationCache().getAll()).toEqual([]);
+  },
+);
+
+it("discards a cold attention read after account replacement instead of acknowledging it", async () => {
+  const { client, wrapper } = setup();
+  client.removeQueries({ queryKey: notificationAttentionQuery(options, targets).queryKey });
+  const response = Promise.withResolvers<Response>();
+  const requests = vi.fn(async (_input: string, _init?: RequestInit) => response.promise);
+  vi.stubGlobal("fetch", requests);
+  const { result } = renderHook(() => useReadNotificationAttention(options), { wrapper });
+  act(() => result.current.read(table));
+  await waitFor(() => expect(requests).toHaveBeenCalledOnce());
+  const [[, transport]] = requests.mock.calls;
+  const replacement = { ...options, userId: "replacement" };
+  const replacementKey = notificationAttentionQuery(replacement, [table]).queryKey;
+  const existing = { ...original(), targets: [row(table, 4)] };
+  await act(async () => {
+    clearSessionQueryCache(client);
+    client.setQueryData(replacementKey, existing);
+    response.resolve(Response.json({ ...original(), targets: [row(table, 2)] }));
+  });
+  expect(transport?.signal?.aborted).toBe(true);
+  expect(requests).toHaveBeenCalledOnce();
+  expect(
+    client.getQueryData(notificationAttentionQuery(options, [table]).queryKey),
+  ).toBeUndefined();
+  expect(client.getQueryData(replacementKey)).toEqual(existing);
 });

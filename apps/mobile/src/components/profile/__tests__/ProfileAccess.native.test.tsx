@@ -12,6 +12,7 @@ import { createContext, useContext } from "react";
 import { Text } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import ProfileScreen from "@/app/profile";
+import UserProfileScreen from "@/app/user/[userId]/index";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 
 const API = "https://profile-access-native.test";
@@ -73,6 +74,7 @@ vi.mock("@clerk/expo", () => ({
 }));
 vi.mock("expo-router", () => ({
   useRouter: () => ({ push: sdk.push, replace: sdk.replace }),
+  useLocalSearchParams: () => ({ userId: useContext(SessionContext).owner }),
   Redirect: ({ href }: { href: string }) => {
     sdk.redirect(href);
     return <Text testID="sdk-redirect-target">{href}</Text>;
@@ -116,12 +118,18 @@ function seed(session: Session, includeProfile = true) {
     pageParams: [""],
   });
 }
-function Fixture({ session = complete }: { session?: Session } = {}) {
+function Fixture({
+  session = complete,
+  explicitUserRoute = false,
+}: {
+  session?: Session;
+  explicitUserRoute?: boolean;
+} = {}) {
   return (
     <QueryClientProvider client={client}>
       <NativeTestProviders>
         <SessionContext value={session}>
-          <ProfileScreen />
+          {explicitUserRoute ? <UserProfileScreen /> : <ProfileScreen />}
         </SessionContext>
       </NativeTestProviders>
     </QueryClientProvider>
@@ -222,16 +230,19 @@ it.each([
   },
 );
 
-it("renders the real cached Profile, identity, statistics and logout when the nonempty metadata contract is satisfied", async () => {
-  await render(<Fixture />);
-  expect(await screen.findByText("@owner")).toBeVisible();
-  expect(screen.getByText(profile(complete).name)).toBeVisible();
-  expect(screen.getByRole("button", { name: "Sign out of your account" })).toBeEnabled();
-  expect(screen.getByText("Friends")).toBeVisible();
-  expect(screen.getByText("No activities yet")).toBeVisible();
-  expect(sdk.redirect).not.toHaveBeenCalled();
-  expect(reads).toEqual([]);
-});
+it.each([false, true])(
+  "renders the real cached Profile, identity, statistics and logout with a complete session (explicit user route %s)",
+  async (explicitUserRoute) => {
+    await render(<Fixture explicitUserRoute={explicitUserRoute} />);
+    expect(await screen.findByText("@owner")).toBeVisible();
+    expect(screen.getByText(profile(complete).name)).toBeVisible();
+    expect(screen.getByRole("button", { name: "Sign out of your account" })).toBeEnabled();
+    expect(screen.getByText("Friends")).toBeVisible();
+    expect(screen.getByText("No activities yet")).toBeVisible();
+    expect(sdk.redirect).not.toHaveBeenCalled();
+    expect(reads).toEqual([]);
+  },
+);
 
 it("removes the old Profile during account restoration and ignores another API's cached profile", async () => {
   const originalKey = profileViewQuery(options(complete), "owner").queryKey;

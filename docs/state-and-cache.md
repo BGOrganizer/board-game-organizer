@@ -28,7 +28,9 @@ permission at startup. A deep link prioritizes its own detail instead; other rea
 Do not invent search terms, scan the BGG catalog, call privileged/retired endpoints or start provider
 synchronizations. Paginate API lists at source; fetch subsequent pages on demand, not all records
 during bootstrap. A partial address-book scan must never replace the complete server contact
-snapshot: finish the scan before syncing in the background.
+snapshot: finish the scan before syncing in the background. When the OS revokes permission,
+Contacts clears the local rows, resets the sync controls and discards any late address-book results.
+A new grant starts a fresh sync.
 
 Apply the same bounded, cache-first navigation policy on web without adding a web splash.
 

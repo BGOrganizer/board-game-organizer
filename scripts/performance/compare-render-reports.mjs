@@ -3,8 +3,12 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { hostname } from "node:os";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { withinRenderCommitBudget } from "./render-commit-counts.mjs";
 
 const initialMain = "466220e26f672ad8de644e0a2c2ce223f02879df";
+// Same-runtime hosted comparisons saw sub-millisecond noise and up to 12.35% phase drift.
+const minimumDurationIncreaseMs = 0.2;
+const minimumRelativeDurationIncrease = 0.15;
 const requiredFlags = [
   "--expose-gc",
   "--no-concurrent-sweeping",
@@ -185,8 +189,7 @@ function measurements(file, expectedRef, budgets) {
     if (budgets)
       ensure(
         Object.hasOwn(budgets, row.name) &&
-          row.counts.every((count) => count <= budgets[row.name]) &&
-          row.meanCount <= budgets[row.name],
+          withinRenderCommitBudget(row.counts, row.meanCount, budgets[row.name]),
         `Unknown scenario or render-count regression: ${row.name}`,
       );
   }
@@ -196,6 +199,7 @@ function measurements(file, expectedRef, budgets) {
         Object.keys(budgets).every((name) => names.has(name)),
       "Current measurement inventory does not match the approved app budgets",
     );
+  return names;
 }
 
 export async function compareRenderReports(argv) {
@@ -215,7 +219,17 @@ export async function compareRenderReports(argv) {
     "Invalid app budget inventory",
   );
   measurements(options.current, options["current-ref"], renderCommitBudgets);
-  if (!options.bootstrap) measurements(options.baseline, options["baseline-ref"]);
+  if (!options.bootstrap) {
+    const baseline = measurements(options.baseline, options["baseline-ref"]);
+    const approved = provenance.baseline.scenarios;
+    ensure(
+      Array.isArray(approved) &&
+        approved.length === baseline.size &&
+        new Set(approved).size === baseline.size &&
+        approved.every((name) => baseline.has(name)),
+      "Baseline measurement inventory does not match its approved scenarios",
+    );
+  }
   // One fresh CLI process per pair avoids upstream module-scoped warning/error
   // accumulation. The official package owns the statistics; no custom estimator.
   const { compare } = await import("@callstack/reassure-compare");
@@ -232,7 +246,11 @@ export async function compareRenderReports(argv) {
     ),
     "Invalid official comparison output",
   );
-  const slowdowns = report.significant.filter((entry) => entry.durationDiff > 0);
+  const slowdowns = report.significant.filter(
+    (entry) =>
+      entry.durationDiff >= minimumDurationIncreaseMs &&
+      entry.relativeDurationDiff >= minimumRelativeDurationIncrease,
+  );
   const reasons = [
     ...report.errors,
     ...slowdowns.map((entry) => `Significant duration regression: ${entry.name}`),
@@ -242,6 +260,8 @@ export async function compareRenderReports(argv) {
     passed: reasons.length === 0,
     mode: options.bootstrap ? "bootstrap" : "comparison",
     timingsCompared: !options.bootstrap,
+    minimumDurationIncreaseMs,
+    minimumRelativeDurationIncrease,
     reasons,
   };
   writeFileSync(options.output, `${JSON.stringify({ ...report, provenance, gate }, null, 2)}\n`);

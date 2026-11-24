@@ -21,6 +21,7 @@ import {
   Linking,
   View,
 } from "react-native";
+import { Uniwind } from "uniwind";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import {
@@ -659,4 +660,145 @@ it("uses the actual merged location header Back control only when the native sta
   await act(() => boundary.prevented?.());
   expect(close).toHaveBeenCalledOnce();
   expect(useAppStore.getState().pendingLocation).toBeNull();
+});
+
+it("keeps a lost session's address query local and permits a later authenticated search", async () => {
+  boundary.tokenValue = null;
+  const onSelect = vi.fn();
+  await render(<Fixture onSelect={onSelect} />);
+  await fireEvent.changeText(screen.getByTestId("location-address-input"), "Unauthenticated place");
+  expect(await screen.findByText("Could not search addresses")).toBeVisible();
+  expect(searches).toHaveLength(0);
+  expect(screen.queryByTestId("address-result-0")).toBeNull();
+  await confirm();
+  expect(onSelect).not.toHaveBeenCalled();
+
+  boundary.tokenValue = "reconnected-address-token";
+  await search("Reconnected place");
+  expect(screen.queryByText("Could not search addresses")).toBeNull();
+  expect(searches).toEqual([
+    expect.objectContaining({
+      query: "Reconnected place",
+      authorization: "Bearer reconnected-address-token",
+    }),
+  ]);
+});
+
+it("switches the native map style with the app theme without dropping a verified location draft", async () => {
+  const onSelect = vi.fn();
+  try {
+    await act(() => Uniwind.setTheme("light"));
+    await render(<Fixture initial={venue} onSelect={onSelect} />);
+    const map = screen.getByTestId("native-map-boundary");
+    expect(map).toHaveProp(
+      "mapStyle",
+      "https://api.maptiler.com/maps/streets-v4/style.json?key=fixture-public-map-key",
+    );
+    await act(() => Uniwind.setTheme("dark"));
+    expect(map).toHaveProp(
+      "mapStyle",
+      "https://api.maptiler.com/maps/streets-v4-dark/style.json?key=fixture-public-map-key",
+    );
+    expect(screen.getByLabelText("Location name")).toHaveDisplayValue(venue.name);
+    await confirm();
+    expect(onSelect).toHaveBeenCalledExactlyOnceWith(venue);
+  } finally {
+    await act(() => Uniwind.setTheme("light"));
+  }
+});
+
+it("does not replace a manually verified address with a slower GPS lookup", async () => {
+  boundary.permission = { granted: true, canAskAgain: true };
+  const onSelect = vi.fn();
+  let finish!: (value: Response) => void;
+  pendingReverse = new Promise((resolve) => {
+    finish = resolve;
+  });
+  await render(<Fixture onSelect={onSelect} />);
+  await userEvent.setup().press(screen.getByTestId("location-map-locate"));
+  await waitFor(() =>
+    expect(searches.find(({ query }) => query === "12.5000000,41.9000000")).toBeDefined(),
+  );
+  const reverse = searches.find(({ query }) => query === "12.5000000,41.9000000");
+  await search("Manual target address");
+  await choose(1);
+  expect(reverse?.signal?.aborted).toBe(true);
+
+  await act(() => finish(json({ items: [places[0]] })));
+  expect(screen.getByTestId("location-address-input")).toHaveDisplayValue(places[1].address);
+  expect(screen.queryByText("Could not search addresses")).toBeNull();
+  await fireEvent.changeText(screen.getByLabelText("Location name"), "Manual location");
+  await confirm();
+  expect(onSelect).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({
+      name: "Manual location",
+      address: places[1].address,
+      longitude: places[1].longitude,
+      latitude: places[1].latitude,
+    }),
+  );
+});
+
+it("ignores a rejected address lookup after a newer verified query is already visible", async () => {
+  let rejectLookup: (reason: Error) => void = () => {};
+  pendingSearch = new Promise<Response>((_resolve, reject) => {
+    rejectLookup = reject;
+  });
+  const onSelect = vi.fn();
+  await render(<Fixture onSelect={onSelect} />);
+  await fireEvent.changeText(screen.getByTestId("location-address-input"), "Previous search");
+  await waitFor(() => expect(searches).toHaveLength(1));
+  const previous = searches[0];
+
+  pendingSearch = undefined;
+  await search("Current address");
+  expect(previous.signal?.aborted).toBe(true);
+  await act(() => rejectLookup(Error("Canceled address request was already on the wire")));
+  expect(screen.queryByText("Could not search addresses")).toBeNull();
+  await choose(1);
+  await fireEvent.changeText(screen.getByLabelText("Location name"), "Verified address");
+  await confirm();
+
+  expect(searches.map(({ query }) => query)).toEqual(["Previous search", "Current address"]);
+  expect(onSelect).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({ name: "Verified address", address: places[1].address }),
+  );
+});
+
+it("disposes a pending initial permission read with the closed picker and honors a fresh picker consent", async () => {
+  const settings = vi.spyOn(Linking, "openSettings").mockResolvedValue(undefined);
+  let finish: (permission: typeof boundary.permission) => void = () => {};
+  boundary.permissions.mockReturnValueOnce(
+    new Promise<typeof boundary.permission>((resolve) => {
+      finish = resolve;
+    }),
+  );
+  const closedChoice = vi.fn();
+  const first = await render(<Fixture onSelect={closedChoice} />);
+  await waitFor(() => expect(boundary.permissions).toHaveBeenCalledOnce());
+  expect(appListeners.size).toBeGreaterThan(0);
+  await first.unmount();
+  expect(appListeners.size).toBe(0);
+
+  boundary.permission = { granted: true, canAskAgain: false };
+  const currentChoice = vi.fn();
+  await render(<Fixture onSelect={currentChoice} />);
+  await waitFor(() => expect(boundary.permissions).toHaveBeenCalledTimes(2));
+  await act(() => finish({ granted: false, canAskAgain: false }));
+  expect(settings).not.toHaveBeenCalled();
+  expect(boundary.requestPermission).not.toHaveBeenCalled();
+  expect(boundary.position).not.toHaveBeenCalled();
+
+  await fireEvent.changeText(screen.getByLabelText("Location name"), "Current GPS place");
+  await userEvent.setup().press(screen.getByTestId("location-map-locate"));
+  await waitFor(() =>
+    expect(screen.getByTestId("location-address-input")).toHaveDisplayValue(places[0].address),
+  );
+  await confirm();
+  expect(boundary.position).toHaveBeenCalledOnce();
+  expect(currentChoice).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({ name: "Current GPS place", address: places[0].address }),
+  );
+  expect(closedChoice).not.toHaveBeenCalled();
+  expect(settings).not.toHaveBeenCalled();
 });

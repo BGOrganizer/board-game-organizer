@@ -7,11 +7,17 @@ import {
   type PlannedTableResponse,
 } from "@board-game-organizer/schemas";
 import {
+  CommunityApiError,
   type ContactUser,
+  type CreateEventVariables,
+  type CreateGroupVariables,
+  eventDraftInput,
+  eventRecordKeys,
   eventRecordQuery,
   favoriteLocationsQuery,
   groupPeopleQuery,
   groupRecordDetailQuery,
+  groupRecordKeys,
   groupRecordsPageQuery,
   recordTablesQuery,
   relationshipListKey,
@@ -23,15 +29,21 @@ import { act, fireEvent, screen, userEvent, waitFor } from "@testing-library/rea
 import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
 import { DeviceEventEmitter, View } from "react-native";
 import { afterEach, expect, it, vi } from "vitest";
+import EventWizardScreen from "@/app/event/wizard";
 import GroupFriendSearchScreen from "@/app/group/search-user";
-import { EventWizard } from "@/components/events/EventWizard";
-import { GroupWizard } from "@/components/groups/GroupWizard";
+import GroupWizardScreen from "@/app/group/wizard";
+import { eventDraftFixture, wizardVenue } from "@/components/events/__tests__/eventWizardFixtures";
+import { EventSectionHeader } from "@/components/events/EventSectionHeader";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
+import {
+  installNativePopoverMeasurements,
+  pressMeasuredPopover,
+} from "@/test/nativePopoverGeometry";
 import { groupRecord, plannedEvent, plannedTable } from "../../web/src/test-fixtures/eventRecords";
 import { assertRenderMeasurement } from "./assertRenderMeasurement";
 
 type FriendRoute = { slotId?: string; exclude?: string };
-const routeContext = createContext<FriendRoute>({});
+const routeContext = createContext<FriendRoute & { eventId?: string; draftId?: string }>({});
 const boundary = vi.hoisted(() => ({
   push: vi.fn(),
   back: vi.fn(),
@@ -173,7 +185,7 @@ function GroupJourney() {
           accessibilityElementsHidden={Boolean(route)}
           importantForAccessibility={route ? "no-hide-descendants" : "auto"}
         >
-          <GroupWizard />
+          <GroupWizardScreen />
         </View>
         {route ? <GroupFriendSearchScreen /> : null}
       </View>
@@ -243,7 +255,13 @@ it.each(["group", "event"] as const)(
     );
     try {
       const result = await measureRenders(
-        kind === "group" ? <GroupJourney /> : <EventWizard eventId={event.id} />,
+        kind === "group" ? (
+          <GroupJourney />
+        ) : (
+          <routeContext.Provider value={{ eventId: event.id }}>
+            <EventWizardScreen />
+          </routeContext.Provider>
+        ),
         {
           wrapper,
           beforeEach: () => {
@@ -345,3 +363,161 @@ it.each(["group", "event"] as const)(
     }
   },
 );
+
+function rejectedCreation<Variables>(
+  client: QueryClient,
+  mutationKey: readonly unknown[],
+  variables: Variables,
+) {
+  const error = new CommunityApiError(400, "Fixture creation rejected");
+  return client.getMutationCache().build(
+    client,
+    { mutationKey },
+    {
+      context: undefined,
+      data: undefined,
+      error,
+      failureCount: 1,
+      failureReason: error,
+      isPaused: false,
+      status: "error",
+      variables,
+      submittedAt: Date.now(),
+    },
+  );
+}
+
+it.each(["group", "event"] as const)(
+  "actual %s wizard recovery: restore the rejected local draft without resubmitting it",
+  async (kind) => {
+    await installNativePopoverMeasurements();
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: Infinity, staleTime: Infinity } },
+    });
+    const http = vi.fn(async (input: RequestInfo | URL) => {
+      throw new Error(`Unexpected wizard recovery request ${String(input)}`);
+    });
+    vi.stubGlobal("fetch", http);
+    const draft = eventDraftFixture({
+      groupId: null,
+      name: "Recovered event draft",
+      dates: plannedEvent.dates,
+    });
+    const validation = eventDraftInput(draft, false);
+    if (!validation.success || "version" in validation.data)
+      throw new Error("Expected a valid recovery draft");
+    const eventCreation: CreateEventVariables = {
+      ...validation.data,
+      clientRequestId: "88888888-8888-4888-8888-888888888888",
+      clientDraft: draft,
+    };
+    const groupCreation: CreateGroupVariables = {
+      type: "PRIVATE",
+      name: "Rejected group request",
+      invitedUserIds: [friend.id],
+      location: wizardVenue,
+      clientRequestId: "77777777-7777-4777-8777-777777777777",
+      clientDraft: { name: "Recovered group draft", friends: [friend] },
+    };
+    let draftId: string;
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>
+        <NativeTestProviders>
+          <routeContext.Provider value={{ draftId }}>{children}</routeContext.Provider>
+        </NativeTestProviders>
+      </QueryClientProvider>
+    );
+    try {
+      const result = await measureRenders(
+        kind === "event" ? <EventWizardScreen /> : <GroupWizardScreen />,
+        {
+          wrapper,
+          beforeEach: () => {
+            client.clear();
+            seed(client);
+            client.setQueryData(
+              ["favoriteLocations", API, "owner", "status", [locationFavoriteKey(wizardVenue)]],
+              [],
+            );
+            http.mockClear();
+            const rejected =
+              kind === "event"
+                ? rejectedCreation(
+                    client,
+                    eventRecordKeys.mutation(options, "", "create"),
+                    eventCreation,
+                  )
+                : rejectedCreation(
+                    client,
+                    groupRecordKeys.mutation(options, "", "create"),
+                    groupCreation,
+                  );
+            draftId = String(rejected.mutationId);
+          },
+          scenario: async () => {
+            if (kind === "group") {
+              const name = screen.getByTestId("group-name-input");
+              expect(name).toHaveDisplayValue("Recovered group draft");
+              expect(screen.getByText(friend.name)).toBeVisible();
+              expect(screen.getByText(wizardVenue.name)).toBeVisible();
+              await fireEvent.changeText(name, "Revised recovered group");
+              expect(screen.getByTestId("group-name-input")).toHaveDisplayValue(
+                "Revised recovered group",
+              );
+              expect(screen.getByRole("button", { name: "Create group" })).toBeEnabled();
+            } else {
+              expect(screen.getByLabelText("Event name")).toHaveDisplayValue(
+                "Recovered event draft",
+              );
+              for (let step = 0; step < 3; step++) await press("Next");
+              expect(screen.getByRole("button", { name: "4. Review" })).toBeSelected();
+              expect(screen.getByText("Recovered event draft")).toBeVisible();
+              expect(screen.getByText("Table list")).toBeVisible();
+              await pressMeasuredPopover(
+                screen.getByRole("button", { name: "Board games: Table #1" }),
+              );
+              expect(screen.getByRole("heading", { name: "Board games" })).toBeVisible();
+              expect(screen.getByText("First strategy game")).toBeVisible();
+            }
+            await waitFor(() => expect(client.isFetching()).toBe(0));
+            expect(http).not.toHaveBeenCalled();
+          },
+        },
+      );
+      assertRenderMeasurement(result);
+    } finally {
+      client.clear();
+    }
+  },
+);
+
+it("Event planning settings: explain assisted BGG preferences in the actual section guide", async () => {
+  await installNativePopoverMeasurements();
+  const result = await measureRenders(
+    <EventSectionHeader
+      section="details"
+      event={{
+        ...plannedEvent,
+        planningMode: "ASSISTED",
+        playerPreference: "BEST",
+        allowBestReduction: true,
+      }}
+    />,
+    {
+      wrapper: NativeTestProviders,
+      scenario: async () => {
+        expect(screen.queryByText(/Prefers the player count marked Best on BGG/)).toBeNull();
+        await pressMeasuredPopover(screen.getByRole("button", { name: "Event details help" }));
+        expect(
+          screen.getByText(/BGG Best: Prefers the player count marked Best on BGG/),
+        ).toBeVisible();
+        expect(
+          screen.getByText(
+            "Assisted planning may seat fewer players to improve the BGG recommendation.",
+          ),
+        ).toBeVisible();
+      },
+    },
+  );
+  assertRenderMeasurement(result);
+});

@@ -846,6 +846,32 @@ describe("unified group Query ownership", () => {
     const eventList = ["events", options.apiUrl, options.userId, "list", {}];
     const tables = ["events", options.apiUrl, options.userId, "tables", null, {}];
     const inbox = ["notifications", options.apiUrl, options.userId, "inbox"];
+    const activities = ["profile", options.apiUrl, options.userId, "activities", options.userId];
+    const foreignActivities = [
+      "profile",
+      options.apiUrl,
+      foreign.userId,
+      "activities",
+      options.userId,
+    ];
+    const removedVenue = { id: "group-activity", resourceHref: `/groups/${id}` };
+    const keptVenue = { id: "another-activity", resourceHref: `/groups/${otherId}` };
+    const profilePage = page([removedVenue, keptVenue]);
+    client.setQueryData(activities, profilePage);
+    client.setQueryData(foreignActivities, profilePage);
+    const removedGroupEvents = ["events", options.apiUrl, options.userId, "list", { groupId: id }];
+    const otherGroupEvents = [
+      "events",
+      options.apiUrl,
+      options.userId,
+      "list",
+      { groupId: otherId },
+    ];
+    const deletedEvent = { id: eventId, groupId: id };
+    const survivingEvent = { id: otherEvent, groupId: otherId };
+    client.setQueryData(removedGroupEvents, page([deletedEvent]));
+    client.setQueryData(otherGroupEvents, page([survivingEvent]));
+    client.setQueryData(["groups", options.apiUrl, options.userId, "list", "mine"], page([group]));
     client.setQueryData(groupKey, group);
     client.setQueryData(otherKey, { ...group, id: otherId });
     client.setQueryData(foreignKey, group);
@@ -892,7 +918,12 @@ describe("unified group Query ownership", () => {
       expect(client.getQueryData(key)).toBeUndefined();
     expect(client.getQueryData(otherKey)).toEqual({ ...group, id: otherId });
     expect(client.getQueryData(foreignKey)).toEqual(group);
-    expect(client.getQueryData(eventList)).toEqual(page([{ id: otherEvent, groupId: otherId }]));
+    expect(client.getQueryData(eventList)).toEqual(page([survivingEvent]));
+    expect(client.getQueryData(removedGroupEvents)).toEqual(page([]));
+    expect(client.getQueryData(otherGroupEvents)).toEqual(page([survivingEvent]));
+    expect(client.getQueryState(otherGroupEvents)?.isInvalidated).toBe(false);
+    expect(client.getQueryData(activities)).toEqual(page([keptVenue]));
+    expect(client.getQueryData(foreignActivities)).toBe(profilePage);
     expect(client.getQueryData(tables)).toEqual(page([{ id: "other-table", eventId: otherEvent }]));
     expect(client.getQueryData(inbox)).toEqual(
       page([{ id: "kept", resourceHref: `/events/${otherEvent}` }]),

@@ -18,7 +18,8 @@ import { measureRenders } from "@callstack/reassure-measure";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, screen, userEvent, waitFor } from "@testing-library/react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { Profile } from "@/components/profile/Profile";
+import ProfileScreen from "@/app/profile";
+import UserProfileScreen from "@/app/user/[userId]/index";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import { assertRenderMeasurement } from "./assertRenderMeasurement";
 
@@ -44,6 +45,7 @@ vi.mock("@clerk/expo", () => ({
     user: {
       id: "profile-owner",
       createdAt: new Date("2020-02-03T12:00:00.000Z"),
+      unsafeMetadata: { mobileNumber: "fixture phone" },
     },
   }),
 }));
@@ -59,6 +61,7 @@ vi.mock("expo-constants", () => ({
 }));
 vi.mock("expo-router", () => ({
   useRouter: () => ({ push: boundary.push, replace: boundary.replace }),
+  useLocalSearchParams: () => ({ userId: OWNER }),
 }));
 vi.mock("expo-notifications", () => ({
   PermissionStatus: {
@@ -232,11 +235,11 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
-function Root() {
+function Root({ direct = false }: { direct?: boolean }) {
   return (
     <QueryClientProvider client={client}>
       <NativeTestProviders>
-        <Profile />
+        {direct ? <UserProfileScreen /> : <ProfileScreen />}
       </NativeTestProviders>
     </QueryClientProvider>
   );
@@ -263,7 +266,7 @@ function assertNoWrites() {
 }
 
 it("actual Profile: cached Activity Player Collection entry and reentry preserve independent drafts without HTTP", async () => {
-  const result = await measureRenders(<Root />, {
+  const result = await measureRenders(<Root direct />, {
     beforeEach: resetRun,
     afterEach: () => {
       assertNoWrites();

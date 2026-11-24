@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { groupRecord } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
@@ -123,4 +123,35 @@ it("keeps contextual Group selection disabled without loading other groups", () 
   expect(screen.queryByRole("listbox")).toBeNull();
   expect(change).not.toHaveBeenCalled();
   expect(fetch).not.toHaveBeenCalled();
+});
+
+it("does not reuse denied cached group options and retries a paging failure through the popup", async () => {
+  let fail = true;
+  const cursors: (string | null)[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string) => {
+      const cursor = new URL(input).searchParams.get("cursor");
+      cursors.push(cursor);
+      if (cursor && fail) return Response.json({ error: "FORBIDDEN" }, { status: 403 });
+      return Response.json({
+        items: cursor
+          ? [{ ...groupRecord, id: "88888888-8888-4888-8888-888888888888", name: "Second group" }]
+          : [groupRecord],
+        nextCursor: cursor ? null : "group-next",
+      });
+    }),
+  );
+  const change = mount();
+  fireEvent.click(screen.getByRole("button", { name: /Group$/ }));
+  await screen.findByRole("option", { name: /Friday group/ });
+  fireEvent.click(screen.getByRole("button", { name: "Load more groups" }));
+  expect(await screen.findByText("Could not load groups")).toBeVisible();
+  expect(screen.queryByRole("option", { name: /Friday group/ })).toBeNull();
+  expect(change).not.toHaveBeenCalled();
+  fail = false;
+  await act(() => fireEvent.click(screen.getByRole("button", { name: "Try again" })));
+  expect(await screen.findByRole("option", { name: /Second group/ })).toBeVisible();
+  expect(cursors).toEqual([null, "group-next", "group-next"]);
+  expect(change).not.toHaveBeenCalled();
 });

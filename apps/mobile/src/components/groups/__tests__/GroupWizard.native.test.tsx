@@ -2,13 +2,16 @@ import type { GroupRecordResponse } from "@board-game-organizer/schemas";
 import {
   CommunityApiError,
   type CreateGroupVariables,
+  type EditGroupVariables,
   groupRecordKeys,
 } from "@board-game-organizer/shared";
 import { useAppStore } from "@board-game-organizer/store";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, userEvent, waitFor } from "@testing-library/react-native";
-import { View } from "react-native";
+import { createContext, useContext } from "react";
+import { Linking, View } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import GroupWizardScreen from "@/app/group/wizard";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import {
   NativeStackHeader,
@@ -25,6 +28,8 @@ const headerPaths = () =>
     .queryAll((node) => node.type === "RNSVGPath")
     .map((node) => node.props.d);
 
+type Params = { groupId?: string | string[]; draftId?: string | string[] };
+const RouteParams = createContext<Params>({});
 const API = "https://group-wizard-fixtures.test";
 const boundary = vi.hoisted(() => ({
   push: vi.fn(),
@@ -54,7 +59,7 @@ vi.mock("@clerk/expo", () => ({
 vi.mock("expo-router", async () => ({
   useRouter: () => ({ push: boundary.push, back: boundary.back, dismissTo: boundary.dismissTo }),
   useNavigation: () => ({ getState: () => ({ type: "stack" }) }),
-  useLocalSearchParams: () => ({ slotId: "location-slot" }),
+  useLocalSearchParams: () => ({ slotId: "location-slot", ...useContext(RouteParams) }),
   Stack: { Screen: (await import("@/test/nativeStackOptionsPort")).NativeStackScreen },
 }));
 vi.mock("expo-router/react-navigation", async (original) => ({
@@ -85,6 +90,7 @@ vi.mock("@maplibre/maplibre-react-native", () => ({
 let client: QueryClient;
 let canonical: GroupRecordResponse;
 let detailStatus: number;
+let favoriteStatus: number;
 let pendingDetail: Promise<Response> | undefined;
 let writeStatus: number;
 const writes: { method: string; path: string; input: Record<string, unknown> }[] = [];
@@ -98,7 +104,7 @@ beforeEach(() => {
   boundary.preventRemove = undefined;
   boundary.library.mockResolvedValue({ canceled: true, assets: null });
   canonical = { ...groupRecord };
-  detailStatus = 200;
+  detailStatus = favoriteStatus = 200;
   pendingDetail = undefined;
   writeStatus = 200;
   writes.length = 0;
@@ -113,7 +119,14 @@ beforeEach(() => {
       );
       if (url.origin !== API) throw new Error(`Unexpected fixture origin: ${url.origin}`);
       if (url.pathname === "/api/locations/favorites")
-        return json(url.searchParams.has("keys") ? { keys: [] } : { items: [], nextCursor: null });
+        return json(
+          favoriteStatus !== 200
+            ? { error: "Favorites unavailable" }
+            : url.searchParams.has("keys")
+              ? { keys: [] }
+              : { items: [], nextCursor: null },
+          favoriteStatus,
+        );
       const method = init?.method ?? "GET";
       if (method !== "GET") {
         const body = JSON.parse(String(init?.body));
@@ -151,12 +164,19 @@ afterEach(() => {
 
 function Fixture({
   showHeader,
+  params,
   ...props
-}: Parameters<typeof GroupWizard>[0] & { showHeader?: boolean } = {}) {
+}: Parameters<typeof GroupWizard>[0] & { showHeader?: boolean; params?: Params } = {}) {
   return (
     <QueryClientProvider client={client}>
       <NativeTestProviders>
-        <GroupWizard {...props} />
+        {params ? (
+          <RouteParams value={params}>
+            <GroupWizardScreen />
+          </RouteParams>
+        ) : (
+          <GroupWizard {...props} />
+        )}
         {showHeader ? <NativeStackHeader /> : null}
       </NativeTestProviders>
     </QueryClientProvider>
@@ -369,7 +389,7 @@ it.each([403, 503])(
     await render(<Fixture groupId={canonical.id} />);
     expect(await screen.findByText("Could not load group details")).toBeVisible();
     expect(screen.queryByTestId("group-name-input")).toBeNull();
-    detailStatus = 200;
+    detailStatus = favoriteStatus = 200;
     await press("Try again");
     expect(await screen.findByTestId("group-name-input")).toHaveDisplayValue(canonical.name);
   },
@@ -543,4 +563,159 @@ it("restores the actual create/edit group header and native Back action after an
     expect(writes).toHaveLength(0);
     await view.unmount();
   }
+});
+
+it("opens the actual route as a new draft without querying an unowned group", async () => {
+  await render(<Fixture params={{}} />);
+  expect(screen.getByTestId("group-name-input")).toHaveDisplayValue("");
+  expect(screen.getByRole("button", { name: "Create group" })).toBeEnabled();
+});
+
+it("normalizes repeated group IDs from the Expo query before loading the editable group", async () => {
+  await render(<Fixture params={{ groupId: [canonical.id, "not-the-group"] }} />);
+  expect(await screen.findByTestId("group-name-input")).toHaveDisplayValue(canonical.name);
+  const paths = vi
+    .mocked(fetch)
+    .mock.calls.map(
+      ([input]) =>
+        new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url)
+          .pathname,
+    );
+  expect(paths).toContain(`/api/groups/${canonical.id}`);
+  expect(paths).not.toContain("/api/groups/not-the-group");
+});
+
+it("normalizes a repeated draft ID before restoring the matching rejected group creation", async () => {
+  const mutation = failedCreation({
+    type: "PRIVATE",
+    name: "Recovered from route",
+    invitedUserIds: [],
+  });
+  await render(<Fixture params={{ draftId: [String(mutation.mutationId), "missing-draft"] }} />);
+  expect(screen.getByTestId("group-name-input")).toHaveDisplayValue("Recovered from route");
+  expect(writes).toEqual([]);
+});
+
+it.each([
+  { source: "preview", preview: "https://fixture.invalid/recovered-edit.png" },
+  { source: "legacy receipt", preview: undefined },
+])(
+  "recovers the latest rejected group edit from $source without copying stale canonical logo state",
+  async ({ preview }) => {
+    const id = "22222222-2222-4222-8222-222222222222";
+    const variables: EditGroupVariables = {
+      id: canonical.id,
+      input: { version: canonical.version, name: "Pending group revision", logoAssetId: id },
+      ...(preview ? { clientDraft: { name: "Recovered pending name", logoPreview: preview } } : {}),
+    };
+    const rejected = new CommunityApiError(422, "Fixture original edit rejected");
+    client.getMutationCache().build(
+      client,
+      { mutationKey: groupRecordKeys.mutation(options, canonical.id, "update") },
+      {
+        context: undefined,
+        data: undefined,
+        error: rejected,
+        failureCount: 1,
+        failureReason: rejected,
+        isPaused: false,
+        status: "error",
+        submittedAt: Date.now(),
+        variables,
+      },
+    );
+    await render(<Fixture params={{ groupId: canonical.id }} />);
+    expect(await screen.findByTestId("group-name-input")).toHaveDisplayValue(
+      preview ? "Recovered pending name" : "Pending group revision",
+    );
+    expect(screen.getByRole("button", { name: "Change logo" })).toBeEnabled();
+    expect(screen.queryByRole("image", { name: "No logo selected" })).toBeNull();
+    expect(writes).toHaveLength(0);
+    await press("Save changes");
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]).toMatchObject({
+      method: "PATCH",
+      path: `/api/groups/${canonical.id}`,
+      input: { version: canonical.version, logoAssetId: id },
+    });
+  },
+);
+
+it("opens only the explicitly tapped map credit while an unconfigured map cannot add the draft venue", async () => {
+  const external = vi.spyOn(Linking, "openURL").mockResolvedValue(undefined);
+  await render(<Fixture params={{}} />);
+  await press("Choose a location");
+  expect(screen.getByText("Map unavailable")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Confirm Location" })).toBeDisabled();
+  expect(external).not.toHaveBeenCalled();
+  const user = userEvent.setup();
+  await user.press(screen.getByRole("link", { name: "Map by MapTiler" }));
+  await user.press(screen.getByRole("link", { name: "© OpenStreetMap contributors" }));
+  expect(external.mock.calls).toEqual([
+    ["https://www.maptiler.com/"],
+    ["https://www.openstreetmap.org/copyright"],
+  ]);
+  expect(writes).toHaveLength(0);
+});
+
+it("keeps an existing group venue editable when favorite status fails independently", async () => {
+  favoriteStatus = 503;
+  canonical = { ...canonical, location: wizardVenue };
+  await render(<Fixture groupId={canonical.id} />);
+  expect(await screen.findByText("Could not load favorite locations")).toHaveProp(
+    "accessibilityRole",
+    "alert",
+  );
+  expect(screen.getByText(wizardVenue.name)).toBeVisible();
+  expect(screen.getByRole("button", { name: "Save changes" })).toBeEnabled();
+  expect(writes).toEqual([]);
+  await press("Remove location");
+  expect(screen.queryByText(wizardVenue.name)).toBeNull();
+  expect(screen.getByRole("button", { name: "Choose a location" })).toBeEnabled();
+});
+
+it.each(["canonical", "recovered"] as const)(
+  "retains the %s owned upload without fabricating a missing image preview",
+  async (source) => {
+    const logoAssetId = "22222222-2222-4222-8222-222222222222";
+    if (source === "canonical") {
+      canonical = { ...canonical, logoAssetId, logo: null };
+      await render(<Fixture groupId={canonical.id} />);
+    } else {
+      const draft = failedCreation({
+        type: "PRIVATE",
+        name: "Legacy upload draft",
+        invitedUserIds: [],
+        logoAssetId,
+      });
+      await render(<Fixture draftId={String(draft.mutationId)} />);
+    }
+    const action = source === "canonical" ? "Save changes" : "Create group";
+    expect(await screen.findByRole("button", { name: "Change logo" })).toBeEnabled();
+    expect(screen.queryByRole("image", { name: "No logo selected" })).toBeNull();
+    expect(writes).toEqual([]);
+    await press(action);
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0].input.logoAssetId).toBe(logoAssetId);
+  },
+);
+
+it("displays the accepted contact picked without a public username and keeps it removable", async () => {
+  await render(<Fixture />);
+  await press("Add friend");
+  const slot = boundary.push.mock.lastCall?.[0].params.slotId;
+  await act(() =>
+    useAppStore.getState().setPendingUser(slot, {
+      id: "no-public-handle",
+      name: "Private friend",
+      username: null,
+      avatarUrl: null,
+      email: null,
+    }),
+  );
+  expect(screen.getByText("Private friend")).toBeVisible();
+  expect(screen.queryByText("@no-public-handle")).toBeNull();
+  await press("Remove invite: Private friend");
+  expect(screen.queryByText("Private friend")).toBeNull();
+  expect(writes).toEqual([]);
 });

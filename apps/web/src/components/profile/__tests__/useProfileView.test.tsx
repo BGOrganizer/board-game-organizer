@@ -578,3 +578,92 @@ it("bounds rated-game choices and earlier points independently while preserving 
   view.unmount();
   client.clear();
 });
+
+it.each([false, true])(
+  "invalidates obsolete shared-collection comparisons when the owner snapshot becomes available=%s",
+  async (published) => {
+    const { client, options, wrapper } = setup();
+    const ownProfileKey = profileViewKeys.view(options, "owner");
+    const account = ["bgg-account", options.apiUrl, options.userId];
+    const compares = (commonSnapshot?: string) =>
+      bggCollectionQuery({
+        ...options,
+        subjectId: "friend",
+        snapshot: "friend-collection",
+        commonSnapshot,
+        query: "",
+      }).queryKey;
+    const oldComparison = compares("old-owner-snapshot");
+    const newComparison = compares("live-owner-snapshot");
+    const friendCollection = compares();
+    const existing = { pages: [], pageParams: [] };
+    for (const key of [account, oldComparison, newComparison, friendCollection]) {
+      client.setQueryData(key, existing);
+    }
+    client.setQueryData(ownProfileKey, {
+      ...data,
+      collection: published ? { snapshot: "live-owner-snapshot" } : null,
+    });
+
+    const { result, unmount } = renderHook(() => useProfileView(options, "owner"), { wrapper });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    await waitFor(() => expect(client.getQueryData(oldComparison)).toBeUndefined());
+    expect(client.getQueryData(friendCollection)).toEqual(existing);
+    if (published) expect(client.getQueryData(newComparison)).toEqual(existing);
+    else expect(client.getQueryData(newComparison)).toBeUndefined();
+    expect(client.getQueryState(account)?.isInvalidated).toBe(!published);
+    unmount();
+    client.clear();
+  },
+);
+
+it("revokes historic owner-root caches on an authoritative denial and preserves another viewer's entries", async () => {
+  const { client, options, wrapper } = setup();
+  const ownerRoot = profileViewKeys.root(options);
+  const previousCollection = ["bgg-collection", options.apiUrl, options.userId, "previous", ""];
+  const otherOwner = profileViewKeys.root({ ...options, userId: "different-viewer" });
+  const privateCollection = { pages: [{ items: [], nextCursor: null }], pageParams: [""] };
+  client.setQueryData(ownerRoot, data);
+  client.setQueryData(previousCollection, privateCollection);
+  client.setQueryData(otherOwner, { ...data, id: "different-viewer" });
+  await client.invalidateQueries({ queryKey: ownerRoot, exact: true, refetchType: "none" });
+  const fetcher = vi.fn(async (input: string) => {
+    expect(new URL(input).pathname).toBe("/api/profiles/owner");
+    return Response.json({ error: "Access revoked" }, { status: 403 });
+  });
+  vi.stubGlobal("fetch", fetcher);
+  const view = renderHook(() => useProfileView(options, "owner"), { wrapper });
+  await waitFor(() => expect(view.result.current.error).toMatchObject({ status: 403 }));
+  await waitFor(() => expect(client.getQueryData(ownerRoot)).toBeNull());
+  expect(client.getQueryData(previousCollection)).toBeNull();
+  expect(client.getQueryData(otherOwner)).toMatchObject({ id: "different-viewer" });
+  expect(fetcher).toHaveBeenCalledOnce();
+  view.unmount();
+  client.clear();
+});
+
+it("reconciles a published owner snapshot with older collection keys that lacked a subject", async () => {
+  const { client, options, wrapper } = setup();
+  const key = (snapshot: string) => [
+    "bgg-collection",
+    options.apiUrl,
+    options.userId,
+    snapshot,
+    "",
+  ];
+  const previous = key("previous");
+  const current = key("current");
+  const cache = { pages: [], pageParams: [] };
+  client.setQueryData(previous, cache);
+  client.setQueryData(current, cache);
+  client.setQueryData(profileViewKeys.view(options, "owner"), {
+    ...data,
+    collection: { snapshot: "current" },
+  });
+  const view = renderHook(() => useProfileView(options, "owner"), { wrapper });
+  await waitFor(() => expect(client.getQueryData(previous)).toBeUndefined());
+  expect(client.getQueryData(current)).toBe(cache);
+  expect(options.getToken).not.toHaveBeenCalled();
+  view.unmount();
+  client.clear();
+});

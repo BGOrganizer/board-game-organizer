@@ -274,3 +274,17 @@ it("disables both ballot/consent controls while the authoritative parent mutatio
   await userEvent.setup().press(screen.getByTestId("table-link-consent-submit"));
   expect(claim).not.toHaveBeenCalled();
 });
+
+it("discloses manual planning, Best BGG preference and unrated attendance even without decoded game metadata", async () => {
+  const review = tableInviteReview();
+  review.event.planningMode = "MANUAL";
+  review.event.playerPreference = "BEST";
+  review.table.rankingEnabled = false;
+  review.table.gamesDetail = [];
+  await render(<Fixture review={review} />);
+  expect(screen.getByText(/Unrated table · Manual planning · Best BGG player count/)).toBeVisible();
+  expect(screen.getByText("Unknown")).toBeVisible();
+  expect(screen.queryByRole("button", { name: /Choose your vote/ })).toBeNull();
+  expect(claim).not.toHaveBeenCalled();
+  expect(screen.getByTestId("table-link-consent-submit")).toBeEnabled();
+});

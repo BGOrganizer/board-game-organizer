@@ -18,7 +18,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, screen } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { afterAll, afterEach, beforeEach, expect, test, vi } from "vitest";
-import { ProfileActivities } from "@/components/profile/ProfileActivities";
+import ProfileActivityRoute from "@/app/(tabs)/profiles/[userId]/activities/page";
 import { ProfilePlayer } from "@/components/profile/ProfilePlayer";
 import { Leaderboard } from "@/components/ratings/Leaderboard";
 import { renderWithI18n } from "@/test-utils";
@@ -237,7 +237,7 @@ const cases: { name: string; element: ReactElement; scenario: () => Promise<void
   },
   {
     name: "ProfileActivities: cached type selection preserves authorized activity rows",
-    element: <ProfileActivities userId={subjectId} />,
+    element: await ProfileActivityRoute({ params: Promise.resolve({ userId: subjectId }) }),
     scenario: async () => {
       const first = screen.getByRole("link", { name: "Table 1" });
       expect(screen.getAllByRole("link", { name: /^(?:Table \d+|New table)$/ })).toHaveLength(8);
@@ -254,7 +254,7 @@ const cases: { name: string; element: ReactElement; scenario: () => Promise<void
   },
   {
     name: "ProfileActivities: authoritative cached receipt appears without remount",
-    element: <ProfileActivities userId={subjectId} />,
+    element: await ProfileActivityRoute({ params: Promise.resolve({ userId: subjectId }) }),
     scenario: async () => {
       const first = screen.getByRole("link", { name: "Table 1" });
       const received: ProfileActivity = {

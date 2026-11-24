@@ -6,7 +6,11 @@ import type {
   GroupRecordResponse,
   NotificationAttentionTarget,
 } from "@board-game-organizer/schemas";
-import { groupPeopleQuery, groupRecordDetailQuery } from "@board-game-organizer/shared";
+import {
+  groupPeopleQuery,
+  groupRecordDetailQuery,
+  groupRecordKeys,
+} from "@board-game-organizer/shared";
 import type { AndroidNativeProps } from "@react-native-community/datetimepicker";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -107,6 +111,7 @@ let group: GroupRecordResponse;
 let people: GroupPersonResponse[];
 let code: number;
 let writeCode: number;
+let failureCode: string;
 let pendingRead: Promise<void> | undefined;
 let pendingWrite: Promise<void> | undefined;
 let releases: (() => void)[];
@@ -184,8 +189,7 @@ async function http(input: RequestInfo | URL, init?: RequestInit) {
     const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
     writes.push({ method, path: url.pathname, body });
     await pendingWrite;
-    if (writeCode !== 200)
-      return Response.json({ error: "MEMBERSHIP_CHANGED" }, { status: writeCode });
+    if (writeCode !== 200) return Response.json({ error: failureCode }, { status: writeCode });
     const match = new RegExp(`^/api/groups/${group.id}/members/([^/]+)$`).exec(url.pathname);
     if (method === "PATCH" && match) {
       const target = people.find((row) => row.userId === match[1]);
@@ -263,6 +267,7 @@ beforeEach(async () => {
   group = { ...groupRecord, memberCount: 3 };
   people = [person("owner", { isAdmin: true, membership: null }), person("guest"), person("other")];
   code = writeCode = 200;
+  failureCode = "MEMBERSHIP_CHANGED";
   reads = [];
   writes = [];
   unexpected = [];
@@ -666,4 +671,73 @@ it("rolls back a rejected role change, exposes real feedback and permits a fresh
   await waitFor(() => expect(current()).toMatchObject({ role: "MODERATOR", version: 2 }));
   expect(writes).toHaveLength(2);
   expect(writes[1].body).toEqual({ action: "promote", version: 1 });
+});
+
+it("reports exclusion refusal when a member is frozen in a public event and preserves their accepted place", async () => {
+  writeCode = 409;
+  failureCode = "BAN_FROZEN_PARTICIPATION";
+  await mount();
+  await ready();
+  await openManagement("Ban from group");
+  await confirm("Ban from group");
+  const feedback = await screen.findAllByText(
+    "This user is involved in a frozen public event and cannot be excluded.",
+  );
+  expect(feedback).not.toHaveLength(0);
+  expect(writes).toEqual([
+    {
+      method: "POST",
+      path: `/api/groups/${group.id}/bans`,
+      body: { userId: "guest", until: null },
+    },
+  ]);
+  expect(people.find(({ userId }) => userId === "guest")?.membership?.status).toBe("ACCEPTED");
+  expect(people.find(({ userId }) => userId === "guest")?.ban).toBeNull();
+  expect(screen.queryByText("Permanent exclusion")).toBeNull();
+});
+
+it("distinguishes a sent invitation and an unnamed member from an incoming request", async () => {
+  people.push(
+    person("invited", { membership: member("invited", { kind: "INVITATION", status: "PENDING" }) }),
+  );
+  people.push(person("unnamed", { username: null, name: null }));
+  await mount();
+  await ready();
+  expect(await screen.findByText("Username unavailable")).toBeVisible();
+  expect(await screen.findByText("@invited")).toBeVisible();
+  expect(screen.getByText("Member with pending invitation")).toBeVisible();
+  expect(
+    screen.queryByRole("button", { name: "Respond to membership request: @invited" }),
+  ).toBeNull();
+  expect(writes).toEqual([]);
+});
+
+it("keeps an in-flight invitation distinct from an authorized pending member after returning to the roster", async () => {
+  const pending = client.getMutationCache().build(
+    client,
+    { mutationKey: groupRecordKeys.mutation(options, group.id, "invite") },
+    {
+      context: undefined,
+      data: undefined,
+      error: null,
+      failureCount: 0,
+      failureReason: null,
+      isPaused: false,
+      status: "pending",
+      variables: {
+        id: group.id,
+        input: { userId: "local-invite" },
+        person: { name: "Local pending friend", username: "local-pending", avatarUrl: null },
+      },
+      submittedAt: Date.now(),
+    },
+  );
+  await mount();
+  await ready();
+  expect(await screen.findByText("@local-pending")).toBeVisible();
+  expect(screen.getByText("Sending invitation")).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Manage member: local-pending" })).toBeNull();
+  await act(() => client.getMutationCache().remove(pending));
+  await waitFor(() => expect(screen.queryByText("@local-pending")).toBeNull());
+  expect(writes).toEqual([]);
 });

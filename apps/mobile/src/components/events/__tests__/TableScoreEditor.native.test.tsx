@@ -1,6 +1,7 @@
 import type { ScorePlayer, TableScoreInput } from "@board-game-organizer/shared";
 import { fireEvent, render, screen, userEvent } from "@testing-library/react-native";
 import type { ComponentProps } from "react";
+import { StyleSheet } from "react-native";
 import { expect, it, vi } from "vitest";
 import { FormInteractionScope } from "@/components/common/ui/FormInteractionScope";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
@@ -223,4 +224,45 @@ it("keeps edited scores while rendering fresh names/usernames for the same immut
   expect(screen.queryByText("Alice Player")).toBeNull();
   await press("Save result");
   expect(submit).toHaveBeenCalledWith(initial(["31", "20", "5"]));
+});
+
+it("replaces an existing tie-break when confirming a new order for the same score", async () => {
+  const submit = vi.fn();
+  await render(
+    <Fixture
+      initial={initial(["10", "10", "5"], [{ score: "10", orderedUserIds: ["bob", "alice"] }])}
+      onSubmit={submit}
+    />,
+  );
+  await press("Resolve tie");
+  await press("Move up: Alice Player");
+  expect(order()[0]).toBe("Score: Alice Player");
+  await press("Confirm tie-break");
+  expect(order()[0]).toBe("Score: Alice Player");
+  await press("Save result");
+  expect(submit).toHaveBeenCalledExactlyOnceWith(
+    initial(["10", "10", "5"], [{ score: "10", orderedUserIds: ["alice", "bob"] }]),
+  );
+});
+
+it("closes the actual score sheet by its overlay without submitting and preserves its described draft", async () => {
+  const submit = vi.fn();
+  await render(<Fixture initial={initial()} onSubmit={submit} />);
+  await fireEvent.changeText(await openScore("alice"), "14");
+  expect(screen.getByRole("button", { name: "Save result" })).toBeDisabled();
+
+  const overlays = screen.container.queryAll(
+    (node) =>
+      typeof node.props.onStartShouldSetResponder === "function" &&
+      StyleSheet.flatten(node.props.style)?.position === "absolute",
+  );
+  expect(overlays).toHaveLength(1);
+  await userEvent.setup().press(overlays[0]);
+  expect(screen.queryByTestId("table-score-input-alice")).toBeNull();
+  expect(screen.getByRole("button", { name: "Save result" })).toBeEnabled();
+  expect(submit).not.toHaveBeenCalled();
+  expect(await openScore("alice")).toHaveDisplayValue("14");
+  await press("Done");
+  await press("Save result");
+  expect(submit).toHaveBeenCalledExactlyOnceWith(initial(["14", "20", "5"]));
 });

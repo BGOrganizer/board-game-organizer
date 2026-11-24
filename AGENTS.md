@@ -235,9 +235,9 @@ Report unavailable kernel limits separately from the application limits actually
 
 ## 7. Verification
 
-Vitest covers Web, native logic and components, API, shared logic, schemas, MCP and Site. Include all first-party
+Vitest covers Web, native React components, API, MCP, Site, schemas and shared runtime packages. Include all first-party
 application and package runtime sources in coverage, including web and mobile components and
-uncovered files. Require **at least 93% lines, functions, branches and statements across the entire project**.
+uncovered files. Require **at least 98% lines, functions, branches and statements in every application and runtime package**.
 Keep isolated unit tests distinct from component integrations using real hooks, Query and cache.
 Testing Library events run in the test renderer; they are not browser/device E2E journeys.
 Coverage may combine both layers; Playwright/Maestro acceptance and Reassure measurements stay explicit.
@@ -248,7 +248,7 @@ not application runtime sources; keep any such exclusions explicit and justified
 
 Before committing and pushing, run only new or modified test files locally, after scoped lint and
 typechecking. Select the files explicitly with the workspace's test command. Run unchanged test
-files and complete workspace coverage in CI on the pushed revision. The 93% coverage gate is
+files and complete workspace coverage in CI on the pushed revision. The 98% coverage gate is
 verified by CI against that exact revision, including required API integration coverage.
 
 API integration tests use Testcontainers with MongoDB configured as a single-node replica set so
@@ -269,7 +269,7 @@ which also covers the configuration shared by linked worktrees.
 
 The API's `test:coverage` combines its unit and integration projects into one source-wide report;
 Docker is required. Its ordinary `test` command selects the unit project only. Do not treat either
-partial API report as the complete 93% gate or replace real repository tests with mock-only coverage.
+partial API report as the complete 98% gate or replace real repository tests with mock-only coverage.
 
 Component tests use the actual application component implementations: React Testing Library for
 web and React Native Testing Library for mobile. Use Vitest for both. Mocks belong at explicit
@@ -288,7 +288,8 @@ Every component needs meaningful render/update scenarios with Reassure assertion
 rerender-count contracts calibrated from repeated observed samples. Record durations and sample
 counts; apply timing regression limits only against a stable, host-matched baseline. A passing
 finite-duration assertion alone does not establish a performance budget. Coverage-instrumented
-runs are not performance measurements. See [React benchmarks](docs/render-performance.md).
+runs verify component reachability separately. Branch, Preview and Main publish paired Web and
+Mobile measurements. See [React benchmarks](docs/render-performance.md).
 
 For native responsiveness investigations, capture a bounded Perfetto trace around a focused
 Maestro flow, then analyze it using the **project-pinned** `bun run perfetto` tool. Verify the
@@ -305,7 +306,7 @@ Every product feature requires both:
 - Maestro coverage for mobile in `apps/mobile/.maestro/flows`.
 
 New and changed feature behavior must cover every required acceptance path across unit, API, and E2E
-suites. Add per-file 93% line, function, branch, and statement thresholds for deterministic logic
+suites. Add per-file 98% line, function, branch, and statement thresholds for new deterministic logic
 measured by Vitest. Because Playwright and Maestro do not expose statement metrics, exercise every
 user-visible success, empty, failure, and action path on both clients.
 

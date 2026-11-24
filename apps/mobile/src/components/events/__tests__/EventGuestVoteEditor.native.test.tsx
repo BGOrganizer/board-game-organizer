@@ -26,7 +26,7 @@ const table = {
 const close = vi.fn();
 const hidden = { includeHiddenElements: true };
 
-function fixture() {
+function fixture(currentTable = table) {
   return (
     <QueryClientProvider
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
@@ -35,7 +35,7 @@ function fixture() {
         <EventGuestVoteEditor
           name="Guest Alice"
           registrationId={registrationId}
-          table={table}
+          table={currentTable}
           onClose={close}
         />
       </NativeTestProviders>
@@ -131,4 +131,94 @@ it("discards unanswered and staged votes on closing after switching between top 
   await fireEvent.press(screen.getByRole("button", { name: "Close", ...hidden }));
   expect(close).toHaveBeenCalledOnce();
   expect(fetcher.mock.calls).toHaveLength(2);
+});
+
+it("retries the failed guest ballot read and keeps a rejected staged ballot recoverable", async () => {
+  let readStatus = 503;
+  let writeStatus = 422;
+  const writes: unknown[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string, init?: RequestInit) => {
+      const url = new URL(input);
+      if (url.pathname === `/api/events/${plannedEvent.id}`)
+        return Response.json({ ...plannedEvent, canManage: true });
+      if (url.pathname === path) {
+        if (readStatus !== 200)
+          return Response.json(
+            { error: "Fixture guest vote service unavailable" },
+            { status: readStatus },
+          );
+        return Response.json({
+          guestName: "Guest Alice",
+          dateVotes: {},
+          locationVotes: {},
+          gameVotes: {},
+        });
+      }
+      if (url.pathname === `${path}/votes` && init?.method === "POST") {
+        writes.push(JSON.parse(String(init.body)));
+        if (writeStatus !== 200)
+          return Response.json({ error: "Fixture guest vote refused" }, { status: writeStatus });
+        return Response.json({
+          guestName: "Guest Alice",
+          dateVotes: {},
+          locationVotes: {},
+          gameVotes: { "1": "IF_NEEDED" },
+        });
+      }
+      throw new Error(`Unexpected request: ${url.pathname}`);
+    }),
+  );
+  await render(fixture());
+  expect(await screen.findByText("Could not load guest votes", hidden)).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "Vote", ...hidden })).toBeDisabled();
+  readStatus = 200;
+  await fireEvent.press(screen.getByRole("button", { name: "Try again", ...hidden }));
+  const ballot = await screen.findByRole("button", { name: "Chess: If needed", ...hidden });
+  await fireEvent.press(ballot);
+  expect(ballot).toBeSelected();
+  expect(writes).toEqual([]);
+  await fireEvent.press(screen.getByRole("button", { name: "Vote", ...hidden }));
+  expect(
+    await screen.findByText("Could not save guest vote. Try again.", hidden),
+  ).toBeOnTheScreen();
+  expect(ballot).toBeSelected();
+  expect(close).not.toHaveBeenCalled();
+
+  writeStatus = 200;
+  await fireEvent.press(screen.getByRole("button", { name: "Vote", ...hidden }));
+  await waitFor(() => expect(close).toHaveBeenCalledOnce());
+  const input = { votes: [{ kind: "game", tableId: table.id, gameId: 1, vote: "IF_NEEDED" }] };
+  expect(writes).toEqual([input, input]);
+});
+
+it("retains the exact game vote when its display metadata is temporarily unavailable", async () => {
+  const writes: unknown[] = [];
+  const current = { guestName: "Guest Alice", dateVotes: {}, locationVotes: {}, gameVotes: {} };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string, init?: RequestInit) => {
+      const route = new URL(input).pathname;
+      if (route === `/api/events/${plannedEvent.id}`)
+        return Response.json({ ...plannedEvent, canManage: true });
+      if (route === path) return Response.json(current);
+      if (route === `${path}/votes` && init?.method === "POST") {
+        writes.push(JSON.parse(String(init.body)));
+        return Response.json({ ...current, gameVotes: { "2": "YES" } });
+      }
+      throw new Error(`Unexpected guest vote request ${route}`);
+    }),
+  );
+  await render(fixture({ ...table, gamesDetail: plannedTable.gamesDetail }));
+  expect(await screen.findByRole("button", { name: "Chess: Yes", ...hidden })).toBeEnabled();
+  const fallback = screen.getByRole("button", { name: "Unknown game: Yes", ...hidden });
+  await fireEvent.press(fallback);
+  expect(screen.getByRole("button", { name: "Unknown game: Yes", ...hidden })).toBeSelected();
+  expect(writes).toEqual([]);
+  await fireEvent.press(screen.getByRole("button", { name: "Vote", ...hidden }));
+  await waitFor(() => expect(close).toHaveBeenCalledOnce());
+  expect(writes).toEqual([
+    { votes: [{ kind: "game", tableId: table.id, gameId: 2, vote: "YES" }] },
+  ]);
 });

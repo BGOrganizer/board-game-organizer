@@ -640,3 +640,69 @@ it.each(["event", "table", "events", "tables"] as const)(
     client.clear();
   },
 );
+
+it("filters public Event data by status after an otherwise matching cached row changed phase", () => {
+  const { client, options, wrapper } = setup();
+  const filters = {
+    groupId: plannedEvent.groupId ?? "owned-group",
+    statuses: ["PLANNING"] as const,
+  };
+  const current = { ...plannedEvent, groupId: filters.groupId };
+  const changed = { ...current, id: "changed-event", status: "CONFIRMED" as const };
+  client.setQueryData(eventRecordsQuery(options, filters).queryKey, {
+    pages: [{ items: [current, changed], nextCursor: null }],
+    pageParams: [""],
+  });
+  const { result } = renderHook(() => useEventRecords({ ...options, enabled: false }, filters), {
+    wrapper,
+  });
+  expect(result.current.items.map(({ id }) => id)).toEqual([current.id]);
+});
+
+it("uses an explicit personal section and omits cached rows with a different Table status", () => {
+  const { client, options, wrapper } = setup();
+  const filters = { section: "mine" as const, statuses: ["CONFIRMED"] as const };
+  const owned = {
+    ...plannedTable,
+    eventStatus: "CONFIRMED" as const,
+    confirmed: { gameId: 1, playerIds: ["owner"], startsAt: "2030-06-03T18:00:00Z" },
+  };
+  const foreign = {
+    ...owned,
+    id: "another-table",
+    confirmed: { ...owned.confirmed, playerIds: ["guest"] },
+  };
+  const closed = { ...owned, id: "closed-table", eventStatus: "TERMINATED" as const };
+  client.setQueryData(recordTablesQuery(options, null, filters).queryKey, {
+    pages: [{ items: [closed, foreign, owned], nextCursor: null }],
+    pageParams: [""],
+  });
+  const { result } = renderHook(
+    () => useRecordTables({ ...options, enabled: false }, null, filters),
+    { wrapper },
+  );
+  expect(result.current.items.map(({ id }) => id)).toEqual([owned.id]);
+});
+
+it("uses immutable results already present in the opening history summary without a duplicate read", async () => {
+  const { client, options, wrapper } = setup();
+  const finished = {
+    ...plannedTable,
+    eventStatus: "TERMINATED" as const,
+    gameVoteCounts: {},
+    gameVoteVoters: {},
+    resultProfiles: [],
+  };
+  const key = recordTablesQuery(options, null).queryKey;
+  client.setQueryData(key, {
+    pages: [{ items: [{ ...finished, eventId: "wrong-event" }, finished], nextCursor: null }],
+    pageParams: [""],
+  });
+  const request = vi.fn();
+  vi.stubGlobal("fetch", request);
+  const { result } = renderHook(() => useRecordTable(options, eventId, tableId), { wrapper });
+  expect(result.current.isPlaceholderData).toBe(false);
+  expect(result.current.data).toEqual(finished);
+  await act(async () => {});
+  expect(request).not.toHaveBeenCalled();
+});

@@ -2,7 +2,15 @@ import { URL } from "node:url";
 import type { PlannedEventResponse, PlannedTableResponse } from "@board-game-organizer/schemas";
 import { CommunityApiError, eventRecordKeys } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, userEvent, waitFor, within } from "@testing-library/react-native";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  userEvent,
+  waitFor,
+  within,
+} from "@testing-library/react-native";
 import type { ComponentProps } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
@@ -291,8 +299,12 @@ it("locks consent and coalesces repeated presses while the authorized finalizati
     finish = resolve;
   });
   await render(<Fixture />);
-  await open();
-  await confirm();
+  const confirmation = await open();
+  const consent = within(confirmation).getByRole("button", { name: "Finalize event" });
+  // Deliver the rapid second press before the real button commits its disabled state.
+  await act(async () => {
+    await Promise.all([fireEvent.press(consent), fireEvent.press(consent)]);
+  });
   await waitFor(() => expect(writes).toHaveLength(1));
   const dialog = within(screen.getByTestId("confirmation-dialog"));
   expect(dialog.getByRole("button", { name: "Finalize event" })).toBeDisabled();

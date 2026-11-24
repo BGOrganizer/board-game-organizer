@@ -20,8 +20,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, screen } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { afterAll, afterEach, expect, test, vi } from "vitest";
-import { EventWizard } from "@/components/events/EventWizard";
-import { GroupWizard } from "@/components/groups/GroupWizard";
+import EditEventPage from "@/app/(tabs)/events/[eventId]/edit/page";
+import NewEventPage from "@/app/(tabs)/events/new/page";
+import EditGroupPage from "@/app/(tabs)/groups/[groupId]/edit/page";
+import NewGroupPage from "@/app/(tabs)/groups/new/page";
 import { installBrowserIntersections } from "@/test-fixtures/browserIntersections";
 import { groupRecord, plannedEvent, plannedTable } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
@@ -207,7 +209,7 @@ function assertNoSideEffects() {
 const createGroupScenario =
   "GroupWizard: invalid draft recovery and cached friend picker round trip";
 test(createGroupScenario, async () => {
-  const result = await measureRenders(<GroupWizard />, {
+  const result = await measureRenders(await NewGroupPage({ searchParams: Promise.resolve({}) }), {
     scenario: async () => {
       fireEvent.click(screen.getByRole("button", { name: "Create group" }));
       expect(screen.getByRole("alert")).toHaveTextContent(
@@ -243,86 +245,141 @@ test(createGroupScenario, async () => {
 
 const editGroupScenario = "GroupWizard: cached authoritative version conflict retains unsaved name";
 test(editGroupScenario, async () => {
-  const result = await measureRenders(<GroupWizard groupId={groupRecord.id} />, {
-    scenario: async () => {
-      const input = screen.getByRole("textbox", { name: "Group name" });
-      expect(input).toHaveValue(groupRecord.name);
-      fireEvent.change(input, { target: { value: "Unsubmitted edited club" } });
-      const fresh: GroupRecordResponse = {
-        ...groupRecord,
-        name: "Server renamed group",
-        version: 2,
-      };
-      act(() =>
-        currentClient().setQueryData(groupRecordKeys.detail(options, groupRecord.id), fresh),
-      );
-      expect(
-        await screen.findByText("This group changed. Go back and reopen the editor before saving."),
-      ).toBeVisible();
-      expect(screen.getByRole("textbox", { name: "Group name" })).toBe(input);
-      expect(input).toHaveValue("Unsubmitted edited club");
-      expect(screen.getByRole("button", { name: "Save changes" })).toBeDisabled();
-      fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
-      expect(currentClient().getQueryData(groupRecordKeys.detail(options, groupRecord.id))).toEqual(
-        fresh,
-      );
-      assertNoSideEffects();
+  const result = await measureRenders(
+    await EditGroupPage({ params: Promise.resolve({ groupId: groupRecord.id }) }),
+    {
+      scenario: async () => {
+        const input = screen.getByRole("textbox", { name: "Group name" });
+        expect(input).toHaveValue(groupRecord.name);
+        fireEvent.change(input, { target: { value: "Unsubmitted edited club" } });
+        const fresh: GroupRecordResponse = {
+          ...groupRecord,
+          name: "Server renamed group",
+          version: 2,
+        };
+        act(() =>
+          currentClient().setQueryData(groupRecordKeys.detail(options, groupRecord.id), fresh),
+        );
+        expect(
+          await screen.findByText(
+            "This group changed. Go back and reopen the editor before saving.",
+          ),
+        ).toBeVisible();
+        expect(screen.getByRole("textbox", { name: "Group name" })).toBe(input);
+        expect(input).toHaveValue("Unsubmitted edited club");
+        expect(screen.getByRole("button", { name: "Save changes" })).toBeDisabled();
+        fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+        expect(
+          currentClient().getQueryData(groupRecordKeys.detail(options, groupRecord.id)),
+        ).toEqual(fresh);
+        assertNoSideEffects();
+      },
     },
-  });
+  );
   assertRenderMeasurement(result, editGroupScenario);
 });
 
 const editEventScenario =
   "EventWizard: cached step and demonstrator picker reentry retain unsaved table draft";
 test(editEventScenario, async () => {
-  const result = await measureRenders(<EventWizard eventId={event.id} />, {
-    scenario: async () => {
-      await screen.findByRole("textbox", { name: "Event name" });
-      fireEvent.change(screen.getByRole("textbox", { name: "Event name" }), {
-        target: { value: "Unsubmitted event name" },
-      });
-      fireEvent.click(screen.getByRole("button", { name: "Next" }));
-      await screen.findByLabelText(/^Event date \*$/);
-      fireEvent.click(screen.getByRole("button", { name: "Next" }));
-      const trigger = await screen.findByRole("button", { name: "Table #1" });
-      if (trigger.getAttribute("aria-expanded") !== "true") fireEvent.click(trigger);
-      fireEvent.click(screen.getByRole("button", { name: "Increase Maximum players" }));
-      fireEvent.click(screen.getByRole("button", { name: "Choose demonstrator" }));
-      expect(
-        await screen.findByRole("button", { name: "Select user: Guide Player" }),
-      ).toBeVisible();
-      fireEvent.click(screen.getByRole("button", { name: "Back" }));
-      expect(screen.getByRole("button", { name: "Table #1" })).toHaveAttribute(
-        "aria-expanded",
-        "true",
-      );
-      fireEvent.click(screen.getByRole("button", { name: "Choose demonstrator" }));
-      fireEvent.click(await screen.findByRole("button", { name: "Select user: Guide Player" }));
-      expect(screen.getByText("Guide Player")).toBeVisible();
-      fireEvent.click(screen.getByRole("button", { name: "1. Event" }));
-      expect(screen.getByRole("textbox", { name: "Event name" })).toHaveValue(
-        "Unsubmitted event name",
-      );
-      fireEvent.click(screen.getByRole("button", { name: "Next" }));
-      fireEvent.click(screen.getByRole("button", { name: "Next" }));
-      const retained = await screen.findByRole("button", { name: "Table #1" });
-      if (retained.getAttribute("aria-expanded") !== "true") fireEvent.click(retained);
-      expect(screen.getByRole("button", { name: "Table #1" })).toHaveAttribute(
-        "aria-expanded",
-        "true",
-      );
-      expect(screen.getByText("Guide Player")).toBeVisible();
-      expect(currentClient().getQueryData(recordTablesQuery(options, event.id).queryKey)).toBe(
-        tables,
-      );
-      expect(
-        currentClient().getQueryData(
-          groupPeopleQuery(options, publicGroup.id, "accepted").queryKey,
-        ),
-      ).toBe(guidePages);
-      assertNoSideEffects();
+  const result = await measureRenders(
+    await EditEventPage({ params: Promise.resolve({ eventId: event.id }) }),
+    {
+      scenario: async () => {
+        await screen.findByRole("textbox", { name: "Event name" });
+        fireEvent.change(screen.getByRole("textbox", { name: "Event name" }), {
+          target: { value: "Unsubmitted event name" },
+        });
+        fireEvent.click(screen.getByRole("button", { name: "Next" }));
+        await screen.findByRole("group", { name: /^Date and time/ });
+        fireEvent.click(screen.getByRole("button", { name: "Next" }));
+        const trigger = await screen.findByRole("button", { name: "Table #1" });
+        if (trigger.getAttribute("aria-expanded") !== "true") fireEvent.click(trigger);
+        fireEvent.click(screen.getByRole("button", { name: "Increase Maximum players" }));
+        fireEvent.click(screen.getByRole("button", { name: "Choose demonstrator" }));
+        expect(
+          await screen.findByRole("button", { name: "Select user: Guide Player" }),
+        ).toBeVisible();
+        fireEvent.click(screen.getByRole("button", { name: "Back" }));
+        expect(screen.getByRole("button", { name: "Table #1" })).toHaveAttribute(
+          "aria-expanded",
+          "true",
+        );
+        fireEvent.click(screen.getByRole("button", { name: "Choose demonstrator" }));
+        fireEvent.click(await screen.findByRole("button", { name: "Select user: Guide Player" }));
+        expect(screen.getByText("Guide Player")).toBeVisible();
+        fireEvent.click(screen.getByRole("button", { name: "1. Event" }));
+        expect(screen.getByRole("textbox", { name: "Event name" })).toHaveValue(
+          "Unsubmitted event name",
+        );
+        fireEvent.click(screen.getByRole("button", { name: "Next" }));
+        fireEvent.click(screen.getByRole("button", { name: "Next" }));
+        const retained = await screen.findByRole("button", { name: "Table #1" });
+        if (retained.getAttribute("aria-expanded") !== "true") fireEvent.click(retained);
+        expect(screen.getByRole("button", { name: "Table #1" })).toHaveAttribute(
+          "aria-expanded",
+          "true",
+        );
+        expect(screen.getByText("Guide Player")).toBeVisible();
+        expect(currentClient().getQueryData(recordTablesQuery(options, event.id).queryKey)).toBe(
+          tables,
+        );
+        expect(
+          currentClient().getQueryData(
+            groupPeopleQuery(options, publicGroup.id, "accepted").queryKey,
+          ),
+        ).toBe(guidePages);
+        assertNoSideEffects();
+      },
     },
-  });
+  );
   // Unknown scenario budgets deliberately remain unregistered until two observed runs.
   assertRenderMeasurement(result, editEventScenario);
 });
+
+const newEventScenario = "New event route: switch the draft group without losing the event name";
+test(newEventScenario, async () => {
+  const result = await measureRenders(await NewEventPage({ searchParams: Promise.resolve({}) }), {
+    scenario: async () => {
+      const name = screen.getByRole("textbox", { name: "Event name" });
+      fireEvent.change(name, { target: { value: "Unsaved event draft" } });
+      fireEvent.click(screen.getByRole("button", { name: /Group$/ }));
+      fireEvent.click(await screen.findByRole("option", { name: /Friday group/ }));
+      expect(name).toHaveValue("Unsaved event draft");
+      fireEvent.click(screen.getByRole("button", { name: /Group$/ }));
+      fireEvent.click(await screen.findByRole("option", { name: "No group" }));
+      expect(name).toHaveValue("Unsaved event draft");
+      assertNoSideEffects();
+    },
+  });
+  assertRenderMeasurement(result, newEventScenario);
+});
+
+const missingDraftCases = [
+  {
+    name: "EventWizard: reject an unknown draft and preserve the Back action",
+    page: NewEventPage,
+  },
+  {
+    name: "GroupWizard: reject an unknown draft and preserve the Back action",
+    page: NewGroupPage,
+  },
+];
+for (const { name, page } of missingDraftCases) {
+  test(name, async () => {
+    const result = await measureRenders(
+      await page({ searchParams: Promise.resolve({ draftId: "absent-private-draft" }) }),
+      {
+        scenario: async () => {
+          expect(screen.getByRole("alert")).toHaveTextContent("Could not recover draft");
+          expect(screen.queryByRole("textbox")).toBeNull();
+          fireEvent.click(screen.getByRole("button", { name: "Back" }));
+          expect(sdk.back).toHaveBeenCalledOnce();
+          expect(sdk.replace).not.toHaveBeenCalled();
+          expect(requests).toEqual([]);
+        },
+      },
+    );
+    assertRenderMeasurement(result, name);
+  });
+}

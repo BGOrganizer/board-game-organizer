@@ -526,3 +526,12 @@ it("shows an uncertain saved-score state without replaying the pending result", 
   expect(writes).toEqual([]);
   expect(boundary.dismissTo).not.toHaveBeenCalled();
 });
+
+it("keeps a table ID without an event outside the native result editor and result reads", async () => {
+  boundary.params = { tableId: table.id };
+  await mount(false);
+  expect(screen.queryByTestId("table-save-result")).toBeNull();
+  expect(screen.queryByText("Live standings")).toBeNull();
+  expect(reads).toEqual([]);
+  expect(writes).toEqual([]);
+});

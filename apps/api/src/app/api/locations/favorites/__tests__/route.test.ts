@@ -251,3 +251,14 @@ describe("private location favorites", () => {
     expect((await DELETE(request("DELETE", { key }))).status).toBe(500);
   });
 });
+
+it("applies the body limit to UTF-8 bytes before checking or saving a favorite", async () => {
+  const response = await POST(
+    request("POST", { location: { ...location, name: "é".repeat(9000) } }),
+  );
+  expect(response.status).toBe(413);
+  expect(await response.json()).toEqual({ error: "Request body too large" });
+  expect(mocks.geocode).not.toHaveBeenCalled();
+  expect(mocks.db).not.toHaveBeenCalled();
+  expect(mocks.save).not.toHaveBeenCalled();
+});

@@ -1,4 +1,4 @@
-import { render, screen, userEvent } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, userEvent } from "@testing-library/react-native";
 import { Dices, UsersRound } from "lucide-react-native";
 import { Text } from "react-native";
 import { describe, expect, it, vi } from "vitest";
@@ -10,11 +10,13 @@ import { DateTimeInfo } from "../DateTimeInfo";
 import { EmptyList } from "../EmptyList";
 import { GroupedList } from "../GroupedList";
 import { GroupedRow } from "../GroupedRow";
+import { GuestNameRow } from "../GuestNameRow";
 import { ListCard } from "../ListCard";
 import { ListCardBody } from "../ListCardBody";
 import { NotificationCountBadge } from "../NotificationCountBadge";
 import { NotificationUnreadDot } from "../NotificationUnreadDot";
 import { PendingArtworkBadge } from "../PendingArtworkBadge";
+import { RankPositionBadge } from "../RankPositionBadge";
 import { WizardSteps } from "../WizardSteps";
 
 function RecordStatus({ phase }: { phase?: "saving" | "verifying" | "failed" }) {
@@ -246,4 +248,39 @@ describe("native common presentation components", () => {
     expect(onPress).toHaveBeenCalledTimes(1);
     expect(screen.queryByText("Generate an invitation")).toBeNull();
   });
+});
+
+it("requires a valid guest name for the keyboard action and resets it only once accepted", async () => {
+  let accept: (() => void) | undefined;
+  const add = vi.fn((_name: string, reset: () => void) => {
+    accept = reset;
+  });
+  await render(<GuestNameRow maxLength={20} onAdd={add} />, {
+    wrapper: NativeTestProviders,
+  });
+  const input = screen.getByLabelText("Guest name");
+  const button = screen.getByRole("button", { name: "Add a guest" });
+  expect(button).toBeDisabled();
+  await fireEvent(input, "submitEditing");
+  expect(add).not.toHaveBeenCalled();
+
+  await fireEvent.changeText(input, "  Guest Player  ");
+  await fireEvent(input, "submitEditing", { nativeEvent: { text: "  Guest Player  " } });
+  expect(add).toHaveBeenCalledExactlyOnceWith("Guest Player", expect.any(Function));
+  expect(input).toHaveProp("value", "  Guest Player  ");
+  if (!accept) throw new Error("Expected the real acceptance callback from the guest form");
+  await act(accept);
+  expect(input).toHaveProp("value", "");
+  expect(button).toBeDisabled();
+});
+
+it("keeps the third-place medal and lower positions accessible without turning them into actions", async () => {
+  const view = await render(<RankPositionBadge rank={3} />, { wrapper: NativeTestProviders });
+  expect(screen.getByRole("image", { name: "Position: #3" })).toBeOnTheScreen();
+  expect(screen.queryByRole("button")).toBeNull();
+  await view.rerender(<RankPositionBadge rank={4} />);
+  expect(screen.queryByRole("image", { name: "Position: #3" })).toBeNull();
+  expect(screen.getByRole("image", { name: "Position: #4" })).toBeOnTheScreen();
+  await view.rerender(<RankPositionBadge rank={null} />);
+  expect(screen.getByRole("image", { name: "Position: ND" })).toBeOnTheScreen();
 });

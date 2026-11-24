@@ -16,8 +16,8 @@ import { act, screen, userEvent, waitFor } from "@testing-library/react-native";
 import type { ReactNode } from "react";
 import { View } from "react-native";
 import { afterEach, expect, it, vi } from "vitest";
+import EventProposalScreen from "@/app/event/proposal";
 import { EventJoinSheet } from "@/components/events/EventJoinSheet";
-import { EventProposalEditor } from "@/components/events/EventProposalEditor";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import { plannedEvent, plannedTable, seat } from "../../web/src/test-fixtures/eventRecords";
 import { assertRenderMeasurement } from "./assertRenderMeasurement";
@@ -46,7 +46,7 @@ vi.mock("expo-constants", () => ({
 vi.mock("expo-router", () => ({
   useRouter: () => boundary,
   useNavigation: () => ({ getState: () => ({ type: "stack" }) }),
-  useLocalSearchParams: () => ({}),
+  useLocalSearchParams: () => ({ eventId: plannedEvent.id, kind: "date" }),
   Stack: {
     Screen: ({
       options: config,
@@ -306,7 +306,7 @@ it("EventProposalEditor: invalid date, Android selection and pending proposal pr
     }),
   );
   try {
-    const result = await measureRenders(<EventProposalEditor eventId={event.id} kind="date" />, {
+    const result = await measureRenders(<EventProposalScreen />, {
       wrapper: wrapperFor(client),
       beforeEach: () => {
         reset(client);
@@ -398,45 +398,42 @@ it("EventProposalEditor: authoritative category revocation removes the draft act
     }),
   );
   try {
-    const result = await measureRenders(
-      <EventProposalEditor eventId={plannedEvent.id} kind="date" />,
-      {
-        wrapper: wrapperFor(client),
-        beforeEach: () => {
-          reset(client);
-          event = proposalEvent();
-          reads.length = writes.length = unexpected.length = 0;
-          client.setQueryData(eventRecordQuery(options, event.id).queryKey, event);
-        },
-        scenario: async () => {
-          await screen.findByRole("button", { name: "Send proposal" });
-          await chooseDate();
-          expect(writes).toEqual([]);
-          event = {
-            ...event,
-            version: event.version + 1,
-            canProposeDates: false,
-            allowParticipantDates: false,
-          };
-          await act(() =>
-            client.refetchQueries({
-              queryKey: eventRecordQuery(options, event.id).queryKey,
-              exact: true,
-            }),
-          );
-          expect(await screen.findByText(denied)).toBeVisible();
-          expect(screen.queryByRole("button", { name: "Send proposal" })).toBeNull();
-          expect(
-            client.getQueryData<PlannedEventResponse>(eventRecordQuery(options, event.id).queryKey),
-          ).toMatchObject({ version: 2, canProposeDates: false });
-          expect(reads).toHaveLength(1);
-          expect(writes).toEqual([]);
-          await press("Cancel");
-          expect(boundary.back).toHaveBeenCalledOnce();
-          expect(unexpected).toEqual([]);
-        },
+    const result = await measureRenders(<EventProposalScreen />, {
+      wrapper: wrapperFor(client),
+      beforeEach: () => {
+        reset(client);
+        event = proposalEvent();
+        reads.length = writes.length = unexpected.length = 0;
+        client.setQueryData(eventRecordQuery(options, event.id).queryKey, event);
       },
-    );
+      scenario: async () => {
+        await screen.findByRole("button", { name: "Send proposal" });
+        await chooseDate();
+        expect(writes).toEqual([]);
+        event = {
+          ...event,
+          version: event.version + 1,
+          canProposeDates: false,
+          allowParticipantDates: false,
+        };
+        await act(() =>
+          client.refetchQueries({
+            queryKey: eventRecordQuery(options, event.id).queryKey,
+            exact: true,
+          }),
+        );
+        expect(await screen.findByText(denied)).toBeVisible();
+        expect(screen.queryByRole("button", { name: "Send proposal" })).toBeNull();
+        expect(
+          client.getQueryData<PlannedEventResponse>(eventRecordQuery(options, event.id).queryKey),
+        ).toMatchObject({ version: 2, canProposeDates: false });
+        expect(reads).toHaveLength(1);
+        expect(writes).toEqual([]);
+        await press("Cancel");
+        expect(boundary.back).toHaveBeenCalledOnce();
+        expect(unexpected).toEqual([]);
+      },
+    });
     assertRenderMeasurement(result);
   } finally {
     client.clear();

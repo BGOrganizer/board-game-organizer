@@ -66,24 +66,18 @@ They do not dispatch workflows, create/delete provider users or publish builds.
 Validate workflow expressions with `actionlint`; check changed Bash scripts with `bash -n`.
 Run Biome on changed JavaScript. Keep workflow contract tests aligned with script behavior,
 including negative paths, without weakening required checks or mocking E2E acceptance.
-Both CI lanes enforce 93% line, function and branch coverage for the shared release/Telegram
-formatters through Node's test coverage flags on the same contract suite.
-Branch, PR and Main unit jobs use each workspace's `test:coverage` command, enforcing at least
-93% lines, functions, branches and statements through the same Vitest configuration used locally.
-The API coverage command includes its unit and MongoDB integration projects in one report;
-the separate integration job remains an independent required check.
-Reassure measurements are paused by explicit operator request. Both complete web/mobile job
-matrices and their paired baseline/current definitions remain retained with `if: ${{ false }}`,
-but are absent from active deployment/release/readiness dependencies and watchdog requirements.
-No skipped benchmark is reported as a passing performance measurement. Comparator, paired-helper
-and other tooling unit tests remain active within ordinary tests.
+Both CI lanes enforce 98% line, function and branch coverage for the shared release/Telegram
+formatters through Node's test coverage flags on the contract suite. Branch, PR and Main coverage
+jobs enforce 98% lines, functions, branches and statements through each workspace's Vitest
+configuration. Site coverage runs with its build. The required `PR ready` check includes the
+coverage matrix and Site. API coverage combines unit and replica-set MongoDB integration tests.
+The separate API integration job remains required.
 
-The six-workspace 93% coverage matrix, separate Site checks, real MongoDB integration, lint, typecheck, builds,
-native tooling, release provenance and cleanup gates remain active. The retained rendering jobs
-preserve same-runner sequencing, approved refs, strict samples/count caps and the documented
-initial-main bootstrap policy for explicit resumption; see
-[rendering benchmarks](../docs/render-performance.md#paired-statistical-ci-checks). There is no
-fabricated old baseline or claim that the interrupted local measurement completed.
+Reassure runs independently on Branch, Preview and Main. The Web and Mobile jobs measure the
+approved baseline and current checkout consecutively on the same runner and publish both reports
+under attempt-specific artifact names. The [render benchmark policy](../docs/render-performance.md#paired-statistical-ci-checks)
+defines measured samples, comparison gates and the initial-main bootstrap. The ordinary Web suite
+runs the comparator and paired-run helper tests.
 
 Native tooling checks verify pinned CLI identities and parse every Maestro flow without running a
 device, emulator or E2E journey. Test matrices finish their other suites after a sibling failure.

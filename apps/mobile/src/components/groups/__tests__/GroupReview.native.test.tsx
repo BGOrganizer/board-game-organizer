@@ -7,9 +7,9 @@ import { CommunityApiError, groupRecordKeys } from "@board-game-organizer/shared
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, userEvent, waitFor } from "@testing-library/react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import ReviewScreen from "@/app/moderation/[groupId]";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import { groupRecord } from "../../../../../web/src/test-fixtures/eventRecords";
-import { GroupReview } from "../GroupReview";
 
 const sdk = vi.hoisted(() => ({
   dismissTo: vi.fn(),
@@ -37,7 +37,7 @@ vi.mock("@clerk/expo", () => ({
 }));
 vi.mock("expo-router", () => ({
   useRouter: () => ({ dismissTo: sdk.dismissTo }),
-  useLocalSearchParams: () => ({}),
+  useLocalSearchParams: () => ({ groupId: group.id }),
   useNavigation: () => ({ getState: () => ({ type: "stack" }) }),
 }));
 
@@ -133,7 +133,7 @@ function Fixture() {
   return (
     <QueryClientProvider client={client}>
       <NativeTestProviders>
-        <GroupReview groupId={group.id} />
+        <ReviewScreen />
       </NativeTestProviders>
     </QueryClientProvider>
   );

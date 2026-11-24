@@ -5,8 +5,8 @@ import { type InfiniteData, QueryClient, QueryClientProvider } from "@tanstack/r
 import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { afterAll, afterEach, beforeEach, expect, test, vi } from "vitest";
+import NotificationsRoute from "@/app/(tabs)/notifications/page";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
-import { NotificationsPage } from "@/components/notifications/NotificationsPage";
 import { installBrowserIntersections } from "@/test-fixtures/browserIntersections";
 import { renderWithI18n } from "@/test-utils";
 import { assertRenderMeasurement } from "./assertRenderMeasurement";
@@ -214,7 +214,7 @@ const inboxScenario =
   "NotificationsPage: cached paging and authoritative text stay reactive while explicit read failure rolls back before retry";
 test(inboxScenario, async () => {
   kind = "inbox";
-  const result = await measureRenders(<NotificationsPage />, {
+  const result = await measureRenders(<NotificationsRoute />, {
     scenario: async () => {
       expect(await screen.findByText(original[0].title)).toBeVisible();
       expect(screen.queryByText(original[20].title)).toBeNull();

@@ -153,3 +153,14 @@ describe("unified group presentation", () => {
     expect(screen.queryByText("Events")).toBeNull();
   });
 });
+
+it("preserves the private group visibility and optional section action in the standalone details card", () => {
+  renderWithI18n(
+    <GroupDetailsCard group={base}>
+      <button type="button">Review saved changes</button>
+    </GroupDetailsCard>,
+  );
+  expect(screen.getByText("Private", { exact: true })).toBeVisible();
+  expect(screen.queryByText("Public", { exact: true })).toBeNull();
+  expect(screen.getByRole("button", { name: "Review saved changes" })).toBeVisible();
+});

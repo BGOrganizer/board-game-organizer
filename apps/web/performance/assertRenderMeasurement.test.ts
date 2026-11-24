@@ -30,6 +30,27 @@ it("rejects an extra commit even if an aggregate mean hides it", () => {
   expect(() => assertRenderMeasurement(measurement, scenario)).toThrow(/Render regression/);
 });
 
+it("uses the same two-commit allowance whether the measured route varies once or twice", () => {
+  const route =
+    "EventDetail: cached Participants and Tables entry and reentry keeps the event header";
+  const measurement = {
+    ...valid(),
+    counts: [26, 26, 26, 26, 26, 26, 26, 26, 27, 28],
+    meanCount: 26.3,
+  };
+  expect(() => assertRenderMeasurement(measurement, route)).not.toThrow();
+  measurement.counts[8] = 28;
+  expect(() => assertRenderMeasurement(measurement, route)).not.toThrow();
+  measurement.counts[7] = 28;
+  expect(() => assertRenderMeasurement(measurement, route)).toThrow(/Render regression/);
+  measurement.counts[7] = measurement.counts[8] = 27;
+  measurement.counts[9] = 29;
+  measurement.meanCount = 27.2;
+  expect(() => assertRenderMeasurement(measurement, route)).not.toThrow();
+  measurement.counts[9] = 30;
+  expect(() => assertRenderMeasurement(measurement, route)).toThrow(/Render regression/);
+});
+
 it.each(["Unmeasured component", "toString", "__proto__"])(
   "rejects unregistered or inherited budget %s",
   (name) => {

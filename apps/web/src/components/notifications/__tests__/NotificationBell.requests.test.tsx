@@ -396,3 +396,54 @@ it("does not register an old account's pending Firebase result after the session
   });
   expect(sdk.permission).not.toHaveBeenCalled();
 });
+
+it.each([
+  { label: "unavailable browser API", absent: true },
+  { label: "explicit browser denial", absent: false },
+])("keeps notifications available after $label without registering push", async ({ absent }) => {
+  vi.stubGlobal(
+    "Notification",
+    absent ? undefined : { permission: "default", requestPermission: sdk.permission },
+  );
+  sdk.permission.mockResolvedValueOnce("denied");
+  mount();
+  await openBell();
+  expect(await screen.findByText(first.title)).toBeVisible();
+  if (!absent) {
+    fireEvent.click(screen.getByRole("menuitem", { name: "Enable push notifications" }));
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+    expect(sdk.permission).toHaveBeenCalledOnce();
+    await openBell();
+    expect(await screen.findByText(first.title)).toBeVisible();
+  }
+  expect(screen.queryByRole("menuitem", { name: "Enable push notifications" })).toBeNull();
+  expect(sdk.firebaseToken).not.toHaveBeenCalled();
+  expect(sdk.registerWorker).not.toHaveBeenCalled();
+  expect(pushWrites).toEqual([]);
+  expect(notificationWrites).toEqual([]);
+});
+
+it("continues with the new account's authorized push registration after the previous promise rejects", async () => {
+  vi.stubGlobal("Notification", { permission: "granted", requestPermission: sdk.permission });
+  let rejectOld: (error: Error) => void = () => {
+    throw new Error("Expected a pending previous account Firebase operation");
+  };
+  sdk.firebaseToken.mockImplementationOnce(
+    () =>
+      new Promise((_resolve, reject) => {
+        rejectOld = reject;
+      }),
+  );
+  const view = mount();
+  await waitFor(() => expect(sdk.firebaseToken).toHaveBeenCalledOnce());
+  sdk.actor = "replacement";
+  view.rerender(<Fixture />);
+  await act(() => rejectOld(new Error("Previous browser push registration failed")));
+  await waitFor(() => expect(pushWrites).toHaveLength(1));
+  expect(pushWrites[0]).toEqual({
+    actor: "replacement",
+    body: { token: "browser-fcm-fixture-token", platform: "web", locale: "en" },
+  });
+  expect(await screen.findByLabelText("Notifications: 1")).toBeVisible();
+  expect(notificationWrites).toEqual([]);
+});

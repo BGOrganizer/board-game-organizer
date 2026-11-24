@@ -971,3 +971,36 @@ it("formats accessible group totals and location without claiming unknown event 
   expect(screen.getByText("Via Roma 1")).toBeVisible();
   expect(screen.queryByText("0 Events")).toBeNull();
 });
+
+it("retains an older frozen event registration without inventing the detailed table summary", async () => {
+  const first = event({
+    status: "CONFIRMED",
+    myRegistrations: [{ ...seat("owner"), position: "FROZEN" }],
+  });
+  await render(
+    <Fixture>
+      <EventCardIndicators event={first} />
+    </Fixture>,
+  );
+  await open("Confirmed");
+  expect(screen.getByText("The event has been confirmed.")).toBeVisible();
+  expect(screen.getAllByLabelText("Loading…", { includeHiddenElements: true })).not.toHaveLength(0);
+  expect(screen.queryByText("Tables where you are confirmed:")).toBeNull();
+});
+
+it("does not fabricate an exclusion reason when an older frozen table lacks the authoritative summary", async () => {
+  await render(
+    <Fixture>
+      <EventTableCardIndicators
+        table={table({
+          eventStatus: "CONFIRMED",
+          confirmed: { ...frozen, playerIds: ["another-player"] },
+          myRegistration: seat("owner"),
+        })}
+      />
+    </Fixture>,
+  );
+  await open("You are excluded");
+  expect(screen.getAllByLabelText("Loading…", { includeHiddenElements: true })).not.toHaveLength(0);
+  expect(screen.queryByText("You were not included in the final roster.")).toBeNull();
+});

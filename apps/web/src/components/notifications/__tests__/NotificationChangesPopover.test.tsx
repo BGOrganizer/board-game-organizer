@@ -246,3 +246,17 @@ describe("resource-wide notification popover", () => {
     },
   );
 });
+
+it("does not load another notification page while scrolling far from the end", async () => {
+  const m = model({ hasNextPage: true });
+  renderWithI18n(<NotificationChangesPopover model={m} />);
+  await open();
+  const list = screen.getByRole("listbox", { name: "Changes" });
+  await waitFor(() => expect(m.resetWindow).toHaveBeenCalledOnce());
+  const before = vi.mocked(m.fetchNextPage).mock.calls.length;
+  Object.defineProperty(list, "scrollHeight", { configurable: true, value: 1000 });
+  fireEvent.scroll(list, { target: { scrollTop: 20 } });
+  expect(m.fetchNextPage).toHaveBeenCalledTimes(before);
+  fireEvent.scroll(list, { target: { scrollTop: 950 } });
+  await waitFor(() => expect(m.fetchNextPage).toHaveBeenCalledTimes(before + 1));
+});

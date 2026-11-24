@@ -135,3 +135,39 @@ it("keeps a failed Clerk write observable, preserves the typed value and permits
   expect(boundary.update).toHaveBeenCalledTimes(2);
   await waitFor(() => expect(boundary.replace).toHaveBeenCalledExactlyOnceWith("/tables"));
 });
+
+it("uses the searched calling code for the actual profile write and clears the search when the selector closes", async () => {
+  await mount();
+  const user = userEvent.setup();
+  const selector = screen.getByTestId("country-calling-code-select");
+  await user.press(selector);
+  const search = await screen.findByPlaceholderText("Search countries", {
+    includeHiddenElements: true,
+  });
+  await fireEvent.changeText(search, "Country that does not exist");
+  expect(
+    await screen.findByText("No countries found", { includeHiddenElements: true }),
+  ).toBeOnTheScreen();
+  await fireEvent.changeText(search, "Italy");
+  await fireEvent.press(
+    await screen.findByRole("option", { name: /Italy.*\+39/, includeHiddenElements: true }),
+  );
+  expect(screen.getByLabelText(/Country calling code: Italy \+39/)).toBeOnTheScreen();
+  await user.press(screen.getByTestId("country-calling-code-select"));
+  const reopened = await screen.findByPlaceholderText("Search countries", {
+    includeHiddenElements: true,
+  });
+  expect(reopened).toHaveDisplayValue("");
+  await fireEvent.changeText(reopened, "Italy");
+  await fireEvent.press(
+    await screen.findByRole("option", { name: /Italy.*\+39/, includeHiddenElements: true }),
+  );
+  await fireEvent.changeText(screen.getByLabelText("Mobile number"), "3351234567");
+  await submit();
+  await waitFor(() => {
+    expect(boundary.update).toHaveBeenCalledExactlyOnceWith({
+      unsafeMetadata: { existingSetting: "retained", mobileNumber: "+39 3351234567" },
+    });
+    expect(boundary.replace).toHaveBeenCalledExactlyOnceWith("/tables");
+  });
+});

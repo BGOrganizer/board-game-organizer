@@ -3,10 +3,15 @@
 // animation here. Content assertions establish rendering, not physical visibility;
 // native opening, voting and touch acceptance belong to the Maestro invite flow.
 import type { PlannedEventResponse, PlannedTableResponse } from "@board-game-organizer/schemas";
-import { CommunityApiError, eventRecordKeys } from "@board-game-organizer/shared";
+import {
+  CommunityApiError,
+  eventRecordKeys,
+  recordTablesQuery,
+} from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, userEvent, waitFor } from "@testing-library/react-native";
 import type { ComponentProps } from "react";
+import { StyleSheet } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import {
@@ -394,4 +399,173 @@ it("displays a known rejected participation and allows recovery without inventin
   expect(await screen.findByText("Could not join table")).toBeOnTheScreen();
   await ready();
   expect(writes).toHaveLength(0);
+});
+
+it.each([
+  ["date", "Dates", "2030-06-03 20:00", "dateVotes"],
+  ["location", "Locations", "Club venue", "locationVotes"],
+] as const)(
+  "requires a new positive %s vote while retaining the fixed game fact",
+  async (category, tabName, label, voteKey) => {
+    event = {
+      ...event,
+      ...(category === "date" ? { dateVoteRequired: true } : { locationVoteRequired: true }),
+    };
+    table = { ...table, gamesDetail: [] };
+    await render(<Fixture />);
+    await ready();
+    expect(
+      screen.getByText("Review the event and table settings, then vote in the sections shown."),
+    ).toBeOnTheScreen();
+    expect(screen.getByRole("tab", { name: tabName })).toBeSelected();
+    expect(screen.queryByRole("tab", { name: "Games" })).toBeNull();
+    expect(screen.getByText("Unknown")).toBeOnTheScreen();
+    await press("Join table");
+    expect(writes).toHaveLength(0);
+    await vote(label, "If needed");
+    await press("Join table");
+    await waitFor(() => expect(writes).toHaveLength(1));
+    const option = category === "date" ? event.dates[0] : event.locations[0];
+    expect(writes[0].input).toMatchObject({
+      gameVotes: {},
+      availability: { [voteKey]: { [option.id]: "IF_NEEDED" } },
+    });
+  },
+);
+
+it("shows an explicit fallback when vote metadata for a canonical game option is missing", async () => {
+  table = { ...table, gameVoteRequired: true, gamesDetail: [] };
+  await render(<Fixture />);
+  await ready();
+  expect(screen.getByRole("tab", { name: "Games" })).toBeSelected();
+  expect(screen.getByText("Unknown")).toBeOnTheScreen();
+  await vote("Unknown");
+  await press("Join table");
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0].input.gameVotes).toEqual({ "1": "YES" });
+});
+
+it("keeps the pending invitation eligible for a new explicit attempt after optimistic close and rejection", async () => {
+  const invitation = { ...seat("owner"), status: "PENDING" as const, version: 7 };
+  const close = vi.fn();
+  table = { ...table, myRegistration: invitation, canRespond: true, canRegister: false };
+  writeStatus = 422;
+  const view = await render(<Fixture registrationId={invitation.id} onClose={close} />);
+  await ready();
+  await press("Accept invitation");
+  expect(await screen.findByText("Could not accept invitation")).toBeOnTheScreen();
+  expect(writes).toHaveLength(1);
+  expect(writes[0]).toMatchObject({
+    method: "PATCH",
+    path: `/api/table-registrations/${invitation.id}`,
+    input: { action: "accept", version: 7 },
+  });
+  expect(close).toHaveBeenCalledOnce();
+  const verified = client.getQueryData<PlannedTableResponse>(
+    eventRecordKeys.table(options(), event.id, table.id),
+  );
+  expect(verified?.myRegistration).toMatchObject({ id: invitation.id, status: "PENDING" });
+  await view.rerender(<Fixture key="reopened" registrationId={invitation.id} onClose={close} />);
+  expect(await screen.findByText("Could not accept invitation")).toBeOnTheScreen();
+  await ready();
+  expect(writes).toHaveLength(1);
+});
+
+it("verifies an ambiguous table registration through explicit reads without repeating consent", async () => {
+  const error = new CommunityApiError(503, "Registration outcome unresolved");
+  client.getMutationCache().build(
+    client,
+    { mutationKey: [...eventRecordKeys.mutation(options(), event.id), "register"] },
+    {
+      context: undefined,
+      data: undefined,
+      error,
+      failureCount: 1,
+      failureReason: error,
+      isPaused: false,
+      status: "error",
+      submittedAt: Date.now(),
+      variables: {
+        tableId: table.id,
+        version: event.version,
+        gameVotes: {},
+        availability: { version: event.version, dateVotes: {}, locationVotes: {} },
+      },
+    },
+  );
+  await render(<Fixture />);
+  expect(await screen.findByText("Checking saved changes")).toBeOnTheScreen();
+  expect(await screen.findByText("Club venue")).toBeOnTheScreen();
+  expect(screen.getByTestId("table-consent-submit")).toBeDisabled();
+  const calls = () => vi.mocked(fetch).mock.calls;
+  await waitFor(() => expect(client.isFetching()).toBe(0));
+  const initial = calls().length;
+  await press("Check saved changes");
+  await waitFor(() =>
+    expect(
+      calls()
+        .slice(initial)
+        .map(([url]) => new URL(String(url)).pathname),
+    ).toEqual(
+      expect.arrayContaining([
+        `/api/events/${event.id}`,
+        `/api/events/${event.id}/tables/${table.id}`,
+      ]),
+    ),
+  );
+  expect(writes).toEqual([]);
+});
+
+it("withholds a placeholder game's name and consent until the canonical table details arrive", async () => {
+  const gameName = "Canonical live table game";
+  client.setQueryData(recordTablesQuery(options(), event.id).queryKey, {
+    pageParams: [undefined],
+    pages: [
+      {
+        items: [
+          {
+            ...table,
+            gameVoteCounts: undefined,
+            gamesDetail: table.gamesDetail.map((row) => ({ ...row, name: "Stale game preview" })),
+          },
+        ],
+        nextCursor: null,
+      },
+    ],
+  });
+  let finish!: (response: Response) => void;
+  pendingTable = new Promise((resolve) => {
+    finish = resolve;
+  });
+  await render(<Fixture />);
+  expect(await screen.findByText("Club venue")).toBeOnTheScreen();
+  expect(screen.queryByText("Stale game preview")).toBeNull();
+  expect(screen.getByTestId("table-consent-submit")).toBeDisabled();
+  expect(writes).toEqual([]);
+  await act(() => {
+    pendingTable = undefined;
+    table = {
+      ...table,
+      gamesDetail: table.gamesDetail.map((row) => ({ ...row, name: gameName })),
+    };
+    finish(json(table));
+  });
+  expect(await screen.findByText(gameName)).toBeOnTheScreen();
+  await ready();
+  expect(writes).toEqual([]);
+});
+
+it("dismisses the actual table-consent backdrop without attempting registration", async () => {
+  const onClose = vi.fn();
+  await render(<Fixture onClose={onClose} />);
+  await ready();
+  const overlays = screen.container.queryAll(
+    (node) =>
+      typeof node.props.onStartShouldSetResponder === "function" &&
+      StyleSheet.flatten(node.props.style)?.position === "absolute",
+  );
+  expect(overlays).toHaveLength(1);
+  await userEvent.setup().press(overlays[0]);
+  expect(onClose).toHaveBeenCalledOnce();
+  expect(writes).toEqual([]);
 });

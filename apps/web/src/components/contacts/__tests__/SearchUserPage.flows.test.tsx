@@ -27,6 +27,7 @@ const friend = (id: string) => ({ fromUserId: "picker-owner", toUserId: id, prof
 let client: QueryClient;
 let initialStatus: number, nextStatus: number;
 let pendingSearch: Promise<Response> | undefined;
+let pendingFriendsPage: Promise<Response> | undefined;
 const reads: { url: URL; token: string | null }[] = [];
 let intersections: ReturnType<typeof installBrowserIntersections>;
 beforeEach(() => {
@@ -34,7 +35,7 @@ beforeEach(() => {
   getToken.mockResolvedValue("current-picker-token");
   reads.length = 0;
   initialStatus = nextStatus = 200;
-  pendingSearch = undefined;
+  pendingSearch = pendingFriendsPage = undefined;
   client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
@@ -54,6 +55,7 @@ beforeEach(() => {
         );
       if (url.pathname === "/api/relationships") {
         const next = url.searchParams.has("cursor");
+        if (next && pendingFriendsPage) return pendingFriendsPage;
         const status = next ? nextStatus : initialStatus;
         return Response.json(
           status === 200
@@ -95,7 +97,7 @@ it("filters the explicit group-member source by name or email, excludes existing
   mount({
     members: [
       user("alice", { name: "Alice Player", email: "club@example.test" }),
-      user("bob", { name: "Bob Player", username: null }),
+      user("bob", { name: "Bob Player", username: null, email: null }),
       user("excluded"),
     ],
     excludeIds: ["excluded"],
@@ -113,6 +115,9 @@ it("filters the explicit group-member source by name or email, excludes existing
     email: "club@example.test",
     avatarUrl: null,
   });
+  search("BOB PLAYER");
+  expect(screen.getByText("Bob Player")).toBeVisible();
+  expect(screen.queryByText("Alice Player")).toBeNull();
   search("missing");
   expect(screen.getByText("No users found")).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
@@ -201,4 +206,54 @@ it("reports missing search authentication without sending an anonymous request a
   fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
   expect(screen.queryByText("Search failed")).toBeNull();
   expect(screen.getByText("Player first")).toBeVisible();
+});
+
+it("uses the supplied fallback token when no refresh callback is available", async () => {
+  mount({ getToken: undefined, token: "fallback-picker-token" });
+  await screen.findByText("Player first");
+  search("matching");
+  expect(await screen.findByText("Player match")).toBeVisible();
+  expect(searches().map(({ token }) => token)).toEqual(["Bearer fallback-picker-token"]);
+  expect(getToken).not.toHaveBeenCalled();
+});
+
+it("keeps visible friends and ignores duplicate intersection callbacks while paging", async () => {
+  mount();
+  await screen.findByText("Player first");
+  await waitFor(() => expect(intersections.observedTargetCount).toBeGreaterThan(0));
+  let finish: (response: Response) => void = () => {
+    throw new Error("Expected a held next friend page");
+  };
+  pendingFriendsPage = new Promise((resolve) => {
+    finish = resolve;
+  });
+  act(() => {
+    intersections.intersect();
+    intersections.intersect();
+  });
+  const cursors = () => reads.map(({ url }) => url.searchParams.get("cursor"));
+  await waitFor(() => expect(cursors()).toEqual([null, "second-page"]));
+  expect(screen.getByText("Player first")).toBeVisible();
+  expect(screen.queryByText("No users found")).toBeNull();
+  expect(screen.queryByText("Player second")).toBeNull();
+  await act(() => finish(Response.json({ rows: [friend("second")], nextCursor: null })));
+  expect(await screen.findByText("Player second")).toBeVisible();
+  expect(cursors()).toEqual([null, "second-page"]);
+});
+
+it("does not display a failed search after clearing a request already in flight", async () => {
+  let finish: (response: Response) => void = () => {
+    throw new Error("Expected a held search");
+  };
+  pendingSearch = new Promise((resolve) => {
+    finish = resolve;
+  });
+  mount();
+  await screen.findByText("Player first");
+  search("available");
+  await waitFor(() => expect(searches()).toHaveLength(1));
+  fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
+  await act(() => finish(Response.json({ error: "Unavailable search" }, { status: 503 })));
+  expect(screen.getByText("Player first")).toBeVisible();
+  expect(screen.queryByText("Search failed")).toBeNull();
 });

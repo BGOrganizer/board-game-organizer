@@ -503,3 +503,19 @@ it.each([0, 300, 500])(
     }
   },
 );
+
+it("protects an existing group assignment after invitation rights are revoked", async () => {
+  seed();
+  await render(<Fixture groupId={inaccessible.id} group={inaccessible} />);
+  await open();
+  const selected = screen.getByRole("option", {
+    name: /Unmanaged group/,
+    includeHiddenElements: true,
+  });
+  expect(selected).toBeDisabled();
+  await userEvent.setup().press(selected);
+  expect(boundary.change).not.toHaveBeenCalled();
+  expect(screen.getByRole("combobox", { name: "Group" })).toHaveTextContent(inaccessible.name);
+  await select(publicGroup.name);
+  expect(boundary.change).toHaveBeenCalledExactlyOnceWith(publicGroup.id, "PUBLIC");
+});

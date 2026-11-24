@@ -1,10 +1,12 @@
+import { eventRecordKeys } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
-import { groupRecord, plannedEvent } from "@/test-fixtures/eventRecords";
+import { groupRecord, plannedEvent, plannedTable } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { EventGroupSelect } from "../EventGroupSelect";
+import { EventList } from "../EventList";
 import { Events } from "../Events";
 import { TableList } from "../TableList";
 
@@ -161,3 +163,100 @@ it("describes the finished tables included in History from its section popover",
     within(await screen.findByRole("dialog")).getByText(/Confirmed tables from finished events/),
   ).toBeVisible();
 });
+
+it.each([
+  {
+    resource: "events",
+    inaccessible: "Could not load events",
+    next: "Could not load events. Retry",
+  },
+  { resource: "tables", inaccessible: "Could not load tables", next: "Load more" },
+])(
+  "keeps the $resource page visible while scrolling, retries a failed cursor and fences denied rows",
+  async ({ resource, inaccessible, next }) => {
+    const current =
+      resource === "events"
+        ? plannedEvent
+        : {
+            ...plannedTable,
+            eventStatus: "TERMINATED",
+            canManage: true,
+            confirmed: {
+              gameId: 1,
+              playerIds: ["owner"],
+              frozenAt: plannedEvent.createdAt,
+            },
+          };
+    const owner = { apiUrl: "https://api.test", userId: "owner" };
+    const key =
+      resource === "events"
+        ? eventRecordKeys.list(owner, { groupId: groupRecord.id })
+        : eventRecordKeys.tables(owner, null, { statuses: ["TERMINATED"] });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    let denied = false;
+    let release: (response: Response) => void = () => {
+      throw new Error("Expected the next list page to be requested");
+    };
+    let hold = true;
+    const cursorReads: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string, init?: RequestInit) => {
+        const url = new URL(input);
+        if (url.pathname !== `/api/${resource}`)
+          return Response.json({ items: [], nextCursor: null });
+        expect(new Headers(init?.headers).get("authorization")).toBe("Bearer fresh");
+        if (denied) return Response.json({ error: "FORBIDDEN" }, { status: 403 });
+        const cursor = url.searchParams.get("cursor");
+        if (cursor) {
+          cursorReads.push(cursor);
+          if (hold)
+            return new Promise<Response>((resolve) => {
+              release = resolve;
+            });
+        }
+        return Response.json({
+          items: [cursor ? { ...current, id: "99999999-9999-4999-8999-999999999999" } : current],
+          nextCursor: cursor ? null : "next-page",
+        });
+      }),
+    );
+    renderWithI18n(
+      <QueryClientProvider client={client}>
+        {resource === "events" ? <EventList groupId={groupRecord.id} /> : <TableList />}
+      </QueryClientProvider>,
+    );
+    const list = within(
+      screen.getByRole("list", { name: resource === "events" ? "Events" : "History" }),
+    );
+    expect(await list.findByRole("link")).toBeVisible();
+    expect(cursorReads).toEqual([]);
+
+    fireEvent.wheel(window);
+    await waitFor(() => expect(cursorReads).toEqual(["next-page"]));
+    expect(list.getByRole("link")).toBeVisible();
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Load more" })).toBeNull());
+    fireEvent.wheel(window);
+    await act(() => new Promise((resolve) => window.requestAnimationFrame(resolve)));
+    expect(cursorReads).toEqual(["next-page"]);
+
+    await act(() => release(Response.json({ error: "UNAVAILABLE" }, { status: 503 })));
+    const retry = await screen.findByRole("button", { name: next });
+    expect(list.getByRole("link")).toBeVisible();
+    hold = false;
+    fireEvent.wheel(window);
+    await act(() => new Promise((resolve) => window.requestAnimationFrame(resolve)));
+    expect(cursorReads).toEqual(["next-page"]);
+    fireEvent.click(retry);
+    await waitFor(() => expect(list.getAllByRole("link")).toHaveLength(2));
+    expect(cursorReads).toEqual(["next-page", "next-page"]);
+
+    denied = true;
+    await act(async () => {
+      await client.refetchQueries({ queryKey: key, exact: true });
+    });
+    expect(await screen.findByText(inaccessible)).toBeVisible();
+    expect(list.queryByRole("link")).toBeNull();
+    client.clear();
+  },
+);
