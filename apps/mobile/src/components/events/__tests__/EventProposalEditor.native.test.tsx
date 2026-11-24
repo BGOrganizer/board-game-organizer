@@ -621,7 +621,7 @@ it("renders its actual native heading and clears inherited header actions for th
   await render(<Fixture />);
   expect(await screen.findByRole("header", { name: "Choose date and time" })).toBeVisible();
   expect(screen.getByRole("button", { name: "Back" })).toBeEnabled();
-  expect(screen.getByRole("button", { name: "Send proposal" })).toBeEnabled();
+  expect(await screen.findByRole("button", { name: "Send proposal" })).toBeEnabled();
   expect(writes).toEqual([]);
   await press("Back");
   expect(boundary.back).toHaveBeenCalledOnce();
