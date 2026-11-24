@@ -50,6 +50,7 @@ const RouteParams = createContext<ComponentProps<typeof EventWizard>>({});
 const API = "https://event-wizard-fixtures.test";
 const boundary = vi.hoisted(() => ({
   back: vi.fn(),
+  pickerRemoval: undefined as (() => void) | undefined,
   dismissTo: vi.fn(),
   feedback: { onOptimisticUpdate: vi.fn(), onError: vi.fn(), onSuccess: vi.fn() },
   picker: { open: vi.fn(), dismiss: vi.fn() },
@@ -79,7 +80,9 @@ vi.mock("expo-router", async () => ({
 }));
 vi.mock("expo-router/react-navigation", async (original) => ({
   ...(await original<typeof import("expo-router/react-navigation")>()),
-  usePreventRemove: () => {},
+  usePreventRemove: (enabled: boolean, callback: () => void) => {
+    boundary.pickerRemoval = enabled ? callback : undefined;
+  },
 }));
 vi.mock("expo-constants", () => ({
   default: {
@@ -150,6 +153,7 @@ const json = (body: unknown, status = 200) =>
 beforeEach(() => {
   vi.clearAllMocks();
   resetNativeStackOptionsPort();
+  boundary.pickerRemoval = undefined;
   event = { ...plannedEvent };
   table = { ...plannedTable };
   group = { ...groupRecord };
@@ -785,4 +789,41 @@ it("returns verified location and selected catalog game to their actual event dr
   expect(screen.getByText("Additional verified venue")).toBeVisible();
   expect(screen.queryByTestId("game-search-input")).toBeNull();
   expect(writes).toHaveLength(0);
+});
+
+it("dismisses either inline picker through its normal native navigation control and preserves reviewable draft data", async () => {
+  const mutation = recovery();
+  await render(<Fixture showHeader draftId={String(mutation.mutationId)} />);
+  await press("Next");
+  await press("Choose a location");
+  expect(screen.getByLabelText("Location name")).toBeVisible();
+  if (!boundary.pickerRemoval) throw new Error("Expected the inline location route-removal guard");
+  await act(boundary.pickerRemoval);
+  expect(screen.queryByLabelText("Location name")).toBeNull();
+  expect(screen.getByText("Games club")).toBeVisible();
+
+  await press("Next");
+  await userEvent.setup().press(screen.getByTestId("event-draft-table-local-table-key"));
+  await press("Choose a game");
+  expect(screen.getByTestId("game-search-input")).toBeVisible();
+  await userEvent
+    .setup()
+    .press(within(screen.getByTestId("native-stack-header")).getByRole("button", { name: "Back" }));
+  expect(screen.queryByTestId("game-search-input")).toBeNull();
+  expect(screen.getByText("First strategy game")).toBeVisible();
+  expect(screen.getByRole("button", { name: "3. Tables" })).toBeSelected();
+  expect(boundary.back).not.toHaveBeenCalled();
+  expect(writes).toEqual([]);
+});
+
+it("keeps an already expanded invalid table open on repeated review attempts without submitting", async () => {
+  await recovered(validDraft({ tables: [tableDraftFixture({ games: [] })] }));
+  await tablesStep();
+  for (const _ of [1, 2]) {
+    await press("Next");
+    expect(screen.getByText("Choose at least one game.")).toBeVisible();
+    expect(screen.getByRole("button", { name: "3. Tables" })).toBeSelected();
+    expect(screen.queryByRole("button", { name: "Create event" })).toBeNull();
+    expect(writes).toEqual([]);
+  }
 });

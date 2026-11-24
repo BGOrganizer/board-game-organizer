@@ -107,14 +107,17 @@ let calls: HttpCall[];
 let unexpected: string[];
 let tokenSequence: number;
 let firstReadGate: Promise<void> | undefined;
+let favoriteLocationsGate: Promise<void> | undefined;
 let tableStatus: number;
 const options = { apiUrl: API, userId: "startup-owner" };
 function pending<T>() {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((finish) => {
+  let reject!: (reason: Error) => void;
+  const promise = new Promise<T>((finish, fail) => {
     resolve = finish;
+    reject = fail;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 }
 function response(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -143,8 +146,10 @@ async function syntheticHttp(input: RequestInfo | URL, init?: RequestInit) {
       ? response({ id: "startup-owner", name: "Startup owner", preferredLanguage: "en" })
       : response({ items: [], nextCursor: null }, path === "/api/tables" ? tableStatus : 200);
   }
-  if (method === "GET" && path === "/api/locations/favorites")
+  if (method === "GET" && path === "/api/locations/favorites") {
+    await favoriteLocationsGate;
     return response({ items: [], nextCursor: null });
+  }
   if (method === "GET" && path === "/api/bgg/account")
     return response({ active: null, pending: null });
   if (method === "GET" && path === "/api/notifications")
@@ -216,6 +221,7 @@ beforeEach(() => {
   tokenSequence = 0;
   tableStatus = 200;
   firstReadGate = undefined;
+  favoriteLocationsGate = undefined;
   boundary.hideSplash.mockReset();
   boundary.revealSplash.mockReset();
   boundary.report.mockReset();
@@ -490,4 +496,49 @@ it("does not restart settled startup work when Clerk supplies a new token getter
   expect(freshToken).not.toHaveBeenCalled();
   expect(boundary.permission).toHaveBeenCalledTimes(permissionReads);
   expect(boundary.hideSplash).toHaveBeenCalled();
+});
+
+it("reveals the native startup overlay only once as its screen is laid out again", async () => {
+  const view = await render(
+    <Fixture startedAt={Date.now()} session={{ ...initialSession, loaded: false }} />,
+  );
+  const splash = splashHost();
+  await fireEvent.layout(splash, { x: 0, y: 0, width: 390, height: 844 });
+  await fireEvent.layout(splash, { x: 0, y: 0, width: 844, height: 390 });
+  expect(boundary.revealSplash).toHaveBeenCalledOnce();
+  expect(boundary.hideSplash).not.toHaveBeenCalled();
+  await view.unmount();
+});
+
+it("ignores a failed initial link lookup received after the startup route unmounts", async () => {
+  const link = pending<string | null>();
+  vi.mocked(Linking.getInitialURL).mockReturnValueOnce(link.promise);
+  const view = await render(<Fixture startedAt={Date.now()} />);
+  expect(Linking.getInitialURL).toHaveBeenCalledOnce();
+  expect(calls).toEqual([]);
+  await view.unmount();
+  await act(() => link.reject(Error("Initial URL provider disconnected")));
+  expect(calls).toEqual([]);
+  expect(boundary.hideSplash).not.toHaveBeenCalled();
+  expect(boundary.permission).not.toHaveBeenCalled();
+});
+
+it("restarts an interrupted background warmup once account cache restoration settles", async () => {
+  const gate = pending<void>();
+  favoriteLocationsGate = gate.promise;
+  const startedAt = Date.now() - 5000;
+  const view = await render(<Fixture startedAt={startedAt} />);
+  await waitFor(() =>
+    expect(calls.some((call) => call.path === "/api/locations/favorites")).toBe(true),
+  );
+  await view.rerender(<Fixture startedAt={startedAt} restoring />);
+  await act(() => gate.resolve());
+  expect(calls.some((call) => call.path === "/api/bgg/account")).toBe(false);
+  expect(boundary.hideSplash).toHaveBeenCalledOnce();
+  await view.rerender(<Fixture startedAt={startedAt} />);
+  await waitFor(() =>
+    expect(client.getQueryData(relationshipListKey(API, "startup-owner", "blocked"))).toBeDefined(),
+  );
+  expect(calls.filter((call) => call.path === "/api/bgg/account")).toHaveLength(1);
+  expect(boundary.hideSplash).toHaveBeenCalledOnce();
 });

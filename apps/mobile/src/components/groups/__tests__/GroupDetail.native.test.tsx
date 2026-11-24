@@ -558,3 +558,48 @@ it.each(["delete", "decline"] as const)(
     await waitFor(() => expect(screen.queryByRole("button", { name: confirmation })).toBeNull());
   },
 );
+
+it("does not load a group or offer management when its Expo link omits the group identifier", async () => {
+  await render(
+    <QueryClientProvider client={client}>
+      <NativeTestProviders>
+        <Api value={options}>
+          <GroupScreen />
+        </Api>
+      </NativeTestProviders>
+    </QueryClientProvider>,
+  );
+  expect(screen.queryByRole("tab")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Delete group" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Edit group" })).toBeNull();
+  expect(reads).toEqual([]);
+  expect(writes).toEqual([]);
+});
+
+it("uses the Italian group notification scope without marking the group as read on entry", async () => {
+  await render(
+    <QueryClientProvider client={client}>
+      <NativeTestProviders locale="it">
+        <Api value={options}>
+          <RouteParams value={{ groupId: group.id }}>
+            <GroupScreen />
+          </RouteParams>
+        </Api>
+      </NativeTestProviders>
+    </QueryClientProvider>,
+  );
+  expect(await screen.findByRole("header", { name: group.name })).toBeVisible();
+  await waitFor(() =>
+    expect(
+      vi.mocked(fetch).mock.calls.filter(([input]) => {
+        const url = new URL(String(input));
+        return (
+          url.pathname === "/api/notifications/changes" &&
+          url.searchParams.get("locale") === "it" &&
+          url.searchParams.get("id") === group.id
+        );
+      }),
+    ).toHaveLength(1),
+  );
+  expect(writes).toEqual([]);
+});

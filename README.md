@@ -115,7 +115,7 @@ Run from the repository root. Bun manages dependencies and scripts; application 
 | App unit tests | `bun run --filter web test` (or `api`, `mobile`) |
 | Shared logic tests | `bun run --filter @board-game-organizer/shared test` |
 | Schema tests | `bun run --filter @board-game-organizer/schemas test` |
-| Unit coverage | `bun run --filter web test:coverage` (also API, mobile, shared and schemas) |
+| Unit coverage | `bun run --filter web test:coverage` (also API, Mobile, MCP, Site, Shared and Schemas) |
 | React rendering benchmarks | `bun run perf:web` / `bun run perf:mobile` |
 | MongoDB integration tests | `bun run --filter api test:integration` |
 | One web test file | `bun run --filter web test src/components/events/__tests__/useTableSeatOrder.test.tsx` |
@@ -128,9 +128,10 @@ There is no root `bun run test`; use the workspace scripts above, which retain V
 Integration tests start a Testcontainers replica set and need Docker. Web E2E requires running apps or an
 explicit `PLAYWRIGHT_BASE_URL`, the matching API/Clerk configuration and provisioned test users.
 Native UI acceptance uses the retained [Maestro flows](apps/mobile/.maestro). Mobile Vitest covers
-logic and components. The [render benchmarks](docs/render-performance.md) use Reassure and Testing
-Library to measure React commits on Web and Mobile. Branch, Preview and Main CI publish the paired
-baseline and candidate reports.
+logic and components. The merge gate requires at least 98% of lines, statements, functions and
+branches in each app and runtime package. The [render benchmarks](docs/render-performance.md)
+use Reassure and Testing Library to measure React commits on Web and Mobile. Branch, Preview and
+Main CI publish the paired baseline and candidate reports.
 See [delivery details](docs/development.md#delivery) for CI policy and acceptance limits.
 
 ## Project structure

@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, userEvent } from "@testing-library/react-native";
 import { UsersRound } from "lucide-react-native";
+import type { ReactNode } from "react";
 import { Text } from "react-native";
 import { expect, it, vi } from "vitest";
 import type { UserPage } from "@/lib/user-list";
@@ -17,7 +18,15 @@ function page(overrides: Partial<UserPage> = {}): UserPage {
   };
 }
 
-function Fixture({ pages, rows = [] }: { pages: UserPage[]; rows?: string[] }) {
+function Fixture({
+  pages,
+  rows = [],
+  header = <Text>My connections</Text>,
+}: {
+  pages: UserPage[];
+  rows?: string[];
+  header?: ReactNode;
+}) {
   return (
     <NativeTestProviders>
       <UserList
@@ -29,7 +38,7 @@ function Fixture({ pages, rows = [] }: { pages: UserPage[]; rows?: string[] }) {
         emptyIcon={<UsersRound />}
         error="Connections unavailable"
         skeleton={<Text>Loading connections</Text>}
-        header={<Text>My connections</Text>}
+        header={header}
         footer={<Text>Privacy information</Text>}
         testID="connections"
       />
@@ -121,4 +130,16 @@ it("leaves the exhausted list stable when native end-reached fires again", async
   expect(exhausted.fetchNextPage).not.toHaveBeenCalled();
   expect(screen.getByText("Ada")).toBeVisible();
   expect(screen.queryByText("No connections")).toBeNull();
+});
+
+it("keeps rows and privacy information visible when the enclosing tab omits its optional heading", async () => {
+  const exhausted = page();
+  const view = await render(<Fixture pages={[exhausted]} rows={["Ada"]} />);
+  expect(screen.getByText("My connections")).toBeVisible();
+  await view.rerender(<Fixture pages={[exhausted]} rows={["Ada"]} header={false} />);
+  expect(screen.queryByText("My connections")).toBeNull();
+  expect(screen.getByText("Ada")).toBeVisible();
+  expect(screen.getByText("Privacy information")).toBeVisible();
+  await scrollToEnd();
+  expect(exhausted.fetchNextPage).not.toHaveBeenCalled();
 });

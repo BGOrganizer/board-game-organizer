@@ -23,6 +23,7 @@ import {
 
 const boundary = vi.hoisted(() => ({
   back: vi.fn(),
+  missingEvent: false,
   dismissTo: vi.fn(),
   getToken: vi.fn(async () => "results-native-token"),
 }));
@@ -41,7 +42,10 @@ vi.mock("expo-constants", () => ({
 vi.mock("expo-router", () => ({
   useRouter: () => ({ back: boundary.back, dismissTo: boundary.dismissTo }),
   useNavigation: () => ({ getState: () => ({ type: "stack" }) }),
-  useLocalSearchParams: () => ({ eventId: event.id, tableId: table.id }),
+  useLocalSearchParams: () => ({
+    eventId: boundary.missingEvent ? undefined : event.id,
+    tableId: table.id,
+  }),
   useFocusEffect: (effect: () => undefined | (() => void)) => useEffect(effect, [effect]),
   Stack: {
     Screen: ({ options }: { options: { headerLeft?: () => ReactNode } }) => (
@@ -507,4 +511,17 @@ it("shows an uncertain saved-score state without replaying the pending result", 
   expect(screen.getByRole("button", { name: "Score: Owner Player" })).toBeDisabled();
   expect(writes).toEqual([]);
   expect(boundary.dismissTo).not.toHaveBeenCalled();
+});
+
+it("keeps a table ID without an event outside the native result editor and result reads", async () => {
+  boundary.missingEvent = true;
+  try {
+    await mount(false);
+    expect(screen.queryByTestId("table-save-result")).toBeNull();
+    expect(screen.queryByText("Live standings")).toBeNull();
+    expect(reads).toEqual([]);
+    expect(writes).toEqual([]);
+  } finally {
+    boundary.missingEvent = false;
+  }
 });

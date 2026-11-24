@@ -37,6 +37,7 @@ const boundary = vi.hoisted(() => ({
   back: vi.fn(),
   replace: vi.fn(),
   canGoBack: true,
+  renderTitle: false,
   picker: { open: vi.fn(), dismiss: vi.fn() },
   easeTo: vi.fn(),
   getToken: vi.fn(),
@@ -71,8 +72,19 @@ vi.mock("expo-router", () => ({
     Screen: ({
       options: config,
     }: {
-      options: { headerLeft?: (props: { canGoBack: boolean }) => ReactNode };
-    }) => <View>{config.headerLeft?.({ canGoBack: true })}</View>,
+      options: {
+        title?: string;
+        headerLeft?: (props: { canGoBack: boolean }) => ReactNode;
+        headerTitle?: (props: { children: string }) => ReactNode;
+        headerRight?: () => ReactNode;
+      };
+    }) => (
+      <View>
+        {config.headerLeft?.({ canGoBack: true })}
+        {boundary.renderTitle ? config.headerTitle?.({ children: config.title ?? "" }) : null}
+        {boundary.renderTitle ? config.headerRight?.() : null}
+      </View>
+    ),
   },
 }));
 vi.mock("expo-router/react-navigation", async (original) => ({
@@ -135,6 +147,7 @@ beforeEach(() => {
   useAppStore.getState().clearPending();
   boundary.userId = "owner";
   boundary.canGoBack = true;
+  boundary.renderTitle = false;
   boundary.getToken.mockResolvedValue("fixture-proposal-editor-token");
   eventCode = tableCode = writeCode = 200;
   pendingEvent = undefined;
@@ -206,7 +219,8 @@ beforeEach(() => {
           items: [proposedGame, { ...proposedGame, id: 1, name: "Already selected game" }],
           nextCursor: null,
         });
-      if (url.pathname === "/api/locations/favorites") return json({ items: [], nextCursor: null });
+      if (url.pathname === "/api/locations/favorites")
+        return json(url.searchParams.has("keys") ? { keys: [] } : { items: [], nextCursor: null });
       if (url.pathname === "/api/locations/search")
         return json({
           items: [
@@ -600,4 +614,39 @@ it("shows no actionable proposal UI or authenticated requests when the Expo link
   expect(reads).toEqual([]);
   expect(writes).toEqual([]);
   expect(boundary.picker.open).not.toHaveBeenCalled();
+});
+
+it("renders its actual native heading and clears inherited header actions for the date proposal", async () => {
+  boundary.renderTitle = true;
+  await render(<Fixture />);
+  expect(await screen.findByRole("header", { name: "Choose date and time" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Back" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Send proposal" })).toBeEnabled();
+  expect(writes).toEqual([]);
+  await press("Back");
+  expect(boundary.back).toHaveBeenCalledOnce();
+  expect(writes).toEqual([]);
+});
+
+it("restores a recovered verified location draft and keeps its correlation on explicit resubmission", async () => {
+  const location = {
+    id: "99999999-9999-4999-8999-999999999999",
+    name: "Recovered verified venue",
+    address: "Via Roma 1, Rome, Italy",
+    longitude: 12.5,
+    latitude: 41.9,
+    timeZone: "Europe/Rome",
+  };
+  const draft = recovery({ kind: "location", location });
+  await render(<Fixture kind="location" draftId={String(draft.mutationId)} />);
+  expect(await screen.findByLabelText("Location name")).toHaveDisplayValue(location.name);
+  expect(screen.getByTestId("location-address-input")).toHaveDisplayValue(location.address);
+  expect(writes).toHaveLength(0);
+  await press("Confirm Location");
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0].input).toMatchObject({
+    payload: { kind: "location", location },
+    clientRequestId: "88888888-8888-4888-8888-888888888888",
+  });
+  expect(boundary.back).toHaveBeenCalledOnce();
 });

@@ -55,3 +55,26 @@ it("shows the invitation and custom heading before the fuller role is known", as
   expect(screen.getByText("Open details to accept or decline your invitation.")).toBeVisible();
   expect(screen.queryByLabelText("Loading…", { includeHiddenElements: true })).toBeNull();
 });
+
+it("keeps view-only artwork help separate from membership and invitation actions", async () => {
+  await render(<ArtworkStatusPopover kind="viewer" size="compact" />, {
+    wrapper: NativeTestProviders,
+  });
+  const viewer = screen.getByRole("button", { name: "Viewer" });
+  await pressMeasuredPopover(viewer);
+  expect(screen.getByRole("heading", { name: "Viewer" })).toBeVisible();
+  expect(screen.getByText("You can view this item.")).toBeVisible();
+  expect(screen.queryByText("Open details to accept or decline your invitation.")).toBeNull();
+  expect(screen.queryByText("Open Members to approve or reject membership requests.")).toBeNull();
+});
+
+it("keeps the full-size neutral management badge separate from a confirmed player role", async () => {
+  await render(<ArtworkStatusPopover kind="manager" size="default" />, {
+    wrapper: NativeTestProviders,
+  });
+  const action = screen.getByRole("button", { name: "Management" });
+  expect(action).toHaveStyle({ minWidth: 44, minHeight: 44 });
+  await pressMeasuredPopover(action);
+  expect(screen.getByText("Your current permissions allow managing this item.")).toBeVisible();
+  expect(screen.queryByText("You have a confirmed place at a table.")).toBeNull();
+});

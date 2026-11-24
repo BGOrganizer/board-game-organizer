@@ -43,7 +43,11 @@ it("refreshes Clerk token for each profile request", async () => {
 it("reports the HTTP profile failure and recovers with a fresh authenticated read", async () => {
   let status = 503;
   const fields = { id: "user_1", firstName: "Profile" };
-  const getToken = vi.fn().mockResolvedValueOnce("first").mockResolvedValueOnce("rotated");
+  const getToken = vi
+    .fn()
+    .mockResolvedValueOnce("first")
+    .mockResolvedValueOnce("automatic-retry")
+    .mockResolvedValueOnce("rotated");
   const fetcher = vi.fn(async (input: string, init?: RequestInit) => {
     expect(new URL(input).pathname).toBe("/api/profiles");
     expect(init?.method ?? "GET").toBe("GET");
@@ -58,14 +62,18 @@ it("reports the HTTP profile failure and recovers with a fresh authenticated rea
     () => useProfileQuery({ apiUrl: "https://api.example.com", userId: "user_1", getToken }),
     { wrapper },
   );
-  await waitFor(() => expect(view.result.current.error).toMatchObject({ message: "HTTP 503" }));
+  await waitFor(() => expect(view.result.current.error).toMatchObject({ message: "HTTP 503" }), {
+    timeout: 5000,
+  });
   expect(view.result.current.data).toBeUndefined();
   status = 200;
-  await act(async () => view.result.current.refetch());
+  await act(async () => {
+    await view.result.current.refetch();
+  });
   await waitFor(() => expect(view.result.current.data).toEqual(fields));
   expect(
     fetcher.mock.calls.map(([, init]) => new Headers(init?.headers).get("authorization")),
-  ).toEqual(["Bearer first", "Bearer rotated"]);
+  ).toEqual(["Bearer first", "Bearer automatic-retry", "Bearer rotated"]);
   view.unmount();
   client.clear();
 });

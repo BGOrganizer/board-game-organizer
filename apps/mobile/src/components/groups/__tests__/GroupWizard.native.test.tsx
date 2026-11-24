@@ -90,6 +90,7 @@ vi.mock("@maplibre/maplibre-react-native", () => ({
 let client: QueryClient;
 let canonical: GroupRecordResponse;
 let detailStatus: number;
+let favoriteStatus: number;
 let pendingDetail: Promise<Response> | undefined;
 let writeStatus: number;
 const writes: { method: string; path: string; input: Record<string, unknown> }[] = [];
@@ -103,7 +104,7 @@ beforeEach(() => {
   boundary.preventRemove = undefined;
   boundary.library.mockResolvedValue({ canceled: true, assets: null });
   canonical = { ...groupRecord };
-  detailStatus = 200;
+  detailStatus = favoriteStatus = 200;
   pendingDetail = undefined;
   writeStatus = 200;
   writes.length = 0;
@@ -118,7 +119,14 @@ beforeEach(() => {
       );
       if (url.origin !== API) throw new Error(`Unexpected fixture origin: ${url.origin}`);
       if (url.pathname === "/api/locations/favorites")
-        return json(url.searchParams.has("keys") ? { keys: [] } : { items: [], nextCursor: null });
+        return json(
+          favoriteStatus !== 200
+            ? { error: "Favorites unavailable" }
+            : url.searchParams.has("keys")
+              ? { keys: [] }
+              : { items: [], nextCursor: null },
+          favoriteStatus,
+        );
       const method = init?.method ?? "GET";
       if (method !== "GET") {
         const body = JSON.parse(String(init?.body));
@@ -381,7 +389,7 @@ it.each([403, 503])(
     await render(<Fixture groupId={canonical.id} />);
     expect(await screen.findByText("Could not load group details")).toBeVisible();
     expect(screen.queryByTestId("group-name-input")).toBeNull();
-    detailStatus = 200;
+    detailStatus = favoriteStatus = 200;
     await press("Try again");
     expect(await screen.findByTestId("group-name-input")).toHaveDisplayValue(canonical.name);
   },
@@ -648,4 +656,66 @@ it("opens only the explicitly tapped map credit while an unconfigured map cannot
     ["https://www.openstreetmap.org/copyright"],
   ]);
   expect(writes).toHaveLength(0);
+});
+
+it("keeps an existing group venue editable when favorite status fails independently", async () => {
+  favoriteStatus = 503;
+  canonical = { ...canonical, location: wizardVenue };
+  await render(<Fixture groupId={canonical.id} />);
+  expect(await screen.findByText("Could not load favorite locations")).toHaveProp(
+    "accessibilityRole",
+    "alert",
+  );
+  expect(screen.getByText(wizardVenue.name)).toBeVisible();
+  expect(screen.getByRole("button", { name: "Save changes" })).toBeEnabled();
+  expect(writes).toEqual([]);
+  await press("Remove location");
+  expect(screen.queryByText(wizardVenue.name)).toBeNull();
+  expect(screen.getByRole("button", { name: "Choose a location" })).toBeEnabled();
+});
+
+it.each(["canonical", "recovered"] as const)(
+  "retains the %s owned upload without fabricating a missing image preview",
+  async (source) => {
+    const logoAssetId = "22222222-2222-4222-8222-222222222222";
+    if (source === "canonical") {
+      canonical = { ...canonical, logoAssetId, logo: null };
+      await render(<Fixture groupId={canonical.id} />);
+    } else {
+      const draft = failedCreation({
+        type: "PRIVATE",
+        name: "Legacy upload draft",
+        invitedUserIds: [],
+        logoAssetId,
+      });
+      await render(<Fixture draftId={String(draft.mutationId)} />);
+    }
+    const action = source === "canonical" ? "Save changes" : "Create group";
+    expect(await screen.findByRole("button", { name: "Change logo" })).toBeEnabled();
+    expect(screen.queryByRole("image", { name: "No logo selected" })).toBeNull();
+    expect(writes).toEqual([]);
+    await press(action);
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0].input.logoAssetId).toBe(logoAssetId);
+  },
+);
+
+it("displays the accepted contact picked without a public username and keeps it removable", async () => {
+  await render(<Fixture />);
+  await press("Add friend");
+  const slot = boundary.push.mock.lastCall?.[0].params.slotId;
+  await act(() =>
+    useAppStore.getState().setPendingUser(slot, {
+      id: "no-public-handle",
+      name: "Private friend",
+      username: null,
+      avatarUrl: null,
+      email: null,
+    }),
+  );
+  expect(screen.getByText("Private friend")).toBeVisible();
+  expect(screen.queryByText("@no-public-handle")).toBeNull();
+  await press("Remove invite: Private friend");
+  expect(screen.queryByText("Private friend")).toBeNull();
+  expect(writes).toEqual([]);
 });

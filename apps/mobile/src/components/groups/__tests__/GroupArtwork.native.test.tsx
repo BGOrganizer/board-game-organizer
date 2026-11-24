@@ -59,6 +59,17 @@ it("keeps uploaded logos first and scopes late error/load events to their origin
   expect(image()).toBe(current);
   expect(current).toHaveStyle({ width: 96, height: 96 });
   expect(screen.queryByTestId("dicebear-groups-image", { includeHiddenElements: true })).toBeNull();
+
+  // Returning to the previous saved URI must preserve the known decode failure.
+  await view.rerender(
+    <NativeTestProviders>
+      <GroupArtwork group={group} size={96} />
+    </NativeTestProviders>,
+  );
+  expect(
+    screen.getByTestId("dicebear-groups-image", { includeHiddenElements: true }),
+  ).toBeOnTheScreen();
+  expect(screen.container.queryAll((node) => node.type === "RCTImageView")).toHaveLength(0);
   await view.rerender(
     <NativeTestProviders>
       <GroupArtwork group={{ ...group, logo: null }} size={96} />

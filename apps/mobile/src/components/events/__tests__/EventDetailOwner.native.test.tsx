@@ -263,10 +263,13 @@ afterEach(async () => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
-function Fixture(props: Partial<ComponentProps<typeof EventDetail>>) {
+function Fixture({
+  locale = "en",
+  ...props
+}: Partial<ComponentProps<typeof EventDetail>> & { locale?: "en" | "it" }) {
   return (
     <QueryClientProvider client={client}>
-      <NativeTestProviders>
+      <NativeTestProviders locale={locale}>
         <RouteParams value={{ eventId: event.id, ...props }}>
           <EventScreen />
         </RouteParams>
@@ -858,5 +861,53 @@ it("keeps a missing event parameter outside authenticated event queries and muta
   await render(<Fixture eventId={undefined} />);
   expect(screen.queryByRole("tab")).toBeNull();
   expect(reads).toEqual([]);
+  expect(writes).toEqual([]);
+});
+
+it("retains the cached event summary while confirmation waits for authoritative details", async () => {
+  confirmable();
+  let resolve!: (response: Response) => void;
+  pendingEvent = new Promise((settle) => {
+    resolve = settle;
+  });
+  client.setQueryData(eventRecordKeys.list(options()), {
+    pages: [{ items: [event], nextCursor: null }],
+    pageParams: [""],
+  });
+  await render(<Fixture />);
+  expect(await screen.findByRole("header", { name: event.name })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Edit event" })).toBeDisabled();
+  await pressMeasuredPopover(screen.getByRole("button", { name: "Confirm event" }));
+  expect(screen.getByText("Event details are still loading.")).toBeVisible();
+  expect(screen.queryByTestId("confirmation-dialog")).toBeNull();
+  expect(writes).toEqual([]);
+
+  await act(async () => {
+    pendingEvent = undefined;
+    resolve(json(event));
+  });
+  await waitFor(() => expect(screen.getByRole("button", { name: "Edit event" })).toBeEnabled());
+  expect(screen.queryByText("Event details are still loading.")).toBeNull();
+  expect(writes).toEqual([]);
+});
+
+it("requests event notices in Italian and opens edit without a foreign group continuation", async () => {
+  event = {
+    ...event,
+    groupId: "66666666-6666-4666-8666-666666666666",
+    groupName: "Parent group",
+    groupType: "PRIVATE",
+  };
+  await render(<Fixture locale="it" />);
+  await ready();
+  const notices = reads.filter((url) => url.pathname === "/api/notifications/changes");
+  expect(notices).toHaveLength(1);
+  expect(notices[0].searchParams.get("locale")).toBe("it");
+  expect(notices[0].searchParams.get("id")).toBe(event.id);
+  await press("Modifica evento");
+  expect(boundary.push).toHaveBeenCalledExactlyOnceWith({
+    pathname: "/event/wizard",
+    params: { eventId: event.id },
+  });
   expect(writes).toEqual([]);
 });

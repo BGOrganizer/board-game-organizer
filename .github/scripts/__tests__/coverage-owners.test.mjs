@@ -16,6 +16,8 @@ for (const [owner, directory, filename = "vitest.config.ts"] of [
   ["shared", "packages/shared"],
   ["web", "apps/web"],
   ["mobile", "apps/mobile"],
+  ["mcp", "apps/mcp"],
+  ["site", "apps/site"],
   ["api", "apps/api"],
   ["api-integration", "apps/api", "vitest.integration.config.ts"],
   ["schemas", "packages/schemas"],
@@ -27,6 +29,15 @@ for (const [owner, directory, filename = "vitest.config.ts"] of [
   assert(loaded, `Expected the actual ${owner} coverage configuration`);
   configs[owner] = { directory: resolve(root, directory), coverage: loaded.config.test.coverage };
 }
+
+test("every application and runtime package report requires all four metrics at 98 percent", () => {
+  for (const [workspace, { coverage }] of Object.entries(configs)) {
+    if (workspace === "api-integration") continue;
+    for (const metric of metrics) {
+      assert.equal(coverage.thresholds[metric], 98, `${workspace} ${metric}`);
+    }
+  }
+});
 
 // Synthetic Istanbul fragments exercise the installed provider's actual gate.
 // They are never application execution evidence or reported app coverage.

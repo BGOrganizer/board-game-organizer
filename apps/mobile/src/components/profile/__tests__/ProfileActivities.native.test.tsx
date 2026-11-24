@@ -45,6 +45,8 @@ let items: ProfileActivity[];
 let nextItems: ProfileActivity[];
 let cursor: string | null;
 let status: number;
+let profileStatus: number;
+let pendingProfile: Promise<Response> | undefined;
 let nextStatus: number;
 let pending: Promise<Response> | undefined;
 let pendingNext: Promise<Response> | undefined;
@@ -77,8 +79,8 @@ beforeEach(async () => {
   items = [activity()];
   nextItems = [activity("second")];
   cursor = null;
-  status = nextStatus = 200;
-  pending = pendingNext = undefined;
+  status = nextStatus = profileStatus = 200;
+  pending = pendingNext = pendingProfile = undefined;
   reads.length = 0;
   useAppStore.getState().clearProfileViews();
   client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
@@ -95,7 +97,14 @@ beforeEach(async () => {
       reads.push({ url, authorization: new Headers(init?.headers).get("authorization") });
       const match = /^\/api\/profiles\/([^/]+)(\/activities)?$/.exec(url.pathname);
       if (!match) throw new Error(`Unexpected profile-activity path ${url.pathname}`);
-      if (!match[2]) return json(profile(match[1]));
+      if (!match[2])
+        return (
+          pendingProfile ??
+          json(
+            profileStatus === 200 ? profile(match[1]) : { error: "Profile unavailable" },
+            profileStatus,
+          )
+        );
       const more = url.searchParams.has("cursor"),
         code = more ? nextStatus : status;
       return (
@@ -269,4 +278,31 @@ it("does not reuse the previous subject's cached activities or filter after an A
   expect(screen.queryByText("Activity first")).toBeNull();
   expect(await screen.findByText("Activity second-owner")).toBeVisible();
   expect(reads.at(-1)?.authorization).toBe("Bearer fixture-second-viewer");
+});
+
+it("keeps authorized results visible without relying on an unresolved or revoked profile identity", async () => {
+  const key = profileViewQuery(options(), "subject").queryKey;
+  client.removeQueries({ queryKey: key, exact: true });
+  let finish!: (response: Response) => void;
+  pendingProfile = new Promise((resolve) => {
+    finish = resolve;
+  });
+  items = [activity("won-match", { kind: "played", outcome: "won" })];
+  await render(<Fixture />);
+
+  expect(await screen.findByText("Activity won-match")).toBeVisible();
+  expect(screen.getByText("Someone")).toBeVisible();
+  expect(screen.queryByText("subject-player")).toBeNull();
+
+  await act(() => {
+    pendingProfile = undefined;
+    finish(json(profile()));
+  });
+  expect(await screen.findByText("subject-player")).toBeVisible();
+  profileStatus = 403;
+  await act(() => client.refetchQueries({ queryKey: key, exact: true }));
+  expect(await screen.findByText("Someone")).toBeVisible();
+  expect(screen.queryByText("subject-player")).toBeNull();
+  expect(screen.getByText("Activity won-match")).toBeVisible();
+  expect(boundary.push).not.toHaveBeenCalled();
 });

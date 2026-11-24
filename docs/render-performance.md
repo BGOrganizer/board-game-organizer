@@ -257,10 +257,9 @@ boundaries need test adapters. A component test with controlled snapshot props d
 an API request, cache reconciliation or remote notification delivery works.
 
 Use [Reassure's methodology](https://oss.callstack.com/reassure/docs/methodology/) to assess noise
-and significance before selecting duration budgets. The retained suites enforce calibrated
-render-commit budgets and the paired statistical policy when explicitly resumed. While Reassure
-is paused, PR/Main do not run or require these measurements; no full-suite performance success is
-attested. The initial no-harness bootstrap is explicitly unpaired.
+and significance before selecting duration budgets. Branch, Preview and Main enforce the calibrated
+commit budgets and paired comparisons in their Reassure jobs. The initial no-harness bootstrap is
+explicitly unpaired.
 These checks do not establish native latency or E2E acceptance. Native acceptance and profiling remain defined in
 [verification](implementation-progress.md), [native profiling](native-performance.md) and
 [the Maestro guide](../apps/mobile/.maestro/README.md). Report executed scenarios and their limits;

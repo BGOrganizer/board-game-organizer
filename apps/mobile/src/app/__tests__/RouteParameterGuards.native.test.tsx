@@ -7,8 +7,10 @@ import GroupBan from "@/app/group/ban";
 import GroupInvite from "@/app/group/invite";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 
+const route = vi.hoisted(() => ({ eventId: "friday" as string | undefined }));
+
 vi.mock("expo-router", () => ({
-  useLocalSearchParams: () => ({ eventId: "friday" }),
+  useLocalSearchParams: () => ({ eventId: route.eventId }),
   Redirect: ({ href }: { href: string | { pathname: string; params: unknown } }) => (
     <Text testID="sdk-redirect">{typeof href === "string" ? href : JSON.stringify(href)}</Text>
   ),
@@ -42,5 +44,17 @@ it("Mobile route parameters: preserve the event fallback and report missing grou
     const error = within(screen.getByTestId(route)).getByText("Group not found");
     expect(error).toBeVisible();
     expect(error).toHaveProp("accessibilityRole", "alert");
+  }
+});
+
+it("routes a result link without either resource identifier back to a safe event destination", async () => {
+  route.eventId = undefined;
+  try {
+    await render(<EventResults />, { wrapper: NativeTestProviders });
+    expect(screen.getByTestId("sdk-redirect")).toHaveTextContent(
+      JSON.stringify({ pathname: "/event/[eventId]", params: { eventId: "" } }),
+    );
+  } finally {
+    route.eventId = "friday";
   }
 });

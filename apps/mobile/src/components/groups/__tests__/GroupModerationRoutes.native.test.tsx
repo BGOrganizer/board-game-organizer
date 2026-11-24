@@ -16,6 +16,7 @@ const boundary = vi.hoisted(() => ({
   apiUrl: "https://native-moderation-perf.test",
   getToken: async () => "review-fixture-token",
   push: vi.fn(),
+  missingGroup: false,
   dismissTo: vi.fn(),
 }));
 vi.mock("@clerk/expo", () => ({
@@ -32,7 +33,7 @@ vi.mock("expo-constants", () => ({
 }));
 vi.mock("expo-router", () => ({
   useRouter: () => ({ push: boundary.push, dismissTo: boundary.dismissTo }),
-  useLocalSearchParams: () => ({ groupId: pending.id }),
+  useLocalSearchParams: () => ({ groupId: boundary.missingGroup ? undefined : pending.id }),
   useNavigation: () => ({ getState: () => ({ type: "stack" }) }),
 }));
 const focused = {
@@ -161,6 +162,30 @@ it("GroupModeration and GroupReview: open the authorized queue item and apply a 
     expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
   } finally {
     await client.cancelQueries();
+    client.clear();
+    vi.unstubAllGlobals();
+  }
+});
+
+it("keeps an incomplete moderation link outside private reviewer queries and actions", async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const request = vi.fn();
+  boundary.missingGroup = true;
+  vi.stubGlobal("fetch", request);
+  try {
+    await render(
+      <QueryClientProvider client={client}>
+        <NativeTestProviders>
+          <GroupReviewScreen />
+        </NativeTestProviders>
+      </QueryClientProvider>,
+    );
+    expect(screen.queryByLabelText("Rejection reason")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Reject" })).toBeNull();
+    expect(request).not.toHaveBeenCalled();
+  } finally {
+    boundary.missingGroup = false;
     client.clear();
     vi.unstubAllGlobals();
   }

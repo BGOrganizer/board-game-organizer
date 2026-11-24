@@ -402,3 +402,13 @@ it("keeps leaving an unselected route passive and cancels its still-pending sour
   expect(io.back).not.toHaveBeenCalled();
   expect(writes).toEqual([]);
 });
+
+it("opens a valid picker without excluding anyone when the wizard omits optional exclusions", async () => {
+  io.params.exclude = undefined;
+  await mount(true);
+  expect(await screen.findByText("Player alice")).toBeVisible();
+  await choose();
+  expect(useAppStore.getState().pendingUser?.user.id).toBe("alice");
+  expect(io.back).toHaveBeenCalledOnce();
+  expect(writes).toEqual([]);
+});

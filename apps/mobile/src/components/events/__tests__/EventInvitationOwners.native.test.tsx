@@ -124,6 +124,7 @@ function card(id = "current-invitation") {
 async function pressCard(label: string, id?: string) {
   await userEvent.setup().press(card(id).getByRole("button", { name: label }));
 }
+let candidateUsername: string | null;
 async function http(input: RequestInfo | URL, init?: RequestInit) {
   const url = new URL(
     typeof input === "string" ? input : input instanceof URL ? input.href : input.url,
@@ -155,7 +156,7 @@ async function http(input: RequestInfo | URL, init?: RequestInit) {
           {
             id: "guest",
             name: "Guest Player",
-            username: "guest",
+            username: candidateUsername,
             avatarUrl: null,
             email: null,
             invitationBlockReason: null,
@@ -237,6 +238,7 @@ async function http(input: RequestInfo | URL, init?: RequestInit) {
 }
 beforeEach(() => {
   incompleteRoute = false;
+  candidateUsername = "guest";
   io.back.mockClear();
   io.token.mockClear();
   registration = {
@@ -720,4 +722,18 @@ it("does not expose invitation or guest writes from an Expo link missing its eve
   expect(screen.queryByText("@guest")).toBeNull();
   expect(reads).toEqual([]);
   expect(writes).toEqual([]);
+});
+
+it("invites a registered candidate with no public username without claiming their seat or inventing a handle", async () => {
+  candidateUsername = null;
+  await render(<Fixture picker />);
+  expect(await screen.findByText("Guest Player")).toBeVisible();
+  expect(screen.queryByText("@guest")).toBeNull();
+  const controls = screen.getAllByRole("button", { name: "Select user: Guest Player" });
+  await userEvent.setup().press(controls[0]);
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0].body).toEqual({ userId: "guest" });
+  expect(writes[0].path).toBe(`/api/events/${event.id}/tables/${table.id}/invitations`);
+  expect(io.back).toHaveBeenCalledOnce();
+  expect(writes.some(({ path }) => path.startsWith("/api/table-registrations/"))).toBe(false);
 });

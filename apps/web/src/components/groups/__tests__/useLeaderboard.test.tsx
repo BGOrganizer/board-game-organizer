@@ -130,8 +130,8 @@ it("rejects an explicit stale leaderboard refresh without even asking for creden
   );
   expect(view.result.current.games.isEnabled).toBe(false);
   expect(view.result.current.players.isEnabled).toBe(false);
-  await act(async () => view.result.current.games.refetch());
-  expect(view.result.current.games.error).toMatchObject({ status: 401 });
+  const outcome = await act(async () => view.result.current.games.refetch());
+  expect(outcome.error).toMatchObject({ status: 401 });
   expect(view.result.current.games.items).toEqual([]);
   expect(view.result.current.games.selectedGame).toBeUndefined();
   expect(getToken).not.toHaveBeenCalled();

@@ -135,8 +135,9 @@ reason to skip checks. Fork PRs do not enter secret-consuming lanes.
 Common quality gates feed two independent lanes:
 
 Coverage uses the same workspace Vitest configurations locally and in Branch, PR and Main
-jobs, with a 90% minimum for lines, functions, branches and statements. A quality-only branch
-push runs `test:coverage` as well; routing-only pushes for an open PR still avoid duplicate jobs.
+jobs. Each app and runtime package must meet 98% for lines, functions, branches and statements.
+The required `PR ready` check includes those coverage jobs and the Site coverage step. A quality-only
+branch push runs `test:coverage` as well; routing-only pushes for an open PR avoid duplicate jobs.
 The API command combines unit tests and isolated MongoDB integration in one report and requires
 Docker. Repository unit tests exercise the real classes with the MongoDB boundary mocked;
 the replica-set tests verify real query and transaction behavior.

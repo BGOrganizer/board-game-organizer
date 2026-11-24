@@ -433,3 +433,38 @@ it("fits an uploaded group logo by decoded image dimensions and falls back until
   expect(replacement).toHaveStyle({ width: 96, height: 192, borderRadius: 12 });
   expect(screen.queryByTestId("dicebear-groups-image", { includeHiddenElements: true })).toBeNull();
 });
+
+it("keeps the newer motion setting when the initial device setting request fails late", async () => {
+  const control = lifecycle();
+  let rejectPreference: (failure: Error) => void = () => {};
+  vi.mocked(AccessibilityInfo.isReduceMotionEnabled).mockReturnValueOnce(
+    new Promise<boolean>((_resolve, reject) => {
+      rejectPreference = reject;
+    }),
+  );
+  const view = await render(
+    <ActiveArtwork navigation={control.navigation}>
+      <AnimatedDetailArtwork artwork={createResourceArtwork("groups", "live-preference", "none")}>
+        <Text>Current drawing</Text>
+      </AnimatedDetailArtwork>
+    </ActiveArtwork>,
+  );
+  await measureArtwork();
+  expect(Animated.loop).not.toHaveBeenCalled();
+  await control.motion(false);
+  await waitFor(() => expect(Animated.loop).toHaveBeenCalled());
+  const clock = control.clocks.at(-1);
+  expect(clock?.start).toHaveBeenCalled();
+  const before = clock?.stop.mock.calls.length;
+
+  await act(() => rejectPreference(Error("Initial accessibility setting unavailable")));
+  expect(screen.getByText("Current drawing")).toBeVisible();
+  expect(clock?.stop.mock.calls.length).toBe(before);
+  await view.unmount();
+  const stopped = clock?.stop.mock.calls.length;
+
+  // AppState can deliver an event it had already queued during cleanup.
+  await control.foreground("background");
+  expect(clock?.stop.mock.calls.length).toBe(stopped);
+  expect(control.motionListenersReleased()).toBe(true);
+});

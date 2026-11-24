@@ -253,6 +253,13 @@ jobs:
         uses: ./.github/actions/setup-bun
       - name: 🧪 Site unit tests and coverage
         run: bun run --filter site test:coverage
+      - name: 📤 Upload Site coverage report
+        if: always() && !cancelled()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-site
+          path: apps/site/coverage/**
+          if-no-files-found: warn
       - name: 🏗️ Build Site
         run: bun run --filter site build
 

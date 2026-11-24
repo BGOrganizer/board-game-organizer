@@ -738,3 +738,67 @@ it("does not replace a manually verified address with a slower GPS lookup", asyn
     }),
   );
 });
+
+it("ignores a rejected address lookup after a newer verified query is already visible", async () => {
+  let rejectLookup: (reason: Error) => void = () => {};
+  pendingSearch = new Promise<Response>((_resolve, reject) => {
+    rejectLookup = reject;
+  });
+  const onSelect = vi.fn();
+  await render(<Fixture onSelect={onSelect} />);
+  await fireEvent.changeText(screen.getByTestId("location-address-input"), "Previous search");
+  await waitFor(() => expect(searches).toHaveLength(1));
+  const previous = searches[0];
+
+  pendingSearch = undefined;
+  await search("Current address");
+  expect(previous.signal?.aborted).toBe(true);
+  await act(() => rejectLookup(Error("Canceled address request was already on the wire")));
+  expect(screen.queryByText("Could not search addresses")).toBeNull();
+  await choose(1);
+  await fireEvent.changeText(screen.getByLabelText("Location name"), "Verified address");
+  await confirm();
+
+  expect(searches.map(({ query }) => query)).toEqual(["Previous search", "Current address"]);
+  expect(onSelect).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({ name: "Verified address", address: places[1].address }),
+  );
+});
+
+it("disposes a pending initial permission read with the closed picker and honors a fresh picker consent", async () => {
+  const settings = vi.spyOn(Linking, "openSettings").mockResolvedValue(undefined);
+  let finish: (permission: typeof boundary.permission) => void = () => {};
+  boundary.permissions.mockReturnValueOnce(
+    new Promise<typeof boundary.permission>((resolve) => {
+      finish = resolve;
+    }),
+  );
+  const closedChoice = vi.fn();
+  const first = await render(<Fixture onSelect={closedChoice} />);
+  await waitFor(() => expect(boundary.permissions).toHaveBeenCalledOnce());
+  expect(appListeners.size).toBeGreaterThan(0);
+  await first.unmount();
+  expect(appListeners.size).toBe(0);
+
+  boundary.permission = { granted: true, canAskAgain: false };
+  const currentChoice = vi.fn();
+  await render(<Fixture onSelect={currentChoice} />);
+  await waitFor(() => expect(boundary.permissions).toHaveBeenCalledTimes(2));
+  await act(() => finish({ granted: false, canAskAgain: false }));
+  expect(settings).not.toHaveBeenCalled();
+  expect(boundary.requestPermission).not.toHaveBeenCalled();
+  expect(boundary.position).not.toHaveBeenCalled();
+
+  await fireEvent.changeText(screen.getByLabelText("Location name"), "Current GPS place");
+  await userEvent.setup().press(screen.getByTestId("location-map-locate"));
+  await waitFor(() =>
+    expect(screen.getByTestId("location-address-input")).toHaveDisplayValue(places[0].address),
+  );
+  await confirm();
+  expect(boundary.position).toHaveBeenCalledOnce();
+  expect(currentChoice).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({ name: "Current GPS place", address: places[0].address }),
+  );
+  expect(closedChoice).not.toHaveBeenCalled();
+  expect(settings).not.toHaveBeenCalled();
+});

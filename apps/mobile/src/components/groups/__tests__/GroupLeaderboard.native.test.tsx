@@ -298,9 +298,14 @@ it("keeps selected players pending distinct from player failure and retries thei
   expect(
     await screen.findByRole("button", { name: "Could not load leaderboards. Retry" }),
   ).toBeVisible();
+  const playerReads = () => reads.filter((url) => url.searchParams.has("gameId"));
+  expect(playerReads()).toHaveLength(1);
+  await endPlayers();
+  expect(playerReads()).toHaveLength(1);
   pendingPlayers = undefined;
   await fireEvent.press(screen.getByRole("button", { name: "Could not load leaderboards. Retry" }));
   expect(await screen.findByText("@admin")).toBeVisible();
+  expect(playerReads()).toHaveLength(2);
 });
 
 it("scopes authoritative player facts to the new account, API and group instead of bridging private snapshots", async () => {

@@ -100,12 +100,12 @@ beforeEach(async () => {
   boundary.permission = "denied";
   boundary.promptResult = "denied";
   boundary.canAskAgain = true;
-  boundary.readPermission.mockImplementation(async () => permission());
-  boundary.requestPermission.mockImplementation(async () => {
+  boundary.readPermission.mockReset().mockImplementation(async () => permission());
+  boundary.requestPermission.mockReset().mockImplementation(async () => {
     boundary.permission = boundary.promptResult;
     return permission();
   });
-  boundary.token.mockResolvedValue({
+  boundary.token.mockReset().mockResolvedValue({
     type: "fcm",
     data: "fixture-native-push-token",
   });
@@ -532,15 +532,17 @@ it("reports a native foreground permission failure while keeping the current inb
   await waitFor(() => expect(boundary.readPermission).toHaveBeenCalledOnce());
   await openBell();
   expect(await screen.findByText("No notifications yet")).toBeVisible();
+  const completedReads = boundary.readPermission.mock.calls.length;
   boundary.readPermission.mockRejectedValueOnce(new Error("Native permissions unavailable"));
   await act(async () => {
     for (const listener of appListeners) listener("background");
   });
-  expect(boundary.readPermission).toHaveBeenCalledOnce();
+  expect(boundary.readPermission).toHaveBeenCalledTimes(completedReads);
   await act(async () => {
     for (const listener of appListeners) listener("active");
   });
   expect(await screen.findByText("Could not enable push notifications")).toBeVisible();
+  expect(boundary.readPermission).toHaveBeenCalledTimes(completedReads + 1);
   expect(screen.getByText("No notifications yet")).toBeVisible();
   expect(registrations).toEqual([]);
 });

@@ -286,10 +286,14 @@ function Fixture({
   tableId = table.id,
   context,
   incompleteRoute = false,
-}: Partial<ComponentProps<typeof EventTable>> & { incompleteRoute?: boolean }) {
+  locale,
+}: Partial<ComponentProps<typeof EventTable>> & {
+  incompleteRoute?: boolean;
+  locale?: "en" | "it";
+}) {
   return (
     <QueryClientProvider client={client}>
-      <NativeTestProviders>
+      <NativeTestProviders locale={locale}>
         <RouteParams
           value={
             incompleteRoute
@@ -737,5 +741,15 @@ it("keeps an incomplete Expo Table link from reading or creating any unrelated t
   expect(screen.queryByTestId("table-overview-tab")).toBeNull();
   expect(screen.queryByRole("button", { name: "Delete table" })).toBeNull();
   expect(reads).toEqual([]);
+  expect(writes).toEqual([]);
+});
+
+it("loads the table's notice copy in Italian without acknowledging notices or mutating registration", async () => {
+  await render(<Fixture locale="it" />);
+  await ready();
+  const changes = reads.filter(({ url }) => url.pathname === "/api/notifications/changes");
+  expect(changes).toHaveLength(1);
+  expect(changes[0].url.searchParams.get("locale")).toBe("it");
+  expect(changes[0].url.searchParams.get("id")).toBe(table.id);
   expect(writes).toEqual([]);
 });

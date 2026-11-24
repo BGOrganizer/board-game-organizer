@@ -1,6 +1,6 @@
 import { developmentInviteAppLink, eventRecordKeys } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, userEvent, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, userEvent, waitFor } from "@testing-library/react-native";
 import type { ComponentProps } from "react";
 import { Share, StyleSheet } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -172,7 +172,11 @@ it("keeps the first generation pending and coalesces duplicate presses until its
     finish = resolve;
   });
   await render(<Fixture />);
-  await generate();
+  const trigger = screen.getByRole("button", { name: "Generate invite" });
+  // Two native presses can arrive before the pending mutation disables the row.
+  await act(async () => {
+    await Promise.all([fireEvent.press(trigger), fireEvent.press(trigger)]);
+  });
   await waitFor(() => expect(writes).toHaveLength(1));
   expect(screen.getByRole("button", { name: "Generate invite" })).toBeDisabled();
   expect(screen.queryByTestId("table-invite-link-value")).toBeNull();

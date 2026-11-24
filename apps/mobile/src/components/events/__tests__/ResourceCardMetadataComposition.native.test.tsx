@@ -245,3 +245,22 @@ it("reveals a late group name in a table card while keeping its available event 
     params: { eventId: table.eventId, tableId: table.id },
   });
 });
+
+it("shows a guest demonstrator in the frozen public schedule without treating them as a registered player", async () => {
+  const table: PlannedTableResponse = {
+    ...plannedTable,
+    groupType: "PUBLIC",
+    eventStatus: "CONFIRMED",
+    confirmed: { gameId: 1, playerIds: ["owner"], startsAt: "2030-06-03T18:00:00Z" },
+    demonstratorUserId: undefined,
+    demonstratorGuestName: "Visiting guide",
+  };
+  await render(<EventTableScheduleCard table={table} timeZone="Europe/Rome" />, {
+    wrapper: NativeTestProviders,
+  });
+  const schedule = within(screen.getByLabelText("Table schedule"));
+  expect(schedule.getByText("Date:")).toBeVisible();
+  expect(schedule.getByText("Visiting guide")).toBeVisible();
+  expect(schedule.getByText("Demonstrator")).toBeVisible();
+  expect(schedule.queryByText("Confirmed player")).toBeNull();
+});

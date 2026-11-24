@@ -8,9 +8,10 @@ export default defineConfig({
     include: ["src/**/*.test.{ts,tsx}"],
     coverage: {
       provider: "v8",
+      reportOnFailure: true,
       include: ["src/**/*.{ts,tsx}"],
       exclude: ["src/**/__tests__/**"],
-      reporter: ["text", "json-summary", "lcov"],
+      reporter: ["text", "json", "json-summary", "lcov"],
       thresholds: {
         lines: 98,
         functions: 98,

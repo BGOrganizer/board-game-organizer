@@ -220,11 +220,7 @@ function RenderedLabelTabs() {
   return (
     <Tabs value={selected} onValueChange={setSelected}>
       <TabBar>
-        <TabTrigger
-          value="members"
-          icon={UsersRound}
-          style={({ pressed }) => ({ opacity: pressed ? 0.4 : 0.6 })}
-        >
+        <TabTrigger value="members" icon={UsersRound} style={{ marginLeft: 3 }}>
           {({ isSelected }) => (
             <Tabs.Label>{isSelected ? "Members selected" : "Members available"}</Tabs.Label>
           )}
@@ -237,13 +233,13 @@ function RenderedLabelTabs() {
   );
 }
 
-it("passes selection to the custom HeroUI label while retaining functional trigger styles", async () => {
+it("passes selection to the custom HeroUI label and retains the native trigger layout", async () => {
   await render(<RenderedLabelTabs />, { wrapper: NativeTestProviders });
   const members = screen.getByRole("tab", { name: "Members available" });
-  expect(members).toHaveStyle({ opacity: 0.6, minHeight: 44 });
+  expect(members).toHaveStyle({ marginLeft: 3, minHeight: 44 });
   await userEvent.setup().press(members);
   const selected = screen.getByRole("tab", { name: "Members selected" });
   expect(selected).toBeSelected();
-  expect(selected).toHaveStyle({ opacity: 0.6, minHeight: 44 });
+  expect(selected).toHaveStyle({ marginLeft: 3, minHeight: 44 });
   expect(screen.getByRole("tab", { name: "Other" })).not.toBeSelected();
 });
