@@ -4,15 +4,12 @@ Web and mobile have separate Vitest rendering suites using React Testing Library
 Testing Library respectively, with `@callstack/reassure-measure`, Reassure's measurement module.
 There is no Jest runner. Versions are locked in the app manifests and `bun.lock`.
 
-**Reassure measurements are paused locally and in CI by explicit operator request.** Both workflow
-job definitions, fixtures and comparison tools remain retained, but the jobs are disabled and are
-not active publication, readiness or watchdog gates. Ordinary component/unit tests, all five
-workspaces' 90% coverage gates, real MongoDB integration and native tooling checks remain active.
-The comparator and paired-helper unit tests still run as ordinary tests. Paused measurements are
-not passing performance evidence; do not start another benchmark run without explicit resumption.
+Branch, Preview and Main CI run Web and Mobile Reassure jobs and publish paired reports. The
+reports surface regression results independently of the coverage and deployment gates. The
+comparator and paired-helper unit tests run in the ordinary Web suite.
 
-For explicit resumption, the retained commands use the Node.js and Bun versions required by
-[AGENTS.md](../AGENTS.md), from the repository root:
+Run local measurements with the Node.js and Bun versions required by [AGENTS.md](../AGENTS.md),
+from the repository root:
 
 ```sh
 bun install --frozen-lockfile
@@ -110,6 +107,12 @@ Each scenario must assert the actual result of its render/update interaction bef
 Reassure samples. Include repeated selection, retained local state and fresh authoritative props
 where relevant. Do not replace the measured component with a stand-in or count calls in place of
 React Profiler commits.
+
+Measure each first-party React component either as a scenario root or through a verified scenario
+that renders it. Account for components reachable only through a route, an opened disclosure,
+authoritative responses or provider effects. Check runtime reachability in a separate
+coverage-instrumented pass. Use uninstrumented Reassure runs for the render counts and durations
+reported by the comparison jobs.
 
 Calibrate commit-count ceilings from repeated runs with the same fixtures. Both suites record
 explicit scenario ceilings in `apps/{web,mobile}/performance/renderCommitBudgets.ts` and reject

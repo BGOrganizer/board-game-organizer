@@ -140,18 +140,12 @@ push runs `test:coverage` as well; routing-only pushes for an open PR still avoi
 The API command combines unit tests and isolated MongoDB integration in one report and requires
 Docker. Repository unit tests exercise the real classes with the MongoDB boundary mocked;
 the replica-set tests verify real query and transaction behavior.
-Native CLI/flow syntax checks remain required. Reassure measurements are paused by explicit
-operator request: complete web/mobile job definitions are retained but disabled, and active
-quality, publication, readiness and watchdog dependencies exclude those jobs. Ordinary tests of
-the comparator/helper remain active. All five workspaces still enforce 90% coverage across the
-same runtime source ownership; real MongoDB integration, lint, typecheck, builds, native tooling,
-release verification and cleanup gates remain active. A skipped or interrupted benchmark is not
-performance acceptance evidence.
-
-The retained [render benchmark policy](render-performance.md#paired-statistical-ci-checks) defines
-same-runner sequential approved-baseline/current measurements, provenance and failure artifacts
-for explicit resumption. Only the documented initial no-harness main may bootstrap without old
-samples; later missing/corrupt baselines fail, and no historical result is fabricated.
+Native CLI and flow syntax checks remain required. Web and Mobile Reassure measurements run on
+Branch, Preview and Main and publish their own reports. The ordinary Web suite tests the
+comparator and paired-run helper. The [render benchmark policy](render-performance.md#paired-statistical-ci-checks)
+defines sequential same-runner measurements, approved baseline scenarios, provenance checks and
+failure artifacts. The documented initial Main can bootstrap a new report. Later baseline
+comparisons require valid samples for every approved historical scenario.
 These secret-free checks do not execute Playwright or Maestro journeys, provision users or capture
 device traces. Test matrices do not cancel their remaining active suites on failure.
 

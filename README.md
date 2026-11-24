@@ -129,7 +129,8 @@ Integration tests start a Testcontainers replica set and need Docker. Web E2E re
 explicit `PLAYWRIGHT_BASE_URL`, the matching API/Clerk configuration and provisioned test users.
 Native UI acceptance uses the retained [Maestro flows](apps/mobile/.maestro). Mobile Vitest covers
 logic and components. The [render benchmarks](docs/render-performance.md) use Reassure and Testing
-Library to measure React commits on Web and Mobile.
+Library to measure React commits on Web and Mobile. Branch, Preview and Main CI publish the paired
+baseline and candidate reports.
 See [delivery details](docs/development.md#delivery) for CI policy and acceptance limits.
 
 ## Project structure

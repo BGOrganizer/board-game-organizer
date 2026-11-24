@@ -278,7 +278,8 @@ Every component needs meaningful render/update scenarios with Reassure assertion
 rerender-count contracts calibrated from repeated observed samples. Record durations and sample
 counts; apply timing regression limits only against a stable, host-matched baseline. A passing
 finite-duration assertion alone does not establish a performance budget. Coverage-instrumented
-runs are not performance measurements. See [React benchmarks](docs/render-performance.md).
+runs verify component reachability separately. Branch, Preview and Main publish paired Web and
+Mobile measurements. See [React benchmarks](docs/render-performance.md).
 
 For native responsiveness investigations, capture a bounded Perfetto trace around a focused
 Maestro flow, then analyze it using the **project-pinned** `bun run perfetto` tool. Verify the

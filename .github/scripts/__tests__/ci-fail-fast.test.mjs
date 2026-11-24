@@ -74,7 +74,7 @@ test("watchdog recognizes the current workflow labels and keeps lane failures is
   assert(!jobs["build-mobile-internal"].needs.includes("detect-mobile-changes"));
 });
 
-test("watchdog waits for every active unit, integration and tooling job while Reassure is paused", () => {
+test("watchdog waits for required unit, integration and tooling jobs", () => {
   const { jobs } = parse(readFileSync(".github/workflows/pr-ci.yml", "utf8"));
   const ids = ["lint", "unit-tests", "integration-tests", "native-tooling"];
   const names = ids.flatMap((id) =>
