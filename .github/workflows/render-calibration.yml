@@ -1,0 +1,60 @@
+name: Reassure calibration
+
+on:
+  push:
+    branches: [test/react-render-coverage]
+
+permissions:
+  contents: read
+
+jobs:
+  calibrate:
+    name: Collect Reassure samples (${{ matrix.app }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [web, mobile]
+    env:
+      WORKSPACE: ${{ matrix.app }}
+    steps:
+      - name: Check out the calibration snapshot
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install locked dependencies
+        uses: ./.github/actions/setup-bun
+      - name: Run both independent sample sets
+        run: |
+          mkdir -p .render-calibration
+          for sample in first second; do
+            status=0
+            bun run --filter "$WORKSPACE" test:perf > ".render-calibration/$sample.log" 2>&1 || status=$?
+            printf '%s\n' "$status" > ".render-calibration/$sample.exit"
+            if [ -f "apps/$WORKSPACE/.reassure/current.perf" ]; then
+              cp "apps/$WORKSPACE/.reassure/current.perf" ".render-calibration/$sample.perf"
+            fi
+          done
+          test "$(cat .render-calibration/first.exit)" = 0
+          test "$(cat .render-calibration/second.exit)" = 0
+      - name: Preserve raw calibration reports
+        if: ${{ always() && !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: render-calibration-${{ matrix.app }}
+          path: .render-calibration/
+          include-hidden-files: true
+      - name: Inventory the actual component executions separately
+        if: ${{ !cancelled() }}
+        working-directory: apps/${{ matrix.app }}
+        run: |
+          node --expose-gc --no-concurrent-sweeping --max-old-space-size=1024 --max-opt=1 \
+            ../../node_modules/vitest/vitest.mjs run --config performance/.inventory.config.mts
+      - name: Preserve the instrumented coverage report
+        if: ${{ always() && !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: render-inventory-${{ matrix.app }}
+          path: apps/${{ matrix.app }}/.reassure/inventory/*.json
+          include-hidden-files: true

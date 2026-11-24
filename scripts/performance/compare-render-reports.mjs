@@ -196,6 +196,7 @@ function measurements(file, expectedRef, budgets) {
         Object.keys(budgets).every((name) => names.has(name)),
       "Current measurement inventory does not match the approved app budgets",
     );
+  return names;
 }
 
 export async function compareRenderReports(argv) {
@@ -215,7 +216,17 @@ export async function compareRenderReports(argv) {
     "Invalid app budget inventory",
   );
   measurements(options.current, options["current-ref"], renderCommitBudgets);
-  if (!options.bootstrap) measurements(options.baseline, options["baseline-ref"]);
+  if (!options.bootstrap) {
+    const baseline = measurements(options.baseline, options["baseline-ref"]);
+    const approved = provenance.baseline.scenarios;
+    ensure(
+      Array.isArray(approved) &&
+        approved.length === baseline.size &&
+        new Set(approved).size === baseline.size &&
+        approved.every((name) => baseline.has(name)),
+      "Baseline measurement inventory does not match its approved scenarios",
+    );
+  }
   // One fresh CLI process per pair avoids upstream module-scoped warning/error
   // accumulation. The official package owns the statistics; no custom estimator.
   const { compare } = await import("@callstack/reassure-compare");

@@ -119,10 +119,12 @@ separately: a deterministic commit-count contract is not a native latency guaran
 
 ## Paired statistical CI checks
 
-The retained, currently disabled Branch/PR and Main jobs define each app's complete suite against
-an approved baseline and the current checkout in the **same job, consecutively**. The two checkouts have separate locked
-installations; both installations finish before either timing run. Web and mobile have independent
-jobs and reports. Their durations are never compared with each other or with another runner.
+The Branch/PR and Main jobs measure each app's approved baseline and the current checkout in the
+**same job, consecutively**. The baseline runs the scenarios with calibrated commit ceilings in its
+own budget inventory. The current checkout runs the entire suite and must report each of its approved
+scenarios. This preserves measured history when a previously paused suite contains uncalibrated
+cases. The two checkouts have separate locked installations, completed before either timing run.
+Web and mobile have independent reports and use separate comparisons.
 
 PR uses its immutable base SHA; a branch push resolves the repository's default branch to the
 actual checked-out SHA. Main uses the push event's previous SHA. The candidate is the actual
@@ -143,7 +145,8 @@ do not relabel another host's saved report as this job's baseline.
 The [comparison wrapper](../scripts/performance/compare-render-reports.mjs) uses the official
 `@callstack/reassure-compare` package directly in a fresh Node process. It validates the current
 named budget inventory, ten raw render counts, ten duration samples including removed outliers,
-one warmup and each calibrated commit ceiling before accepting the report. Official errors,
+one warmup and each calibrated commit ceiling before accepting the report. The historical report
+must include every scenario selected from the baseline checkout's budgets. Official errors,
 statistically significant duration increases and removed scenarios fail the gate. Improvements,
 added scenarios, warnings and stability remain in the output; stability has no invented automatic
 threshold. A render-count ceiling is a separate deterministic gate, not a substitute for the

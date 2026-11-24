@@ -9,7 +9,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { type ReactElement, useState } from "react";
 import { afterAll, afterEach, beforeEach, expect, test, vi } from "vitest";
-import { EventResults } from "@/components/events/EventResults";
+import ScoreEntryPage from "@/app/(tabs)/events/[eventId]/tables/[tableId]/results/page";
 import { TableScoreEditor } from "@/components/events/TableScoreEditor";
 import { plannedEvent, plannedTable, seat } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
@@ -247,7 +247,9 @@ const cases: {
   },
   {
     name: "EventResults: authoritative version change preserves local scores and disables stale submission",
-    element: <EventResults eventId={plannedEvent.id} tableId={plannedTable.id} />,
+    element: await ScoreEntryPage({
+      params: Promise.resolve({ eventId: plannedEvent.id, tableId: plannedTable.id }),
+    }),
     route: true,
     scenario: async () => {
       // The real form requires fresh matching parent/Table reads even with a

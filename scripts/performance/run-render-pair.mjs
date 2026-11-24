@@ -30,6 +30,8 @@ const ensure = (condition, message) => {
 const hash = (value) => createHash("sha256").update(value).digest("hex");
 const fileHash = (file) => hash(readFileSync(file));
 const json = (file) => JSON.parse(readFileSync(file, "utf8"));
+const matchingScenarios = (names) =>
+  `(?:^| )(?:${names.map((name) => RegExp.escape(name.replaceAll(" > ", " "))).join("|")})$`;
 const inside = (parent, file) => {
   const path = relative(parent, file);
   return path === "" || (!path.startsWith("..") && !isAbsolute(path));
@@ -208,6 +210,10 @@ function prepare(root, expectedRef, app, execute) {
     ),
     files: Object.fromEntries(files.map((file) => [file, fileHash(join(root, file))])),
   };
+  const budgetFile = join(appRoot, "performance/renderCommitBudgets.ts");
+  const { renderCommitBudgets } = require(budgetFile);
+  const scenarioNames = Object.keys(renderCommitBudgets);
+  ensure(scenarioNames.length > 0, "Missing approved render scenarios");
   return {
     root,
     appRoot,
@@ -216,7 +222,8 @@ function prepare(root, expectedRef, app, execute) {
     instrumentation,
     instrumentationSha256: hash(JSON.stringify(instrumentation)),
     lockfileSha256: fileHash(join(root, "bun.lock")),
-    budgetSha256: fileHash(join(appRoot, "performance/renderCommitBudgets.ts")),
+    budgetSha256: fileHash(budgetFile),
+    scenarioNames,
     vitest: join(installed.vitest.directory, "vitest.mjs"),
     config: `performance/vitest.config.${extension}`,
   };
@@ -280,6 +287,7 @@ export function runRenderPair(argv, execute = command) {
       runner,
       startedAt: new Date().toISOString(),
       sourceChecks: { before: false, after: false },
+      ...(phase === "baseline" && { scenarios: entry.scenarioNames }),
     };
     proof[phase] = phaseProof;
     let attempted = false;
@@ -298,7 +306,16 @@ export function runRenderPair(argv, execute = command) {
       attempted = true;
       const result = execute(
         process.execPath,
-        [...flags, entry.vitest, "run", "--config", entry.config],
+        [
+          ...flags,
+          entry.vitest,
+          "run",
+          "--config",
+          entry.config,
+          ...(phase === "baseline"
+            ? ["--testNamePattern", matchingScenarios(entry.scenarioNames)]
+            : []),
+        ],
         { cwd: entry.appRoot, logFile: join(output, `${phase}.log`) },
       );
       results[phase] = result;

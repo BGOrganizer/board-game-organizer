@@ -6,12 +6,12 @@ import { act, screen, userEvent, waitFor, within } from "@testing-library/react-
 import { type ReactNode, useEffect } from "react";
 import { Share } from "react-native";
 import { afterEach, expect, it, vi } from "vitest";
+import InviteScreen from "@/app/invite/[token]";
 import {
   inviteToken,
   tableClaimReceipt,
   tableInviteReview,
 } from "@/components/invites/__tests__/inviteFixtures";
-import { InviteClaimScreen } from "@/components/invites/InviteClaimScreen";
 import { TableInviteLinkRow } from "@/components/invites/TableInviteLinkRow";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import { measureNativeListCells, scrollNativeListToEnd } from "@/test/nativeListGeometry";
@@ -37,6 +37,7 @@ vi.mock("expo-constants", () => ({
 }));
 vi.mock("expo-router", () => ({
   useNavigation: () => ({ getState: () => ({ type: "stack" }) }),
+  useLocalSearchParams: () => ({ token: inviteToken }),
   Redirect: ({ href }: { href: unknown }) => {
     // Navigation is an SDK boundary, not an imitation of the destination screen.
     useEffect(() => {
@@ -124,7 +125,7 @@ it("InviteClaimScreen: explicit table ballots and pending single consent reach t
     }),
   );
   try {
-    const result = await measureRenders(<InviteClaimScreen token={inviteToken} />, {
+    const result = await measureRenders(<InviteScreen />, {
       wrapper: wrapperFor(client),
       beforeEach: () => {
         client.clear();
@@ -224,7 +225,7 @@ it("InviteClaimScreen: expired review retries explicitly and friendship waits fo
     }),
   );
   try {
-    const result = await measureRenders(<InviteClaimScreen token={inviteToken} />, {
+    const result = await measureRenders(<InviteScreen />, {
       wrapper: wrapperFor(client),
       beforeEach: () => {
         client.clear();

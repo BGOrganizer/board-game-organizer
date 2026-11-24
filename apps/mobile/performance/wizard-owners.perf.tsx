@@ -23,15 +23,15 @@ import { act, fireEvent, screen, userEvent, waitFor } from "@testing-library/rea
 import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
 import { DeviceEventEmitter, View } from "react-native";
 import { afterEach, expect, it, vi } from "vitest";
+import EventWizardScreen from "@/app/event/wizard";
 import GroupFriendSearchScreen from "@/app/group/search-user";
-import { EventWizard } from "@/components/events/EventWizard";
-import { GroupWizard } from "@/components/groups/GroupWizard";
+import GroupWizardScreen from "@/app/group/wizard";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import { groupRecord, plannedEvent, plannedTable } from "../../web/src/test-fixtures/eventRecords";
 import { assertRenderMeasurement } from "./assertRenderMeasurement";
 
 type FriendRoute = { slotId?: string; exclude?: string };
-const routeContext = createContext<FriendRoute>({});
+const routeContext = createContext<FriendRoute & { eventId?: string }>({});
 const boundary = vi.hoisted(() => ({
   push: vi.fn(),
   back: vi.fn(),
@@ -173,7 +173,7 @@ function GroupJourney() {
           accessibilityElementsHidden={Boolean(route)}
           importantForAccessibility={route ? "no-hide-descendants" : "auto"}
         >
-          <GroupWizard />
+          <GroupWizardScreen />
         </View>
         {route ? <GroupFriendSearchScreen /> : null}
       </View>
@@ -243,7 +243,13 @@ it.each(["group", "event"] as const)(
     );
     try {
       const result = await measureRenders(
-        kind === "group" ? <GroupJourney /> : <EventWizard eventId={event.id} />,
+        kind === "group" ? (
+          <GroupJourney />
+        ) : (
+          <routeContext.Provider value={{ eventId: event.id }}>
+            <EventWizardScreen />
+          </routeContext.Provider>
+        ),
         {
           wrapper,
           beforeEach: () => {

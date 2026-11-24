@@ -10,10 +10,11 @@ import {
   useState,
 } from "react";
 import { afterAll, afterEach, expect, test, vi } from "vitest";
-import { Community } from "@/components/community/Community";
-import { Events } from "@/components/events/Events";
-import { Tables } from "@/components/events/Tables";
-import { Groups } from "@/components/groups/Groups";
+import CommunityPage from "@/app/(tabs)/community/page";
+import EventsPage from "@/app/(tabs)/events/page";
+import GroupsPage from "@/app/(tabs)/groups/page";
+import GroupSearchPage from "@/app/(tabs)/groups/search/page";
+import TablesPage from "@/app/(tabs)/tables/page";
 import { installBrowserIntersections } from "@/test-fixtures/browserIntersections";
 import { renderWithI18n } from "@/test-utils";
 import { assertRenderMeasurement } from "./assertRenderMeasurement";
@@ -49,7 +50,7 @@ let selectOwner: Dispatch<SetStateAction<MainListOwner>> | undefined;
 
 // The fixture only selects actual application owners. It measures their mount/reentry,
 // not Next routing, retained routes or the platform's main-navigation implementation.
-function MainOwnerJourney() {
+function MainOwnerJourney({ events }: { events: ReactElement }) {
   const [owner, setOwner] = useState<MainListOwner>("groups");
   useLayoutEffect(() => {
     selectOwner = setOwner;
@@ -57,7 +58,7 @@ function MainOwnerJourney() {
       selectOwner = undefined;
     };
   }, []);
-  return owner === "groups" ? <Groups /> : owner === "events" ? <Events /> : <Tables />;
+  return owner === "groups" ? <GroupsPage /> : owner === "events" ? events : <TablesPage />;
 }
 function current() {
   if (!client || !fixture) throw new Error("Expected a measured canonical owner cache");
@@ -115,7 +116,8 @@ async function visit(owner: MainListOwner, name: string) {
 const mainScenario =
   "Main list owners: Groups Events History cached reentry and real authoritative refresh";
 test(mainScenario, async () => {
-  const result = await measureRenders(<MainOwnerJourney />, {
+  const events = await EventsPage({ searchParams: Promise.resolve({}) });
+  const result = await measureRenders(<MainOwnerJourney events={events} />, {
     scenario: async () => {
       const { client, fixture } = current();
       expect(await screen.findByText("Cached private group")).toBeVisible();
@@ -131,7 +133,7 @@ test(mainScenario, async () => {
       }
       await visit("events", "Cached scheduled event");
       for (const [tab, name] of [
-        ["Available events", "Cached available event"],
+        ["Available", "Cached available event"],
         ["Terminated events", "Cached terminated event"],
         ["Scheduled", "Cached scheduled event"],
       ]) {
@@ -184,7 +186,7 @@ test(mainScenario, async () => {
 const communityScenario =
   "Community owner: cached feed reveal Marketplace reentry and real authoritative refresh";
 test(communityScenario, async () => {
-  const result = await measureRenders(<Community />, {
+  const result = await measureRenders(<CommunityPage />, {
     scenario: async () => {
       const { client, fixture } = current();
       expect(await screen.findByText("Cached activity table")).toBeVisible();
@@ -219,4 +221,21 @@ test(communityScenario, async () => {
     },
   });
   assertRenderMeasurement(result, communityScenario);
+});
+
+const searchScenario = "Group search route: explain the discovery filter before a valid query";
+test(searchScenario, async () => {
+  const result = await measureRenders(<GroupSearchPage />, {
+    scenario: async () => {
+      expect(screen.getByRole("link", { name: "Back" })).toHaveAttribute("href", "/groups");
+      expect(screen.getByRole("tab", { name: "Search" })).toHaveAttribute("aria-selected", "true");
+      const search = screen.getByRole("searchbox", { name: "Search groups" });
+      fireEvent.change(search, { target: { value: "Gam" } });
+      expect(screen.getByText("Enter at least 4 characters to search")).toBeVisible();
+      fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
+      expect(search).toHaveValue("");
+      expect(current().fixture.reads).toEqual([]);
+    },
+  });
+  assertRenderMeasurement(result, searchScenario);
 });

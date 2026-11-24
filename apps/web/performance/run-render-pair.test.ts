@@ -225,10 +225,17 @@ it("runs the isolated installed baseline then candidate, preserving reports and 
   for (const { binary, args } of f.measurements()) {
     expect(binary).toBe(process.execPath);
     expect(args.slice(0, 4)).toEqual(flags);
-    expect(args.slice(-3)).toEqual(["run", "--config", "performance/vitest.config.mts"]);
+    expect(args.slice(5, 8)).toEqual(["run", "--config", "performance/vitest.config.mts"]);
   }
+  const [baseline, current] = f.measurements();
+  expect(baseline.args.at(-2)).toBe("--testNamePattern");
+  const selection = new RegExp(baseline.args.at(-1) ?? "");
+  expect(selection.test("Measured scenario")).toBe(true);
+  expect(selection.test("Not yet calibrated")).toBe(false);
+  expect(current.args).not.toContain("--testNamePattern");
   const proof = f.proof();
   expect(proof.baseline.commitHash).toBe(baseRef);
+  expect(proof.baseline.scenarios).toEqual(["Measured scenario"]);
   expect(proof.current.commitHash).toBe(currentRef);
   expect(proof.baseline.sourceChecks).toEqual({ before: true, after: true });
   expect(proof.current.sourceChecks).toEqual({ before: true, after: true });
@@ -258,7 +265,7 @@ it("runs the isolated installed baseline then candidate, preserving reports and 
 it("uses the native config and installed renderer/preset versions without importing native UI", () => {
   const f = fixture({ app: "mobile" });
   expect(f.run()).toBe(0);
-  expect(f.measurements()[0].args.at(-1)).toBe("performance/vitest.config.ts");
+  expect(f.measurements()[0].args).toContain("performance/vitest.config.ts");
   expect(f.proof().current.instrumentation.packages).toMatchObject({
     "@testing-library/react-native": "1.2.3",
     "vitest-native": "1.2.3",

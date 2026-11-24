@@ -92,7 +92,10 @@ function fixture({
     app: "web",
     baseline: bootstrap
       ? { commitHash: initialMain, hasHarness: false }
-      : phase(baseRef, paths.baseline, "2026-11-18T10:00:00.000Z", "2026-11-18T10:01:00.000Z"),
+      : {
+          ...phase(baseRef, paths.baseline, "2026-11-18T10:00:00.000Z", "2026-11-18T10:01:00.000Z"),
+          scenarios: baseline.map(({ name }) => name),
+        },
     current: phase(headRef, paths.current, "2026-11-18T10:01:00.000Z", "2026-11-18T10:02:00.000Z"),
   };
   const args = [
@@ -197,6 +200,13 @@ it("fails a missing future baseline rather than silently accepting a bootstrap",
   const result = f.run();
   expect(result.status).toBe(1);
   expect(result.stderr).toContain("Missing baseline outside");
+});
+it("rejects a baseline missing an approved scenario", () => {
+  const f = fixture();
+  const proof = JSON.parse(readFileSync(f.paths.provenance, "utf8"));
+  proof.baseline.scenarios.push("Missing scenario");
+  writeFileSync(f.paths.provenance, JSON.stringify(proof));
+  expect(f.run().stderr).toContain("Baseline measurement inventory does not match");
 });
 it("keeps raw commit ceilings strict even when a mean could hide an extra commit", () => {
   const value = row();

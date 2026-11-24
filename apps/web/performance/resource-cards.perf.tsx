@@ -39,7 +39,8 @@ const eventWindow = Array.from({ length: 12 }, (_, index) => ({
 const tableWindow = Array.from({ length: 12 }, (_, index) => ({
   ...plannedTable,
   id: id(index),
-  name: `Table ${index + 1}`,
+  name: `Ignored legacy table ${index + 1}`,
+  order: index,
 }));
 
 const cases: { name: string; element: ReactElement; scenario: () => Promise<void> }[] = [
@@ -103,7 +104,7 @@ const cases: { name: string; element: ReactElement; scenario: () => Promise<void
       </div>
     ),
     scenario: async () => {
-      screen.getByRole("link", { name: "Open table: Table 12" });
+      screen.getByRole("link", { name: "Open table: Table #12" });
     },
   },
   {

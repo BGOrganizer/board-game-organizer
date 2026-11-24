@@ -116,6 +116,7 @@ Run from the repository root. Bun manages dependencies and scripts; application 
 | Shared logic tests | `bun run --filter @board-game-organizer/shared test` |
 | Schema tests | `bun run --filter @board-game-organizer/schemas test` |
 | Unit coverage | `bun run --filter web test:coverage` (also API, mobile, shared and schemas) |
+| React rendering benchmarks | `bun run perf:web` / `bun run perf:mobile` |
 | MongoDB integration tests | `bun run --filter api test:integration` |
 | One web test file | `bun run --filter web test src/components/events/__tests__/useTableSeatOrder.test.tsx` |
 | Web E2E | `bun run --filter web test:e2e` |
@@ -126,7 +127,9 @@ Run from the repository root. Bun manages dependencies and scripts; application 
 There is no root `bun run test`; use the workspace scripts above, which retain Vitest rather than the separate `bun test` runner. `bun run build` runs the web/API build scripts; it does not produce a native binary.
 Integration tests start a Testcontainers replica set and need Docker. Web E2E requires running apps or an
 explicit `PLAYWRIGHT_BASE_URL`, the matching API/Clerk configuration and provisioned test users.
-Native UI acceptance uses the retained [Maestro flows](apps/mobile/.maestro); mobile Vitest covers pure logic.
+Native UI acceptance uses the retained [Maestro flows](apps/mobile/.maestro). Mobile Vitest covers
+logic and components. The [render benchmarks](docs/render-performance.md) use Reassure and Testing
+Library to measure React commits on Web and Mobile.
 See [delivery details](docs/development.md#delivery) for CI policy and acceptance limits.
 
 ## Project structure
