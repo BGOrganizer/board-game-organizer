@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: [web, mobile]
+        app: [web]
     env:
       WORKSPACE: ${{ matrix.app }}
     steps:
@@ -30,7 +30,11 @@ jobs:
           mkdir -p .render-calibration
           for sample in first second; do
             status=0
-            bun run --filter "$WORKSPACE" test:perf > ".render-calibration/$sample.log" 2>&1 || status=$?
+            bun run --filter "$WORKSPACE" test:perf \
+              performance/collection-and-contacts.perf.tsx \
+              performance/detail-edge-views.perf.tsx \
+              performance/interactive-fields.perf.tsx \
+              > ".render-calibration/$sample.log" 2>&1 || status=$?
             printf '%s\n' "$status" > ".render-calibration/$sample.exit"
             if [ -f "apps/$WORKSPACE/.reassure/current.perf" ]; then
               cp "apps/$WORKSPACE/.reassure/current.perf" ".render-calibration/$sample.perf"

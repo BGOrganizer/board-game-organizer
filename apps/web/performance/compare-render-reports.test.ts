@@ -35,6 +35,7 @@ const row = (name = "Measured scenario", duration = 10) => ({
 type Measurement = ReturnType<typeof row> & { outlierDurations?: number[]; issues?: unknown };
 type FixtureOptions = {
   baseline?: Measurement[];
+  baselineScenarios?: string[];
   current?: Measurement[];
   budgets?: Record<string, number>;
   bootstrap?: boolean;
@@ -48,6 +49,7 @@ afterEach(() => {
 });
 function fixture({
   baseline = [row()],
+  baselineScenarios = baseline.map(({ name }) => name),
   current = [row()],
   budgets = { "Measured scenario": 1 },
   bootstrap = false,
@@ -94,7 +96,7 @@ function fixture({
       ? { commitHash: initialMain, hasHarness: false }
       : {
           ...phase(baseRef, paths.baseline, "2026-11-18T10:00:00.000Z", "2026-11-18T10:01:00.000Z"),
-          scenarios: baseline.map(({ name }) => name),
+          scenarios: baselineScenarios,
         },
     current: phase(headRef, paths.current, "2026-11-18T10:01:00.000Z", "2026-11-18T10:02:00.000Z"),
   };
@@ -202,10 +204,7 @@ it("fails a missing future baseline rather than silently accepting a bootstrap",
   expect(result.stderr).toContain("Missing baseline outside");
 });
 it("rejects a baseline missing an approved scenario", () => {
-  const f = fixture();
-  const proof = JSON.parse(readFileSync(f.paths.provenance, "utf8"));
-  proof.baseline.scenarios.push("Missing scenario");
-  writeFileSync(f.paths.provenance, JSON.stringify(proof));
+  const f = fixture({ baselineScenarios: ["Measured scenario", "Missing scenario"] });
   expect(f.run().stderr).toContain("Baseline measurement inventory does not match");
 });
 it("keeps raw commit ceilings strict even when a mean could hide an extra commit", () => {

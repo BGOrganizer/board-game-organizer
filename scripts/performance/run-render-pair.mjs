@@ -18,6 +18,12 @@ import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const initialMain = "466220e26f672ad8de644e0a2c2ce223f02879df";
+const pausedMain = "13c84d3e9b3c17e6e817dd8685a97824336d17aa";
+// The paused Web baseline kept the counts from before the indicator and vote button changes.
+const staleWebBudgets = new Set([
+  "OptionVoteVoters: compact named ballots",
+  "TabBar and TabTrigger: real HeroUI detail-tab changes",
+]);
 const flags = [
   "--expose-gc",
   "--no-concurrent-sweeping",
@@ -138,7 +144,7 @@ function verifyCheckout(root, expectedRef, execute) {
   return git.stdout.trim();
 }
 
-function prepare(root, expectedRef, app, execute) {
+function prepare(root, expectedRef, app, phase, execute) {
   verifyCheckout(root, expectedRef, execute);
   const appRoot = join(root, "apps", app);
   const manifest = json(join(appRoot, "package.json"));
@@ -212,7 +218,11 @@ function prepare(root, expectedRef, app, execute) {
   };
   const budgetFile = join(appRoot, "performance/renderCommitBudgets.ts");
   const { renderCommitBudgets } = require(budgetFile);
-  const scenarioNames = Object.keys(renderCommitBudgets);
+  const approved = Object.keys(renderCommitBudgets);
+  const scenarioNames =
+    phase === "baseline" && app === "web" && expectedRef === pausedMain
+      ? approved.filter((name) => !staleWebBudgets.has(name))
+      : approved;
   ensure(scenarioNames.length > 0, "Missing approved render scenarios");
   return {
     root,
@@ -251,6 +261,7 @@ export function runRenderPair(argv, execute = command) {
         options[phase === "current" ? "candidate-root" : "baseline-root"],
         options[phase === "current" ? "current-ref" : "baseline-ref"],
         options.app,
+        phase,
         execute,
       );
       ensure(

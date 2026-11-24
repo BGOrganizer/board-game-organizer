@@ -126,6 +126,11 @@ scenarios. This preserves measured history when a previously paused suite contai
 cases. The two checkouts have separate locked installations, completed before either timing run.
 Web and mobile have independent reports and use separate comparisons.
 
+The Web baseline at `13c84d3e` predates recalibration of two scenarios. Clickable vote choices
+and the restored HeroUI tab indicator add commits to their respective fixtures. Both scenarios
+run in the full candidate suite with their observed ceilings. Only comparisons against that
+historical revision treat those two scenarios as additions.
+
 PR uses its immutable base SHA; a branch push resolves the repository's default branch to the
 actual checked-out SHA. Main uses the push event's previous SHA. The candidate is the actual
 workflow checkout, including a PR merge checkout when GitHub supplies one. The

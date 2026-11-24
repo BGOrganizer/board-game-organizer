@@ -87,6 +87,7 @@ function DraftTable() {
   const [row, setRow] = useState({
     ...newTableDraft("draft"),
     demonstratorGuestName: "Guest Ada",
+    startsWall: "2030-06-03T20:00",
     minPlayers: 2,
     maxPlayers: 4,
     games: [{ id: 1, name: "Chess", year: null, imageUrl: null }],
@@ -96,17 +97,11 @@ function DraftTable() {
       <EventDraftTableCard row={row} title="Draft #1" publicGroup />
       <EventDraftTableEditor
         row={row}
-        publicGroup={false}
-        privateGroup
+        publicGroup
+        eventStartWall="2030-06-03T20:00"
+        eventEndWall="2030-06-03T23:00"
         busy={false}
-        onChange={(value) =>
-          setRow((old) => ({
-            ...old,
-            ...value,
-            demonstratorGuestName: value.demonstratorGuestName ?? old.demonstratorGuestName,
-            games: old.games,
-          }))
-        }
+        onChange={(value) => setRow((old) => ({ ...old, ...value }))}
         onRemove={() => {}}
         onGame={() => {}}
         onDemonstrator={() => {}}
@@ -119,11 +114,16 @@ measureWebFeature(
   <DraftTable />,
   () => {
     expect(screen.getByText("Draft #1")).toBeVisible();
-    expect(screen.getByText("Guest Ada")).toBeVisible();
-    expect(screen.getByText("Maximum players: 4")).toBeVisible();
+    const guest = screen.getByText("Guest Ada");
+    expect(guest).toBeVisible();
+    const guestRow = guest.closest("li");
+    if (!guestRow) throw new Error("Expected the demonstrator in an identity row");
+    expect(within(guestRow).getByRole("button", { name: "Remove demonstrator" })).toBeVisible();
+    const maximum = screen.getByLabelText("Maximum players");
+    expect(maximum).toHaveTextContent("4");
     fireEvent.click(screen.getByRole("button", { name: "Increase Maximum players" }));
-    expect(screen.getByText("Maximum players: 5")).toBeVisible();
-    expect(screen.getByText("Guest Ada")).toBeVisible();
+    expect(maximum).toHaveTextContent("5");
+    expect(guest).toBeVisible();
   },
 );
 

@@ -4,6 +4,7 @@ import type {
   NotificationAttentionSnapshot,
   NotificationAttentionTarget,
 } from "@board-game-organizer/schemas";
+import { notificationAttentionQuerySchema } from "@board-game-organizer/schemas";
 import {
   bggCollectionQuery,
   type ContactUser,
@@ -151,6 +152,7 @@ const attention: NotificationAttentionSnapshot = {
 const attentionKey = notificationAttentionQuery(options, attentionTargets).queryKey;
 let activeClient: QueryClient | undefined;
 const presenceWrites: string[] = [];
+const attentionReads: NotificationAttentionTarget[][] = [];
 let coldConnections = false;
 let releaseFriends: (() => void) | undefined;
 const forbiddenRequests: string[] = [];
@@ -163,7 +165,7 @@ function renderCached(element: ReactElement) {
     defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { retry: false } },
   });
   activeClient = client;
-  presenceWrites.length = forbiddenRequests.length = 0;
+  presenceWrites.length = forbiddenRequests.length = attentionReads.length = 0;
   installBrowserIntersections();
   client.setQueryData(collectionKey(), collectionPages);
   client.setQueryData(collectionKey("games"), gamesPages);
@@ -203,7 +205,25 @@ function renderCached(element: ReactElement) {
       }
       if (
         coldConnections &&
+        url.pathname === "/api/notifications/attention" &&
+        (init?.method ?? "GET") === "GET"
+      ) {
+        const { targets, navigation } = notificationAttentionQuerySchema.parse(
+          Object.fromEntries(url.searchParams),
+        );
+        expect(navigation).toBe("history");
+        const matchingTargets = attention.targets.filter(({ target }) =>
+          targets.some(({ kind, id }) => target.kind === kind && target.id === id),
+        );
+        expect(targets.length).toBeGreaterThan(0);
+        expect(matchingTargets).toHaveLength(targets.length);
+        attentionReads.push(targets);
+        return Response.json({ ...attention, targets: matchingTargets });
+      }
+      if (
+        coldConnections &&
         url.pathname === "/api/relationships" &&
+        (init?.method ?? "GET") === "GET" &&
         url.searchParams.get("type") === "friends"
       ) {
         return new Promise<Response>((resolve) => {
@@ -350,6 +370,13 @@ test(coldConnectionsScenario, async () => {
       await act(async () => releaseFriends?.());
       expect(await screen.findByText("Cached friend 1")).toBeVisible();
       expect(screen.queryByTestId("contact-skeleton-row")).toBeNull();
+      expect(screen.queryByText("Other account private friend")).toBeNull();
+      expect(
+        currentClient().getQueryData(relationshipListKey(API, "different-owner", "friends")),
+      ).toBe(foreignFriends);
+      await waitFor(() => expect(currentClient().isFetching()).toBe(0));
+      expect(presenceWrites).toHaveLength(1);
+      expect(attentionReads.length).toBeGreaterThan(0);
       expect(forbiddenRequests).toEqual([]);
     },
   });

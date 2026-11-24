@@ -125,7 +125,7 @@ measureWebFeature(
   "EventVoteButtons: browse vote tabs, then cast one explicit alternative",
   <LocationBallot />,
   async () => {
-    const summary = screen.getByRole("button", { name: "Vote summary: Club room" });
+    const summary = screen.getByRole("button", { name: "Vote summary: Club room, Via Roma 1" });
     expect(summary).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(summary);
     expect(screen.getByLabelText("Votes: Club room")).toBeVisible();

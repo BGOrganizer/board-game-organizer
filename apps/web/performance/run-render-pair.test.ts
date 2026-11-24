@@ -14,6 +14,7 @@ const { runRenderPair } = await import(
   ).href
 );
 const initialMain = "466220e26f672ad8de644e0a2c2ce223f02879df";
+const pausedMain = "13c84d3e9b3c17e6e817dd8685a97824336d17aa";
 const baseRef = "a".repeat(40),
   currentRef = "b".repeat(40);
 const flags = [
@@ -37,12 +38,12 @@ function put(file: string, value: string) {
   mkdirSync(dirname(file), { recursive: true });
   writeFileSync(file, value);
 }
-function fixture({ app = "web", bootstrap = false } = {}) {
+function fixture({ app = "web", bootstrap = false, historicalRef = baseRef } = {}) {
   const baseline = join(directory, "baseline checkout");
   const current = join(directory, "candidate checkout");
   const output = join(directory, "paired artifacts");
   const refs: Record<string, string> = {
-    [baseline]: bootstrap ? initialMain : baseRef,
+    [baseline]: bootstrap ? initialMain : historicalRef,
     [current]: currentRef,
   };
   const statuses: Record<string, number> = { baseline: 0, current: 0, comparison: 0 };
@@ -139,7 +140,7 @@ function fixture({ app = "web", bootstrap = false } = {}) {
     "--candidate-root",
     current,
     "--baseline-ref",
-    bootstrap ? initialMain : baseRef,
+    refs[baseline],
     "--current-ref",
     currentRef,
     "--output-dir",
@@ -275,6 +276,20 @@ it("uses the native config and installed renderer/preset versions without import
   expect(
     f.proof().current.instrumentation.files["apps/mobile/performance/uniwind-native-interop.ts"],
   ).toMatch(/^[a-f\d]{64}$/);
+});
+it("keeps both stale ceilings outside the one paused Web baseline", () => {
+  const f = fixture({ historicalRef: pausedMain });
+  put(
+    join(f.baseline, "apps/web/performance/renderCommitBudgets.ts"),
+    `export const renderCommitBudgets = ${JSON.stringify({
+      "Measured scenario": 1,
+      "OptionVoteVoters: compact named ballots": 1,
+      "TabBar and TabTrigger: real HeroUI detail-tab changes": 10,
+    })};`,
+  );
+  expect(f.run()).toBe(0);
+  expect(f.proof().baseline.scenarios).toEqual(["Measured scenario"]);
+  expect(f.measurements()[1].args).not.toContain("--testNamePattern");
 });
 it("allows only the initial no-harness main to bootstrap and never creates old samples", () => {
   const f = fixture({ bootstrap: true });
