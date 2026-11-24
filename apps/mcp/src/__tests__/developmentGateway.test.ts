@@ -77,6 +77,7 @@ describe("the public MCP gateway", () => {
     expect(send.mock.lastCall?.[0]).toBe(upstream + MCP_METADATA_PATH);
 
     for (const invalid of [
+      { ...config, upstream: undefined },
       { ...config, upstream: "https://not-ours.netlify.app" },
       {
         ...config,
