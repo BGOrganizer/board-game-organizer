@@ -280,7 +280,7 @@ it("does not reuse the previous subject's cached activities or filter after an A
   expect(reads.at(-1)?.authorization).toBe("Bearer fixture-second-viewer");
 });
 
-it("keeps authorized results visible without relying on an unresolved or revoked profile identity", async () => {
+it("shows authorized results while the profile loads and hides them if that profile is revoked", async () => {
   const key = profileViewQuery(options(), "subject").queryKey;
   client.removeQueries({ queryKey: key, exact: true });
   let finish!: (response: Response) => void;
@@ -301,8 +301,8 @@ it("keeps authorized results visible without relying on an unresolved or revoked
   expect(await screen.findByText("subject-player")).toBeVisible();
   profileStatus = 403;
   await act(() => client.refetchQueries({ queryKey: key, exact: true }));
-  expect(await screen.findByText("Someone")).toBeVisible();
+  expect(await screen.findByText("Profile unavailable")).toBeVisible();
   expect(screen.queryByText("subject-player")).toBeNull();
-  expect(screen.getByText("Activity won-match")).toBeVisible();
+  expect(screen.queryByText("Activity won-match")).toBeNull();
   expect(boundary.push).not.toHaveBeenCalled();
 });

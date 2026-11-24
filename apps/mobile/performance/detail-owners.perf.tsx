@@ -27,7 +27,12 @@ import {
   tableItemTargets,
 } from "@board-game-organizer/shared";
 import { measureRenders } from "@callstack/reassure-measure";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  defaultScheduler,
+  notifyManager,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
 import { act, fireEvent, screen, userEvent, waitFor, within } from "@testing-library/react-native";
 import { NavigationContext } from "expo-router/react-navigation";
 import type { ContextType, ReactNode } from "react";
@@ -295,8 +300,14 @@ async function select(name: string) {
   expect(button).toBeSelected();
 }
 
-beforeEach(installNativePopoverMeasurements);
+beforeEach(async () => {
+  await installNativePopoverMeasurements();
+  // The real Query observers deliver updates inside the measured React act turn.
+  // A timer racing the next tab gesture otherwise splits the same update arbitrarily.
+  notifyManager.setScheduler(queueMicrotask);
+});
 afterEach(() => {
+  notifyManager.setScheduler(defaultScheduler);
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });

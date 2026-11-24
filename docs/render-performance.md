@@ -121,8 +121,11 @@ one extra commit in at most two of ten samples, with a maximum mean increase of 
 comparisons of unchanged application code observed that spread in real list, popover and wrapper
 transitions. Single-commit scenarios keep a strict ceiling on every sample. Larger or recurring
 excesses still fail. Recheck a changed scenario before updating its
-ceiling; do not raise budgets merely to obtain a passing run. Duration samples remain recorded
-separately: a deterministic commit-count contract is not a native latency guarantee.
+ceiling; do not raise budgets merely to obtain a passing run. Native detail and score-save
+scenarios deliver actual Query notifications within the React action to avoid a timer racing
+the next interaction. The score-save fixture releases the held HTTP response separately so the
+pending edit and the authoritative receipt both contribute to the result. Duration samples remain
+recorded separately: a deterministic commit-count contract is not a native latency guarantee.
 
 ## Paired statistical CI checks
 

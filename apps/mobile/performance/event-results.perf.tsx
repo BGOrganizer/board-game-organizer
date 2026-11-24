@@ -5,8 +5,13 @@ import type {
 } from "@board-game-organizer/schemas";
 import { eventRecordKeys } from "@board-game-organizer/shared";
 import { measureRenders } from "@callstack/reassure-measure";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, screen, userEvent, waitFor } from "@testing-library/react-native";
+import {
+  defaultScheduler,
+  notifyManager,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
+import { act, fireEvent, screen, userEvent, waitFor } from "@testing-library/react-native";
 import { type ReactNode, useEffect } from "react";
 import { View } from "react-native";
 import { expect, it, vi } from "vitest";
@@ -104,6 +109,8 @@ it("EventResults: edit a frozen score and reconcile the authoritative save", asy
   const save = vi.fn<(input: SaveTableResultInput) => void>();
   let currentEvent = event;
   let currentTable = table;
+  let receipt = Promise.resolve();
+  let sendReceipt = () => {};
   const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(input instanceof Request ? input.url : input);
     const method = init?.method ?? "GET";
@@ -118,6 +125,7 @@ it("EventResults: edit a frozen score and reconcile the authoritative save", asy
       const { version, ...resultDraft } = JSON.parse(String(init?.body)) as SaveTableResultInput;
       save({ version, ...resultDraft });
       expect(version).toBe(currentEvent.version);
+      await receipt;
       currentEvent = { ...currentEvent, version: version + 1, resultsReady: true };
       currentTable = { ...currentTable, eventVersion: currentEvent.version, resultDraft };
       return Response.json({ event: currentEvent, table: currentTable });
@@ -132,6 +140,9 @@ it("EventResults: edit a frozen score and reconcile the authoritative save", asy
       </QueryClientProvider>
     );
   }
+  // Keep Query notification delivery inside the measured React action. Hold
+  // the HTTP response independently so pending and receipt are separate stages.
+  notifyManager.setScheduler(queueMicrotask);
   try {
     const measured = await measureRenders(<EventResultsScreen />, {
       wrapper: Providers,
@@ -144,6 +155,9 @@ it("EventResults: edit a frozen score and reconcile the authoritative save", asy
         client.setQueryData(seatsKey, { pages: [roster], pageParams: [""] });
         save.mockClear();
         boundary.dismissTo.mockClear();
+        receipt = new Promise<void>((resolve) => {
+          sendReceipt = resolve;
+        });
       },
       scenario: async () => {
         const player = await screen.findByRole("button", { name: "Score: Guest Player" });
@@ -163,6 +177,9 @@ it("EventResults: edit a frozen score and reconcile the authoritative save", asy
           "Score: Guest Player",
         );
         await user.press(screen.getByRole("button", { name: "Save result" }));
+        await waitFor(() => expect(save).toHaveBeenCalledOnce());
+        expect(boundary.dismissTo).not.toHaveBeenCalled();
+        await act(() => sendReceipt());
         await waitFor(() =>
           expect(boundary.dismissTo).toHaveBeenCalledExactlyOnceWith({
             pathname: "/event/table",
@@ -194,6 +211,8 @@ it("EventResults: edit a frozen score and reconcile the authoritative save", asy
     });
     assertRenderMeasurement(measured);
   } finally {
+    sendReceipt();
+    notifyManager.setScheduler(defaultScheduler);
     await client.cancelQueries();
     client.clear();
     vi.unstubAllGlobals();

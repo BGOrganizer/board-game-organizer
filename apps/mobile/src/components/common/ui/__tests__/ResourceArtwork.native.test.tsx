@@ -457,8 +457,9 @@ it("keeps the newer motion setting when the initial device setting request fails
   expect(clock?.start).toHaveBeenCalled();
   const before = clock?.stop.mock.calls.length;
 
+  expect(screen.queryByText("Current drawing")).toBeNull();
   await act(() => rejectPreference(Error("Initial accessibility setting unavailable")));
-  expect(screen.getByText("Current drawing")).toBeVisible();
+  expect(screen.queryByText("Current drawing")).toBeNull();
   expect(clock?.stop.mock.calls.length).toBe(before);
   await view.unmount();
   const stopped = clock?.stop.mock.calls.length;

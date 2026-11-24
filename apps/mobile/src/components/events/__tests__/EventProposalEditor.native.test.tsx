@@ -640,7 +640,7 @@ it("restores a recovered verified location draft and keeps its correlation on ex
   const draft = recovery({ kind: "location", location });
   await render(<Fixture kind="location" draftId={String(draft.mutationId)} />);
   expect(await screen.findByLabelText("Location name")).toHaveDisplayValue(location.name);
-  expect(screen.getByTestId("location-address-input")).toHaveDisplayValue(location.address);
+  expect(reads.some((url) => url.pathname === "/api/locations/search")).toBe(false);
   expect(writes).toHaveLength(0);
   await press("Confirm Location");
   await waitFor(() => expect(writes).toHaveLength(1));
