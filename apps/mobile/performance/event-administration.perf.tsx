@@ -128,7 +128,9 @@ it("EventProposalSection: review an authorized proposal and dismiss it without a
         writes.mockClear();
       },
       scenario: async () => {
-        expect(screen.getByRole("header", { name: "Proposed locations" })).toBeVisible();
+        const heading = screen.getByText("Proposed locations");
+        expect(heading).toBeVisible();
+        expect(heading).toHaveProp("accessibilityRole", "header");
         const row = await screen.findByTestId(`event-proposal-${proposal.id}`);
         const review = within(row).getByRole("button", { name: /^Review proposal:/ });
         const user = userEvent.setup();

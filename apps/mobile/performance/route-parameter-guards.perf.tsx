@@ -43,10 +43,11 @@ it("Mobile route parameters: preserve the event fallback and report missing grou
         expect(
           within(screen.getByTestId("old-edit-route")).getByTestId("sdk-redirect"),
         ).toHaveTextContent("/events");
-        for (const route of ["group-ban-route", "group-invite-route"])
-          expect(within(screen.getByTestId(route)).getByRole("alert")).toHaveTextContent(
-            "Group not found",
-          );
+        for (const route of ["group-ban-route", "group-invite-route"]) {
+          const error = within(screen.getByTestId(route)).getByText("Group not found");
+          expect(error).toBeVisible();
+          expect(error).toHaveProp("accessibilityRole", "alert");
+        }
       },
     },
   );

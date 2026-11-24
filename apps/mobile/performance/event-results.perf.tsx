@@ -143,7 +143,9 @@ it("EventResults: edit a frozen score and reconcile the authoritative save", asy
       },
       scenario: async () => {
         const player = await screen.findByRole("button", { name: "Score: Guest Player" });
-        expect(screen.getByRole("header", { name: "Chess" })).toBeVisible();
+        const heading = screen.getByText("Chess");
+        expect(heading).toBeVisible();
+        expect(heading).toHaveProp("accessibilityRole", "header");
         expect(screen.queryByRole("button", { name: "Score: Waiting Player" })).toBeNull();
         expect(save).not.toHaveBeenCalled();
         const user = userEvent.setup();

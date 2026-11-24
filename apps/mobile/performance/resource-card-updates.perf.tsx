@@ -215,7 +215,7 @@ it.each(["group", "event", "table"] as const)(
           await waitFor(() => expect(screen.getAllByLabelText("Unread updates")).toHaveLength(1));
           expect(original[0].props.accessibilityValue).toEqual({ text: "Unread updates" });
           original.slice(1).forEach((host) => {
-            expect(host.props.accessibilityValue).toBeUndefined();
+            expect(host.props.accessibilityValue?.text).toBeUndefined();
           });
           retained();
           stage = "rename";

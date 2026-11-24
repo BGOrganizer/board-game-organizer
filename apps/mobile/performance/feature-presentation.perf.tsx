@@ -170,6 +170,7 @@ it("EventTableSchedulePopover: retain the open schedule while the confirmed time
   const table: PlannedTableResponse = {
     ...plannedTable,
     eventStatus: "CONFIRMED",
+    groupType: "PUBLIC",
     eventSchedule: undefined,
     confirmed: { gameId: 2, playerIds: ["owner", "guest"], startsAt: "2030-06-03T18:00:00Z" },
     demonstratorUserId: "guide",

@@ -36,7 +36,9 @@ vi.mock("@clerk/expo", () => ({
   }),
 }));
 vi.mock("expo-constants", () => ({
-  default: { expoConfig: { extra: { apiUrl: boundary.apiUrl } } },
+  default: {
+    expoConfig: { extra: { apiUrl: boundary.apiUrl, maptilerApiKey: "fixture-public-map-key" } },
+  },
 }));
 vi.mock("expo-router", () => ({
   useRouter: () => ({ back: boundary.back }),
@@ -219,7 +221,9 @@ it("LocationPicker: replace a favorite with a verified address and confirm one v
         expect(screen.getByTestId("location-address-input")).toHaveDisplayValue(place.address);
         expect(screen.queryByTestId("address-result-0")).toBeNull();
         expect(submit).not.toHaveBeenCalled();
-        await user.press(screen.getByRole("button", { name: "Confirm Location" }));
+        const confirm = screen.getByRole("button", { name: "Confirm Location" });
+        expect(confirm).toBeEnabled();
+        await user.press(confirm);
         expect(submit).toHaveBeenCalledExactlyOnceWith(
           expect.objectContaining({
             name: favorite.name,

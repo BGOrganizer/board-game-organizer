@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: [web]
+        app: [mobile]
     env:
       WORKSPACE: ${{ matrix.app }}
     steps:
@@ -31,9 +31,15 @@ jobs:
           for sample in first second; do
             status=0
             bun run --filter "$WORKSPACE" test:perf \
-              performance/collection-and-contacts.perf.tsx \
-              performance/detail-edge-views.perf.tsx \
-              performance/interactive-fields.perf.tsx \
+              performance/common-detail-controls.perf.tsx \
+              performance/event-administration.perf.tsx \
+              performance/event-results.perf.tsx \
+              performance/feature-presentation.perf.tsx \
+              performance/invitation-pickers.perf.tsx \
+              performance/main-list-owners.perf.tsx \
+              performance/resource-card-updates.perf.tsx \
+              performance/route-parameter-guards.perf.tsx \
+              performance/search-pickers.perf.tsx \
               > ".render-calibration/$sample.log" 2>&1 || status=$?
             printf '%s\n' "$status" > ".render-calibration/$sample.exit"
             if [ -f "apps/$WORKSPACE/.reassure/current.perf" ]; then

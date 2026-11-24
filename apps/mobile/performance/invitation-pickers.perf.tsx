@@ -401,7 +401,9 @@ it("GroupInvitationCard: a pending explicit decision disables both invitation ac
       decline.mockClear();
     },
     scenario: async () => {
-      expect(screen.getByRole("header", { name: "Invitation received" })).toBeVisible();
+      const heading = screen.getByText("Invitation received");
+      expect(heading).toBeVisible();
+      expect(heading).toHaveProp("accessibilityRole", "header");
       const yes = screen.getByRole("button", { name: "Accept" });
       const no = screen.getByRole("button", { name: "Decline" });
       expect(yes).toBeEnabled();

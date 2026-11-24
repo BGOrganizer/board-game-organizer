@@ -109,18 +109,16 @@ it.each(["main", "community"] as const)(
       defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { retry: false } },
     });
     let fixture: ReturnType<typeof seedMainListOwners>;
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-        const url = new URL(
-          typeof input === "string" ? input : input instanceof URL ? input.href : input.url,
-        );
-        expect(url.origin).toBe(options.apiUrl);
-        expect(init?.method ?? "GET").toBe("GET");
-        expect(new Headers(init?.headers).get("authorization")).toBe("Bearer main-owner-token");
-        return Response.json(fixture.read(url));
-      }),
-    );
+    const http = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(
+        typeof input === "string" ? input : input instanceof URL ? input.href : input.url,
+      );
+      expect(url.origin).toBe(options.apiUrl);
+      expect(init?.method ?? "GET").toBe("GET");
+      expect(new Headers(init?.headers).get("authorization")).toBe("Bearer main-owner-token");
+      return Response.json(fixture.read(url));
+    });
+    vi.stubGlobal("fetch", http);
     const wrapper = ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={client}>
         <NativeTestProviders>{children}</NativeTestProviders>
@@ -134,6 +132,7 @@ it.each(["main", "community"] as const)(
           beforeEach: () => {
             client.clear();
             fixture = seedMainListOwners(client, options);
+            http.mockClear();
             useAppStore.setState({ communityViews: {} });
             boundary.push.mockClear();
           },
@@ -232,7 +231,7 @@ it.each(["main", "community"] as const)(
             expect(screen.queryByText("Foreign private group")).toBeNull();
             await waitFor(() => expect(client.isFetching()).toBe(0));
             expect(fixture.unexpected).toEqual([]);
-            expect(fetch).toHaveBeenCalledTimes(fixture.reads.length);
+            expect(http).toHaveBeenCalledTimes(fixture.reads.length);
             expect(boundary.push).not.toHaveBeenCalled();
           },
         },

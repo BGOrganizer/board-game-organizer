@@ -23,6 +23,10 @@ import {
 } from "@/test/nativePopoverGeometry";
 import { assertRenderMeasurement } from "./assertRenderMeasurement";
 
+vi.mock("expo-router", () => ({
+  useNavigation: () => ({ getState: () => ({ type: "stack" }) }),
+}));
+
 beforeEach(installNativePopoverMeasurements);
 afterEach(() => vi.restoreAllMocks());
 
