@@ -226,6 +226,8 @@ test("production smoke selects a complete current deployment after both provider
     "deploy-netlify-production",
   ]);
   assert.match(site.steps.at(-1).run, /for provider in Vercel Netlify; do/);
+  assert.match(site.steps.at(-1).run, /--get --data-urlencode "x-vercel-protection-bypass=/);
+  assert.doesNotMatch(site.steps.at(-1).run, /--header "x-vercel-protection-bypass/);
   assert(!jobs["publish-release"].needs.includes("select-production-site"));
   assert(jobs["deploy-production-mcp-gateway"]["continue-on-error"]);
 });

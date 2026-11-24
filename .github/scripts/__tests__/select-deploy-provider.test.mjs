@@ -96,3 +96,32 @@ test("uses only the verified Production pair and keeps the Vercel bypass off Net
     /No verified/,
   );
 });
+
+test("smoke checks exact URLs without following redirects or sending the bypass to Netlify", async (t) => {
+  const calls = [];
+  t.mock.method(globalThis, "fetch", async (input, options) => {
+    const url = new URL(input);
+    calls.push(url);
+    assert.equal(options.redirect, "manual");
+    return url.pathname === "/api/health"
+      ? Response.json({ ok: true, service: "board-game-organizer-api" })
+      : new Response("BGO");
+  });
+
+  const candidates = deploymentCandidates(development);
+  assert.equal((await selectDeployment(candidates)).provider, "vercel");
+  assert.equal((await selectDeployment(candidates.slice(1))).provider, "netlify");
+  assert.deepEqual(
+    calls.map((url) => [
+      url.origin,
+      url.pathname,
+      url.searchParams.get("x-vercel-protection-bypass"),
+    ]),
+    [
+      [development.VERCEL_API_URL, "/api/health", development.VERCEL_PROTECTION_BYPASS],
+      [development.VERCEL_WEB_URL, "/", development.VERCEL_PROTECTION_BYPASS],
+      [development.NETLIFY_API_URL, "/api/health", null],
+      [development.NETLIFY_WEB_URL, "/", null],
+    ],
+  );
+});

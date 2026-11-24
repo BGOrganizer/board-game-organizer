@@ -2,6 +2,7 @@ import { appendFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { setTimeout } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
+import { withProtectionBypass } from "../../packages/shared/src/common/api.ts";
 import { netlifyPreviewAttempt } from "./netlify-preview-target.mjs";
 
 const OUTPUT_NAMES = ["api-url", "api-client-url", "web-url", "web-client-url"];
@@ -67,9 +68,11 @@ export function deploymentCandidates(env) {
 
 async function smokeDeployment({ api, web, bypass }) {
   function endpoint(origin, path) {
-    const url = new URL(path, origin);
-    if (bypass) url.searchParams.set("x-vercel-protection-bypass", bypass);
-    return fetch(url, { redirect: "manual", signal: AbortSignal.timeout(20_000) });
+    const url = `${origin}${path}`;
+    return fetch(bypass ? withProtectionBypass(url, bypass) : url, {
+      redirect: "manual",
+      signal: AbortSignal.timeout(20_000),
+    });
   }
   for (let attempt = 0; attempt < 3; attempt++) {
     try {

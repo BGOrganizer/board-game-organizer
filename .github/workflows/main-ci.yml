@@ -619,7 +619,7 @@ jobs:
               url="$VERCEL_SITE_URL"
               [[ "$url" =~ ^https://[a-zA-Z0-9-]+\.vercel\.app$ ]] || continue
               if [ -n "$VERCEL_PROTECTION_BYPASS" ]; then
-                auth+=(--header "x-vercel-protection-bypass: $VERCEL_PROTECTION_BYPASS")
+                auth+=(--get --data-urlencode "x-vercel-protection-bypass=$VERCEL_PROTECTION_BYPASS")
               fi
             else
               url="$NETLIFY_SITE_URL"
