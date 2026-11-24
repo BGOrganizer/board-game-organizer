@@ -1,3 +1,10 @@
+## [1.10.2](https://github.com/BGOrganizer/board-game-organizer/compare/v1.10.1...v1.10.2) (2026-11-24)
+
+### 🐛 Bug Fixes
+
+* **api:** resolve the shared invite page import in Web ([a644631](https://github.com/BGOrganizer/board-game-organizer/commit/a6446319512db29b849fdbb41ac68c3b17a7a6ca))
+* **api:** serve Production Android app links on Netlify ([a8a75d5](https://github.com/BGOrganizer/board-game-organizer/commit/a8a75d5733196b8110b81a6a84d680524fb68ba6))
+
 ## [1.10.1](https://github.com/BGOrganizer/board-game-organizer/compare/v1.10.0...v1.10.1) (2026-11-24)
 
 ### 🐛 Bug Fixes
