@@ -31,10 +31,10 @@ jobs:
           for sample in first second; do
             status=0
             bun run --filter "$WORKSPACE" test:perf \
-              performance/wizard-owners.perf.tsx \
-              performance/event-card-explanations.perf.tsx \
-              performance/event-table-invitation.perf.tsx \
-              performance/catalog-and-resource-changes.perf.tsx \
+              performance/common-detail-controls.perf.tsx \
+              performance/event-results.perf.tsx \
+              performance/resource-card-updates.perf.tsx \
+              --testNamePattern 'Common schedule controls|EventResults: edit a frozen score|eight real table rows' \
               > ".render-calibration/$sample.log" 2>&1 || status=$?
             printf '%s\n' "$status" > ".render-calibration/$sample.exit"
             if [ -f "apps/$WORKSPACE/.reassure/current.perf" ]; then

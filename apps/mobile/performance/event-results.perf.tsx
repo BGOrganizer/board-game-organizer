@@ -102,23 +102,25 @@ it("EventResults: edit a frozen score and reconcile the authoritative save", asy
     defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { retry: false } },
   });
   const save = vi.fn<(input: SaveTableResultInput) => void>();
+  let currentEvent = event;
+  let currentTable = table;
   const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(input instanceof Request ? input.url : input);
     const method = init?.method ?? "GET";
     expect(url.origin).toBe(boundary.apiUrl);
     expect(new Headers(init?.headers).get("authorization")).toBe("Bearer results-fixture-token");
     if (method === "GET") {
-      if (url.pathname === eventPath) return Response.json(event);
-      if (url.pathname === tablePath) return Response.json(table);
+      if (url.pathname === eventPath) return Response.json(currentEvent);
+      if (url.pathname === tablePath) return Response.json(currentTable);
       if (url.pathname === `${tablePath}/seats`) return Response.json(roster);
     }
     if (method === "PUT" && url.pathname === `${tablePath}/results`) {
       const { version, ...resultDraft } = JSON.parse(String(init?.body)) as SaveTableResultInput;
       save({ version, ...resultDraft });
-      return Response.json({
-        event: { ...event, version: event.version + 1, resultsReady: true },
-        table: { ...table, eventVersion: event.version + 1, resultDraft },
-      });
+      expect(version).toBe(currentEvent.version);
+      currentEvent = { ...currentEvent, version: version + 1, resultsReady: true };
+      currentTable = { ...currentTable, eventVersion: currentEvent.version, resultDraft };
+      return Response.json({ event: currentEvent, table: currentTable });
     }
     throw new Error(`Unexpected native results request: ${method} ${url.pathname}`);
   });
@@ -135,8 +137,10 @@ it("EventResults: edit a frozen score and reconcile the authoritative save", asy
       wrapper: Providers,
       beforeEach: () => {
         client.clear();
-        client.setQueryData(eventKey, event);
-        client.setQueryData(tableKey, table);
+        currentEvent = event;
+        currentTable = table;
+        client.setQueryData(eventKey, currentEvent);
+        client.setQueryData(tableKey, currentTable);
         client.setQueryData(seatsKey, { pages: [roster], pageParams: [""] });
         save.mockClear();
         boundary.dismissTo.mockClear();
@@ -165,16 +169,27 @@ it("EventResults: edit a frozen score and reconcile the authoritative save", asy
             params: { eventId: event.id, tableId: table.id },
           }),
         );
-        expect(save).toHaveBeenCalledExactlyOnceWith({
-          version: event.version,
+        const savedDraft = {
           lowerWins: false,
           entries: [
             { userId: "owner", score: "20" },
             { userId: "guest", score: "30" },
           ],
           tieBreaks: [],
+        };
+        expect(save).toHaveBeenCalledExactlyOnceWith({ version: event.version, ...savedDraft });
+        await waitFor(() => {
+          expect(client.isFetching({ queryKey: eventRecordKeys.root(options) })).toBe(0);
+          expect(client.getQueryData(eventKey)).toMatchObject({
+            version: event.version + 1,
+            resultsReady: true,
+          });
+          expect(client.getQueryData(tableKey)).toMatchObject({
+            eventVersion: event.version + 1,
+            resultDraft: savedDraft,
+            confirmed: table.confirmed,
+          });
         });
-        expect(client.getQueryData(eventKey)).toMatchObject({ resultsReady: true });
       },
     });
     assertRenderMeasurement(measured);

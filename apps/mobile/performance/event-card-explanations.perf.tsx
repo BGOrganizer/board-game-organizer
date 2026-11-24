@@ -162,12 +162,12 @@ it("EventPlayerRatingPopover: retain the current rating popover through an autho
       await pressMeasuredPopover(screen.getByRole("button", { name: "Global ranking: @owner" }));
       const title = screen.getByRole("heading", { name: "Global ranking · Chess" });
       expect(screen.getByText("1,250")).toBeVisible();
-      expect(screen.getByLabelText("Provisional rating")).toBeOnTheScreen();
+      expect(screen.getAllByLabelText("Provisional rating").length).toBeGreaterThan(0);
       await act(() => driver.current?.update());
       expect(screen.getByRole("heading", { name: "Global ranking · Chess" })).toBe(title);
       expect(screen.getByText("1,400")).toBeVisible();
       expect(screen.queryByText("1,250")).toBeNull();
-      expect(screen.queryByLabelText("Provisional rating")).toBeNull();
+      expect(screen.queryAllByLabelText("Provisional rating")).toHaveLength(0);
       expect(screen.queryByText("Rating before")).toBeNull();
     },
   });

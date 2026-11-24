@@ -101,7 +101,9 @@ it("Common schedule controls: reveal another date and dispatch a floating action
         add.mockClear();
       },
       scenario: async () => {
-        expect(screen.getByRole("header", { name: "Planning details" })).toBeVisible();
+        const planning = screen.getByText("Planning details");
+        expect(planning).toBeVisible();
+        expect(planning).toHaveProp("accessibilityRole", "header");
         expect(screen.getByText("Pending selection")).toBeVisible();
         await fireEvent.press(screen.getByRole("button", { name: "Add date" }));
         expect(add).toHaveBeenCalledOnce();
