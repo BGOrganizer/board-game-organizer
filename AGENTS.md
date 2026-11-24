@@ -352,6 +352,18 @@ Verify signatures with:
 git log --show-signature -1
 ```
 
+Check the configured Vercel team before running its deploy jobs. Use Netlify as the fallback for
+blocked or unverified Vercel deployments. Keep provider credentials scoped to their GitHub and
+Infisical environments and attest the deployed database before directing traffic. Run deploy
+checks against the selected API/Web pair. Main switches only the three canonical DNS hosts for
+API, Web and Site, after verifying the selected deployments, HTTPS for each destination and the
+current Main commit. Keep MCP on the canonical API host. See the
+[Production DNS switch](docs/organizations-events-operations.md#production-dns-switch).
+Use the [manual hosting scaffold](docs/organizations-events-operations.md#scaffold-hosting-projects)
+to create missing projects in the selected team. Scope tokens through the environment's Infisical
+sync and keep existing projects, domain assignments and live credentials under their owner. See
+[Vercel preflight and Netlify fallback](docs/organizations-events-operations.md#vercel-preflight-and-netlify-fallback).
+
 Every job using local GitHub actions must checkout first. CI/workflow files and
 [operational gates](docs/organizations-events-operations.md) govern actual routing, required checks,
 APK provenance, isolated fixture cleanup and publication. Never bypass protection, reuse unverified

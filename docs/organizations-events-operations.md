@@ -155,20 +155,21 @@ samples; later missing/corrupt baselines fail, and no historical result is fabri
 These secret-free checks do not execute Playwright or Maestro journeys, provision users or capture
 device traces. Test matrices do not cancel their remaining active suites on failure.
 
-- Internal owns the isolated API/database, CI web, CI APK, users, mirroring, optional retained E2E
-  and exact-run cleanup. `PR ready` requires every common/Internal/cleanup result. Its job still
-  evaluates after failed dependencies, so a skipped prerequisite cannot masquerade as readiness.
-- Development owns a non-CI API, dedicated web using that immutable API, and an APK embedding its
-  stable per-PR API alias. Publication verifies artifact checksum, source head, current PR, active
+- Internal owns the isolated API/database, CI Web, CI APK, optional E2E fixtures and exact-run
+  cleanup. `PR ready` requires common checks, the verified provider pair and Internal APK, and the
+  fixture, cleanup and E2E results required by the selected provider and test policy. The gate
+  evaluates after failed dependencies so an unexpected skip cannot count as readiness.
+- Development owns a non-CI API, dedicated Web using that API, and an APK embedding the verified
+  provider's client URL. Publication verifies artifact checksum, source head, current PR, active
   run/attempt and newer same-head runs. Draft release/Telegram announce **Development availability**, not a
   successful PR or E2E. They do not wait for Internal or CI cleanup. A Development-only failure
   may leave the overall workflow red while `PR ready` is green; the failure remains visible.
 
-`BGO_PR_E2E_ENABLED` is an explicit workflow policy, currently `'false'`. Only the two matching E2E
-skips are permitted by the aggregate gate. Setting it to `'true'` requires actual success of both
-retained suites. No skips or script/VM tests establish authenticated browser/native acceptance.
-The public Site adds coverage and a build to Branch and PR gates. Trusted PRs publish a separate
-Site Preview after Development Web so sign-in uses the current run's Web URL.
+`BGO_PR_E2E_ENABLED` is an explicit workflow policy, currently `'false'`. Setting it to `'true'`
+requires actual success of both retained suites and their isolated fixtures and cleanup.
+No skips or script/VM tests establish authenticated browser/native acceptance.
+The public Site adds coverage and a build to Branch and PR gates. Trusted PRs deploy Site previews
+whose sign-in links use the corresponding provider's Development Web.
 This deployment does not wait for the APK. See the [Site setup](../apps/site/README.md#vercel-and-github-actions).
 
 Main delivery and manual operations follow the explicit operator-approved policy below; these
@@ -304,12 +305,11 @@ The exact URL remains in the APK provenance digest and must match the verified p
 Production and isolated CI fingerprints keep the API URL; all other native inputs remain covered.
 Migrating an installed `development-pr-N` APK requires one manual install of the shared-channel base.
 
-CI web uses the immutable isolated API URL; E2E APKs use the verified per-PR alias. Development web
-uses its attested immutable non-CI API URL, so it remains usable before or after a failed APK
-publication. Development APKs use a stable-within-PR `api-development-pr-N` Preview alias, distinct
-from the CI `api-pr-N` alias. The deploy job only computes its URL; the publication job assigns it
-after smoke, non-CI database attestation and current-PR checks, then verifies the exact ready
-deployment target.
+CI Web and Internal APK use the selected isolated provider; Development Web and APK use the
+selected non-CI provider. Vercel uses immutable API deploy URLs for Web and verified per-PR APK
+aliases. Its Development publisher assigns the alias after smoke, non-CI database attestation and
+current-PR checks, then verifies the exact ready deployment target. Netlify Web and APK use the
+corresponding run-scoped API alias, attested against the exact ready deploy.
 Immutable deployment URLs remain the source of deployment attestation. Development producers and
 publisher use the same pinned merge SHA for current code. `source-head.txt` records the actual APK
 build checkout, including on reuse. The PR-head guard independently rejects stale/closed/untrusted PRs.
@@ -330,9 +330,10 @@ Production OTA; the GitHub release becomes public only after OTA succeeds. Teleg
 successful publication/deploys and a current-main check. The existing narrow exhausted-EAS-quota exception remains. No app-store
 submission, provisioning, secret synchronization or database migration is introduced.
 
-The Site build and coverage run on Main. A separate Site job deploys and promotes the verified
-source on Vercel with the production Web subdomain as its sign-in target. It does not wait for APK,
-OTA or the app version and rechecks Main before promotion.
+The Site build and coverage run on Main. The provider jobs deploy the verified source with the
+production Web subdomain as its sign-in target and recheck Main before promotion. The Site smoke
+check prefers the current Vercel deployment and can verify the current Netlify deployment if needed.
+Site delivery can run for merges that prepare no app release.
 
 The release-note preset is an explicit root development dependency, compatible with the installed
 semantic-release writer independently of Commitlint's own preset. CI executes the actual configured
@@ -421,7 +422,7 @@ reuses stale mobile inputs, skips quality/cleanup gates or changes E2E enablemen
 - `expo-image-picker` changes native permissions. A JavaScript export is insufficient: create a fresh native build and exercise camera/library denial, retry, Settings-return refresh, replacement and cancelled picking in Maestro.
 - Run the current Group/Event/Table acceptance flows on both clients; verify failure/empty/privacy/cutoff paths, not only successful forms. Never silently skip missing authenticated E2E configuration.
 - [The managed HeroUI Native patch](../patches/heroui-native@1.0.9.patch) gives the default animated popover wrapper absolute-fill bounds in both source and distributed modules so visible help remains measurable and accessible. Preserve mounting, positioning, touch pass-through and animations; source checks do not replace native acceptance.
-- By explicit operator request, PR Maestro and Playwright remain retained but disabled through `BGO_PR_E2E_ENABLED: 'false'`. Their suites and report validation remain intact; Main E2E gates and the manual mobile-E2E workflow are removed by explicit operator request. `PR ready` permits only these policy-matching intentional skips; other common/Internal gates and cleanup must succeed. Development publication is independent of Internal/E2E/CI cleanup. Cleanup still waits for fixture mirroring and CI API consumers when tests are skipped. A green gate does not establish web/native E2E acceptance.
+- By explicit operator request, PR Maestro and Playwright remain retained but disabled through `BGO_PR_E2E_ENABLED: 'false'`. Their suites and report validation remain intact; Main E2E gates and the manual mobile-E2E workflow are removed by explicit operator request. `PR ready` permits only these policy-matching intentional skips; other common/Internal gates and cleanup must succeed. Development publication is independent of Internal/E2E/CI cleanup. When fixtures are created, cleanup waits for fixture mirroring and CI API consumers even if E2E tests are skipped. A green gate does not establish web/native E2E acceptance.
 - When re-enabled, PR Maestro attempts all 13 ordered flows after an earlier flow failure when native preparation succeeded and the run is not cancelled. Each failed step remains failed; final report verification still runs and rejects failed, skipped or missing reports. Shared-session failures may cascade into later flows, so inspect their actual traces before treating each failure as an independent defect.
 - Maestro uses the rendering-enabled Android 34 `google_apis;x86_64` image for Expo Location's Google Play Services provider, selected explicitly even if a cached AOSP or ATD image is present. [ATD images disable hardware rendering](https://developer.android.com/studio/test/managed-devices#use-atds) and remove GUI services; a headless emulator window must not imply a non-rendering Android guest. Keep actual screenshots/video and animated portal assertions; do not substitute longer waits or disable animations to hide missing UI.
 - GitHub native acceptance requires Linux KVM: trigger the job-local device rule with `udevadm trigger --name-match=kvm --settle` before checking read/write permissions and running `emulator -accel-check`. The ordinary trigger is asynchronous; immediate permission checks race rule application. Missing devices or denied permissions fail explicitly with device/runner diagnostics. Keep `-accel on`, never software-CPU fallback. Windows WHPX and shell simulations are not Linux KVM acceptance; verify the real runner before claiming native success.
@@ -472,3 +473,139 @@ the publication first, close an unmerged PR as appropriate, and allow at least 3
 outstanding request lifetimes before any alias reassignment. Current cleanup does not delete these
 aliases; Vercel retention protects currently aliased deployments. Merged PR publications remain
 eligible so links can activate when the Production gateway is first deployed after merge.
+
+## Vercel preflight and Netlify fallback
+
+Trusted PRs and Main check the configured Vercel team before attempting any provider deploy. A
+read-only request detects an active account block, including fair-use quota blocks. An inconclusive
+response allows the standard Vercel attempt. A blocked team skips Vercel deployment jobs.
+Netlify runs only when Vercel is blocked or a required deployment or smoke check fails. API, Web,
+Site and MCP have separate provider jobs. PRs keep their isolated CI and ordinary Development
+lanes. Main uses the verified merge or its pinned release commit.
+
+An API and Web pair must come from the same provider. The smoke check verifies API health and a
+reachable Web page on the exact deploys. A verified Vercel pair stays preferred if an auxiliary
+deployment uses Netlify. Enabled deploy tests use the selected pair. A missing healthy pair fails
+the relevant gate. Quality, artifact validation and release publication checks still apply.
+
+Netlify uses eight unlinked projects, one each for API, Web, Site and MCP in Development and
+Production. The default team slug is `board-game-organizer`. Set `NETLIFY_TEAM_SLUG` in the matching
+GitHub environment to use another team with the configured project names. Provision them as `bgo-<api|web|site|mcp>-<development|production>`.
+For API and Web, use Infisical Netlify Secret Sync with the matching source, site and context.
+Specify the site so the sync applies only to that project. The context names below match the
+Netlify CLI build contexts. The first Development deploy must also pass runtime attestation.
+
+| Infisical source | Netlify destination | Context |
+| --- | --- | --- |
+| `staging /api` | `bgo-api-development` | `BranchDeploy` |
+| `staging /web` | `bgo-web-development` | `BranchDeploy` |
+| `prod /api` | `bgo-api-production` | `Production` |
+| `prod /web` | `bgo-web-production` | `Production` |
+
+Use the usual matching Clerk values and leave Vercel-specific bypass values on Vercel. Netlify's
+CLI builds API, Web and Site with the existing Bun workspace commands and the Next.js adapter.
+Sensitive runtime values are configured on their respective project. Site and gateway do not
+need API or database credentials. In each GitHub environment, set:
+
+- `NETLIFY_AUTH_TOKEN` through Infisical's `/github` sync.
+- `BGO_NETLIFY_ENABLED=true` once the matching Netlify syncs are in place.
+- In Development, `BGO_NETLIFY_MCP_GATEWAY_PR_NUMBER` selects the PR authorized to publish the
+  stable Netlify gateway. Vercel uses its own PR selector.
+
+Netlify classifies CLI deployments with aliases as branch deploys. They use one alias per PR, run and
+attempt. The deploy API reports the alias as `deploy_ssl_url`; the CI derives the immutable permalink
+from the verified deploy ID and project name. Web and MCP verify the owned API deployment and
+its source before using it. Development Site verifies the Web deployment it links to. The
+Development API allows that exact Web origin. Production Web on either provider uses
+`https://api.board-game-organizer.com` and the Production API allows `https://app.board-game-organizer.com`.
+The Main Site sign-in and Production widget links use the canonical Web domain for Clerk Production.
+Browser smoke at `netlify.app` is unauthenticated. Authenticated Production acceptance requires a
+verified BGO subdomain configured for the matching Clerk instance.
+
+The Development MCP URL is `https://bgo-mcp-development.netlify.app/mcp`. Register that exact
+audience in the Development Clerk instance. Production always advertises
+`https://api.board-game-organizer.com/mcp`, including on Netlify. The Netlify gateways forward MCP
+transport and discovery to the same-run API without provider bypass. The deployment resolves the
+issuer from the matching Clerk publishable key.
+
+Netlify's visitor access settings control reachability independently of Clerk. Use Public
+preview access for the Development API, Web and Site projects and Public published deploy access
+for their Production counterparts so GitHub Actions can perform unauthenticated smoke checks.
+External MCP clients require Public published deploy access on the corresponding MCP project.
+BGO authorization remains enforced by the application.
+
+The provider domains are available for deployment checks. Public Production traffic follows the
+canonical DNS records. Clerk webhook URLs and Inngest registration stay on the canonical API.
+Check custom-domain login, webhooks, job delivery, App Links and Web Push during the first cutover.
+See [Production DNS switch](#production-dns-switch).
+
+The API Vitest suite with a Testcontainers MongoDB replica set runs independently of either host.
+Ordinary Netlify deploys reject CI database names and conflicting webhook database overrides
+during runtime attestation. With no webhook override, the API uses its application database.
+Isolated Netlify deploys have separate aliases and must attest the exact run/attempt database.
+With PR E2E disabled, a Netlify fallback verifies readiness without seeding fixtures. If E2E
+is enabled, the selected isolated deployment owns fixtures, and Netlify fixture writes require
+the trusted default-branch cleanup controller to support Netlify ownership verification.
+
+
+### Production DNS switch
+
+Main uses the verified API and Web provider as a pair and the separately verified Site provider.
+With `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ZONE_ID` configured in the GitHub Production environment
+through the Infisical `prod /github` sync, the DNS job updates exactly these existing names.
+
+| Cloudflare name | Canonical hostname | Selected project |
+| --- | --- | --- |
+| `api` | `api.board-game-organizer.com` | Production API |
+| `app` | `app.board-game-organizer.com` | Production Web |
+| `@` | `board-game-organizer.com` | Public Site |
+
+The Cloudflare token needs **Zone → DNS → Edit** for only this zone. Prepare custom-domain bindings
+and valid origin HTTPS at the destination provider before using the automation. The first Netlify
+certificate can require a controlled DNS change because managed certificates require the DNS to
+point to Netlify. Provider subdomain health alone does not establish this readiness. See
+[Netlify external DNS](https://docs.netlify.com/manage/domains/configure-domains/configure-external-dns/)
+and [Vercel custom domains](https://vercel.com/docs/domains/set-up-custom-domain).
+
+Before writing DNS, the job verifies provider ownership and the current Production deployments,
+probes the three canonical hosts with their original Host/TLS names directly against the selected
+origins, checks API health and the canonical MCP OAuth resource, and rechecks the current Main
+source and existing Cloudflare record snapshot. A scoped batch applies only changed routing
+records and verifies the result through Cloudflare. Existing comment, DNS TTL and proxy settings
+are reused when creating a replacement routing record. The job summary shows prior public targets
+and redacts proxied origins. Resolver propagation remains subject to the [Cloudflare batch semantics](https://developers.cloudflare.com/api/resources/dns/subresources/records/methods/batch/).
+
+### Scaffold hosting projects
+
+Run **Scaffold hosting projects** from GitHub Actions on Main, selecting a provider (or both) and
+one environment. The workflow creates missing projects with the existing names and verifies that
+the selected team owns them. Existing projects are checked for ownership. Provider tokens come
+from the matching GitHub environment, populated by the existing Infisical `/github` sync.
+
+| GitHub environment | Infisical credentials source | Target |
+| --- | --- | --- |
+| `development` | `staging /github` | Netlify Development projects and Vercel Preview projects |
+| `production` | `prod /github` | Netlify Production projects and Vercel Production projects |
+
+- For Netlify, sync `NETLIFY_AUTH_TOKEN` and use `NETLIFY_TEAM_SLUG` when the team differs from the default.
+  Netlify project names are global because they determine the site URL. The workflow stops if a
+  required name belongs to another team. The projects inherit the team's visitor-access defaults.
+  Set the preview and published deploy visibility as described above in the Netlify dashboard.
+  The committed `netlify.toml` files and the MCP build own the deploy settings.
+- For Vercel, sync `VERCEL_TOKEN`, `VERCEL_ORG_ID` and the destination team's `VERCEL_PROTECTION_BYPASS`.
+  New `api`, `web`, `site` and `bgo-mcp-<environment>` projects use Node 26 and the repository deploy
+  configuration. API, Site and MCP use Standard Protection. The Web project follows its existing
+  public access policy. The configured CI bypass is installed on the new API and Site projects.
+  If a create succeeded but a provider settings request failed, finish the reported setup in the
+  project dashboard. Subsequent runs preserve existing provider settings.
+- After creation, attach the API and Web Infisical syncs to the new provider project and context.
+  Vercel uses Preview for staging and Production for prod. Store the destination Vercel project IDs
+  as `VERCEL_API_PROJECT_ID`, `VERCEL_WEB_PROJECT_ID` and `VERCEL_SITE_PROJECT_ID` in the matching
+  Infisical GitHub sync. Set the environment variable `VERCEL_MCP_GATEWAY_PROJECT_ID` for the gateway.
+  Follow the [existing gateway](mcp-apps.md#gateway-deployment) and
+  [Site](../apps/site/README.md#vercel-and-github-actions) setup for their initial deployment.
+
+Scaffolding and traffic cutover are separate operations. It creates unlinked projects and applies
+the supported provider settings to new projects. Existing domains, DNS, Clerk, and Infisical
+connections remain under the operator's control. Activate deployment only with the matching
+project credentials and complete a successful smoke test before changing public routing.

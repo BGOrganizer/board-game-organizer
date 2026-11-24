@@ -176,13 +176,14 @@ test("optional EAS registration cannot disable the mandatory PR/Main publication
       assert(workflow.jobs.ready.needs.includes("e2e-playwright"));
     } else {
       assert(job.needs.includes("build-apk"));
-      assert(job.needs.includes("deploy-production"));
+      assert(job.needs.includes("select-production-deployment"));
     }
   }
   assert.equal(main.jobs["e2e-maestro"], undefined);
   assert.equal(main.jobs["e2e-playwright"], undefined);
   assert.doesNotMatch(pr.jobs["draft-release"].if, /build-mobile-internal/);
-  assert.match(pr.jobs["draft-release"].if, /^success\(\)/);
+  assert.match(pr.jobs["draft-release"].if, /!cancelled\(\)/);
+  assert.match(pr.jobs["draft-release"].if, /needs.build-mobile-development.result == 'success'/);
   assert(pr.jobs["draft-release"].needs.includes("build-mobile-development"));
   assert.match(pr.jobs["cleanup-e2e-user"].if, /^always\(\).*mode == 'pr'/);
   assert.equal(release.inputs["apk-path"].required, true);

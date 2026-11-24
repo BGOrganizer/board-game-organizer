@@ -1,0 +1,101 @@
+name: Deploy BGO to Netlify
+description: Deploy one BGO component to its matching Netlify project.
+inputs:
+  component:
+    description: Netlify component to deploy (api, web, site or mcp)
+    required: true
+  target:
+    description: Netlify project environment, development or production
+    required: true
+  isolated:
+    description: Use the run-scoped CI deployment for API or Web
+    required: false
+    default: 'false'
+  source-sha:
+    description: Verified commit to deploy
+    required: true
+  release-sha:
+    description: Prepared release commit, when the Main run created a version
+    required: false
+  team-slug:
+    description: Netlify team slug that owns the selected projects
+    required: false
+  netlify-token:
+    description: Netlify credential for the BGO team
+    required: true
+  clerk-secret-key:
+    description: Matching Clerk secret for API runtime attestation
+    required: false
+  clerk-publishable-key:
+    description: Matching Clerk publishable key
+    required: false
+  api-url:
+    description: Verified immutable Netlify API deploy URL for Web or MCP
+    required: false
+  api-client-url:
+    description: Verified Netlify API client URL for Web or MCP
+    required: false
+  web-url:
+    description: Verified immutable Netlify Web deploy URL for Development Site
+    required: false
+  web-client-url:
+    description: Verified Netlify Web client URL for Development Site
+    required: false
+  gateway-pr:
+    description: PR allowed to publish the stable Development MCP gateway
+    required: false
+outputs:
+  api-url:
+    description: Verified immutable API deploy URL
+    value: ${{ steps.deploy.outputs.api-url }}
+  api-client-url:
+    description: Verified API URL used by clients
+    value: ${{ steps.deploy.outputs.api-client-url }}
+  web-url:
+    description: Verified immutable Web deploy URL
+    value: ${{ steps.deploy.outputs.web-url }}
+  web-client-url:
+    description: Verified Web URL used by clients
+    value: ${{ steps.deploy.outputs.web-client-url }}
+  site-url:
+    description: Verified Site URL
+    value: ${{ steps.deploy.outputs.site-url }}
+  gateway-url:
+    description: Verified MCP gateway URL
+    value: ${{ steps.deploy.outputs.gateway-url }}
+  ci-db-name:
+    description: Attested run-scoped CI database name on isolated deploys
+    value: ${{ steps.deploy.outputs.ci-db-name }}
+runs:
+  using: composite
+  steps:
+    - name: Set up workspace
+      uses: ./.github/actions/setup-bun
+
+    - name: Install Netlify CLI
+      shell: bash
+      run: npm install --global netlify-cli@27.20.1
+
+    - name: Verify source and deploy to Netlify
+      id: deploy
+      shell: bash
+      env:
+        NETLIFY_AUTH_TOKEN: ${{ inputs.netlify-token }}
+        NETLIFY_TEAM_SLUG: ${{ inputs.team-slug }}
+        NETLIFY_CLI_TELEMETRY_DISABLED: '1'
+        CLERK_SECRET_KEY: ${{ inputs.clerk-secret-key }}
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ inputs.clerk-publishable-key }}
+        BGO_NETLIFY_COMPONENT: ${{ inputs.component }}
+        BGO_NETLIFY_STAGE: ${{ inputs.target }}
+        BGO_NETLIFY_ISOLATED: ${{ inputs.isolated }}
+        SOURCE_SHA: ${{ inputs.source-sha }}
+        RELEASE_SHA: ${{ inputs.release-sha }}
+        API_URL: ${{ inputs.api-url }}
+        API_CLIENT_URL: ${{ inputs.api-client-url }}
+        WEB_URL: ${{ inputs.web-url }}
+        WEB_CLIENT_URL: ${{ inputs.web-client-url }}
+        GATEWAY_PR: ${{ inputs.gateway-pr }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        GH_TOKEN: ${{ github.token }}
+      run: bash .github/actions/netlify-deploy/deploy.sh

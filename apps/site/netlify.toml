@@ -1,0 +1,6 @@
+[build]
+  command = "NEXT_PUBLIC_BGO_WEB_ORIGIN=\"$BGO_NETLIFY_SITE_WEB_ORIGIN\" bun run --filter site build"
+  publish = "apps/site/.next"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"

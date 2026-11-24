@@ -29,6 +29,7 @@ __pycache__/
 apps/mobile/android/
 apps/mobile/build-output/
 .vercel/
+.netlify/
 test-results/
 playwright-report/
 .pi/

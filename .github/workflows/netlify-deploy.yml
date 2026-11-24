@@ -1,0 +1,101 @@
+name: Netlify deployment
+
+on:
+  workflow_call:
+    inputs:
+      target:
+        type: string
+        required: true
+      component:
+        type: string
+        required: true
+      source-sha:
+        type: string
+        required: true
+      release-sha:
+        type: string
+        default: ''
+      isolated:
+        type: boolean
+        default: false
+      api-url:
+        type: string
+        default: ''
+      api-client-url:
+        type: string
+        default: ''
+      web-url:
+        type: string
+        default: ''
+      web-client-url:
+        type: string
+        default: ''
+    secrets:
+      NETLIFY_AUTH_TOKEN:
+        required: false
+      CLERK_SECRET_KEY:
+        required: false
+    outputs:
+      api-url:
+        value: ${{ jobs.deploy.outputs.api-url }}
+      api-client-url:
+        value: ${{ jobs.deploy.outputs.api-client-url }}
+      ci-db-name:
+        value: ${{ jobs.deploy.outputs.ci-db-name }}
+      web-url:
+        value: ${{ jobs.deploy.outputs.web-url }}
+      web-client-url:
+        value: ${{ jobs.deploy.outputs.web-client-url }}
+      site-url:
+        value: ${{ jobs.deploy.outputs.site-url }}
+      gateway-url:
+        value: ${{ jobs.deploy.outputs.gateway-url }}
+
+jobs:
+  deploy:
+    name: Deploy ${{ inputs.component }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.target }}
+    continue-on-error: true
+    timeout-minutes: 45
+    concurrency:
+      group: ${{ inputs.target == 'production' && format('production-netlify-{0}', inputs.component) || format('netlify-{0}-{1}-{2}', github.run_id, inputs.component, inputs.isolated) }}
+      cancel-in-progress: false
+    outputs:
+      api-url: ${{ steps.deploy.outputs.api-url }}
+      api-client-url: ${{ steps.deploy.outputs.api-client-url }}
+      ci-db-name: ${{ steps.deploy.outputs.ci-db-name }}
+      web-url: ${{ steps.deploy.outputs.web-url }}
+      web-client-url: ${{ steps.deploy.outputs.web-client-url }}
+      site-url: ${{ steps.deploy.outputs.site-url }}
+      gateway-url: ${{ steps.deploy.outputs.gateway-url }}
+    steps:
+      - name: Checkout verified source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release-sha || inputs.source-sha }}
+          fetch-depth: ${{ inputs.target == 'production' && '0' || '2' }}
+          persist-credentials: false
+
+      - name: Deploy to Netlify
+        id: deploy
+        if: >-
+          ${{ vars.BGO_NETLIFY_ENABLED == 'true' &&
+              (inputs.component != 'mcp' || inputs.target == 'production' ||
+              vars.BGO_NETLIFY_MCP_GATEWAY_PR_NUMBER == format('{0}', github.event.pull_request.number)) }}
+        uses: ./.github/actions/netlify-deploy
+        with:
+          target: ${{ inputs.target }}
+          component: ${{ inputs.component }}
+          source-sha: ${{ inputs.source-sha }}
+          release-sha: ${{ inputs.release-sha }}
+          isolated: ${{ inputs.isolated }}
+          api-url: ${{ inputs.api-url }}
+          api-client-url: ${{ inputs.api-client-url }}
+          web-url: ${{ inputs.web-url }}
+          web-client-url: ${{ inputs.web-client-url }}
+          team-slug: ${{ vars.NETLIFY_TEAM_SLUG }}
+          netlify-token: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          clerk-secret-key: ${{ inputs.component == 'api' && secrets.CLERK_SECRET_KEY || '' }}
+          clerk-publishable-key: ${{ (inputs.component == 'api' || inputs.component == 'web') && vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || '' }}
+          gateway-pr: ${{ vars.BGO_NETLIFY_MCP_GATEWAY_PR_NUMBER }}

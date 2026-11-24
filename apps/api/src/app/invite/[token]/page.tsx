@@ -13,10 +13,12 @@ export const dynamic = "force-dynamic";
 export default async function InvitePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+  const production =
+    process.env.VERCEL_ENV === "production" || process.env.BGO_NETLIFY_STAGE === "production";
   return (
     <ClerkProvider publishableKey={publishableKey}>
       <InviteProviders>
-        <InviteAppLink token={token} production={process.env.VERCEL_ENV === "production"} />
+        <InviteAppLink token={token} production={production} />
         <InviteLanding key={token} token={token} />
       </InviteProviders>
     </ClerkProvider>

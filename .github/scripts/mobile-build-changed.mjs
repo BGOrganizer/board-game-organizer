@@ -36,7 +36,12 @@ export function sourceAffectsMobile(path) {
     path.startsWith(".github/actions/mobile-build/") ||
     path.startsWith(".github/actions/setup-bun/") ||
     path.startsWith("patches/") ||
-    ["package.json", "bunfig.toml", ".github/scripts/mobile-build-environment.mjs"].includes(path)
+    [
+      "package.json",
+      "bunfig.toml",
+      ".github/scripts/mobile-build-environment.mjs",
+      ".github/scripts/netlify-preview-target.mjs",
+    ].includes(path)
   );
 }
 

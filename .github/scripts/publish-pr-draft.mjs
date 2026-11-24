@@ -11,6 +11,7 @@ import {
   releaseTitle,
 } from "../../scripts/release/release-format.mjs";
 import { requireCurrentPr } from "./ci-current-pr.mjs";
+import { netlifyPreviewAttempt } from "./netlify-preview-target.mjs";
 
 function https(value, host) {
   const url = new URL(value);
@@ -87,8 +88,14 @@ export async function publishDevelopmentDraft(
     throw new Error("Invalid Development release identity");
   const web = https(input.webUrl),
     apiUrl = https(input.apiUrl);
-  if (![web, apiUrl].every((url) => new URL(url).hostname.endsWith(".vercel.app")))
-    throw new Error("Immutable Development Preview URLs required");
+  if (![web, apiUrl].every((url) => new URL(url).hostname.endsWith(".vercel.app"))) {
+    const { number, runId, attempt } = input;
+    const target = { number, runId, attempt, lane: "pr" };
+    const webAttempt = netlifyPreviewAttempt(input.webUrl, { ...target, app: "web" });
+    const apiAttempt = netlifyPreviewAttempt(input.apiUrl, { ...target, app: "api" });
+    if (!webAttempt || webAttempt !== apiAttempt)
+      throw new Error("Verified Development Preview URLs required for the same PR, run and deploy");
+  }
   const eas = input.easUrl ? https(input.easUrl) : "";
   const size = statSync(input.apkPath).size;
   if (!size) throw new Error("Verified Development APK required");

@@ -23,7 +23,7 @@ test("deployment and provisioning jobs avoid unused installs; native reuse keeps
         "deploy-development-web",
       ],
     ],
-    [main, ["build-apk", "deploy-production"]],
+    [main, ["build-apk", "deploy-production-api", "deploy-production-web"]],
   ]) {
     for (const id of jobs)
       assert(

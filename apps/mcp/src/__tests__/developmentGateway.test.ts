@@ -66,6 +66,33 @@ describe("the public MCP gateway", () => {
     expect(send).toHaveBeenCalledTimes(1);
   });
 
+  it.each([
+    ["development", "https://pr-34-1234-2--bgo-api-development.netlify.app"],
+    ["production", "https://bgo-api-production.netlify.app"],
+  ] as const)("forwards Netlify %s only to its own project's API", async (target, upstream) => {
+    const config = { provider: "netlify", target, upstream, previewBypass: undefined } as const;
+    const request = new Request(gateway + MCP_METADATA_PATH);
+    const send = vi.fn<typeof fetch>().mockResolvedValue(Response.json({}));
+    expect((await forwardMcpGateway(request, config, send)).status).toBe(200);
+    expect(send.mock.lastCall?.[0]).toBe(upstream + MCP_METADATA_PATH);
+
+    for (const invalid of [
+      { ...config, upstream: undefined },
+      { ...config, upstream: "https://not-ours.netlify.app" },
+      {
+        ...config,
+        upstream:
+          target === "production"
+            ? "https://pr-34-1234-2--bgo-api-development.netlify.app"
+            : "https://bgo-api-production.netlify.app",
+      },
+      { ...config, previewBypass: bypass },
+    ]) {
+      expect((await forwardMcpGateway(request, invalid, send)).status).toBe(503);
+    }
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
   it("forwards the MCP body, OAuth and protocol headers over a fixed route", async () => {
     const send = vi.fn(
       async () =>

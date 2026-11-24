@@ -5,7 +5,8 @@
 | File | Display name | Responsibility |
 | --- | --- | --- |
 | [pr-ci.yml](workflows/pr-ci.yml) | CI | Route branch/PR events, run shared checks, then independent isolated CI and Development publication lanes. |
-| [main-ci.yml](workflows/main-ci.yml) | Release | Verify every merge, serialize version preparation, build the pinned APK, deploy and publish the verified release. |
+| [main-ci.yml](workflows/main-ci.yml) | Release | Verify every merge, serialize version preparation, build the pinned APK, deploy and publish the verified release, and switch verified Production DNS when configured. |
+| [scaffold-hosting.yml](workflows/scaffold-hosting.yml) | Scaffold hosting projects | Manual Main workflow to create missing, team-owned Netlify or Vercel projects with environment-scoped provider credentials. |
 | [pr-ci-fail-fast.yml](workflows/pr-ci-fail-fast.yml) | CI watchdog | Wait for all mandatory test suites before cancelling remaining work after shared-quality failures; keep lane-specific failures isolated. |
 | [pr-ci-cleanup.yml](workflows/pr-ci-cleanup.yml) | CI cleanup | Recover resources after an unsuccessful PR run, using trusted default-branch code. |
 | [e2e-user-cleanup.yml](workflows/e2e-user-cleanup.yml) | Test users | Hourly/manual orphan cleanup after verifying the owning run has completed. |
@@ -16,7 +17,7 @@ green source tests do not establish authenticated browser/native acceptance.
 
 ## Actions and script boundaries
 
-Local actions own reusable runner setup, Vercel deployment, APK builds, emulator/Maestro phases,
+Local actions own reusable runner setup, provider deployment, APK builds, emulator/Maestro phases,
 E2E provisioning and publication/notification entrypoints. Workflows describe dependencies and
 credential scope; scripts implement routing, provenance, publication and recovery logic.
 
@@ -86,3 +87,18 @@ device, emulator or E2E journey. Test matrices finish their other suites after a
 Verify live GitHub required-check settings against the current workflow contexts and app identity.
 A local YAML edit does not migrate branch protection or activate default-branch controllers;
 settings changes require explicit scope and preservation of reviews and unrelated protections.
+
+## Vercel preflight and Netlify fallback
+
+An early, read-only team check skips Vercel when the provider reports an active block. Netlify
+runs only when Vercel is blocked or cannot provide a verified deployment. Each selected
+API/Web pair comes from one provider, and enabled deploy tests use that pair. Independent
+quality checks and mandatory release gates still apply.
+
+Netlify API, Web, Site and MCP have separate jobs. The shared [Netlify workflow](workflows/netlify-deploy.yml)
+scopes credentials, verifies team ownership and source, and records deployment links. The
+isolated PR deploys only API and Web. See [Netlify setup and isolation](../docs/organizations-events-operations.md#vercel-preflight-and-netlify-fallback).
+
+Production traffic switches only after the selected origins serve the canonical domains with
+valid HTTPS and the API advertises the canonical MCP resource. See the
+[Cloudflare DNS gate](../docs/organizations-events-operations.md#production-dns-switch).

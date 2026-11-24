@@ -8,6 +8,31 @@ import { fileURLToPath } from "node:url";
 import { withProductionBuildEnvironment } from "../mobile-build-environment.mjs";
 
 const env = { APP_VARIANT: "production", MOBILE_BUILD_PROFILE: "internal" };
+
+test("an Internal APK uses only its own isolated Netlify API with no Vercel bypass", async () => {
+  const internal = {
+    APP_VARIANT: "development",
+    EXPO_UPDATE_CHANNEL: "ci-pr-22",
+    EXPO_PUBLIC_API_URL: "https://ci-pr-22-100-2--bgo-api-development.netlify.app",
+    GITHUB_RUN_ID: "100",
+    GITHUB_RUN_ATTEMPT: "2",
+    PR_NUMBER: "22",
+  };
+  assert.equal(await withProductionBuildEnvironment("unused", internal, () => 17), 17);
+  for (const override of [
+    { EXPO_UPDATE_CHANNEL: "development" },
+    { EXPO_PUBLIC_VERCEL_PROTECTION_BYPASS: "private-bypass" },
+    { APP_VARIANT: "production" },
+    {
+      EXPO_PUBLIC_API_URL: internal.EXPO_PUBLIC_API_URL.replace(/^https:\/\/ci-pr-/, "https://pr-"),
+    },
+    { EXPO_PUBLIC_API_URL: `${internal.EXPO_PUBLIC_API_URL}/api/health` },
+  ])
+    await assert.rejects(
+      withProductionBuildEnvironment("unused", { ...internal, ...override }, () => 17),
+      /Verified Netlify API/,
+    );
+});
 const script = fileURLToPath(new URL("../mobile-build-environment.mjs", import.meta.url));
 const original = '{ "build": { "internal": { "distribution": "internal" } } }\r\n';
 

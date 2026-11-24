@@ -26,9 +26,14 @@ const productionApi = "https://api.board-game-organizer.com";
 const developmentApi =
   /^https:\/\/api-development-pr-[1-9]\d*-board-game-organizers-projects\.vercel\.app$/;
 
+const netlifyProductionApi = "https://bgo-api-production.netlify.app";
+const netlifyDevelopmentApi =
+  /^https:\/\/pr-[1-9]\d*-[1-9]\d*-[1-9]\d*--bgo-api-development\.netlify\.app$/;
+
 export type GatewayEnvironment = "development" | "production";
 type GatewayConfiguration = {
   target: GatewayEnvironment;
+  provider?: "netlify";
   upstream: string | undefined;
   previewBypass: string | undefined;
 };
@@ -44,7 +49,7 @@ function forwardHeaders(source: Headers, names: string[]): Headers {
 
 export async function forwardMcpGateway(
   request: Request,
-  { target, upstream, previewBypass }: GatewayConfiguration,
+  { target, provider, upstream, previewBypass }: GatewayConfiguration,
   send = fetch,
 ): Promise<Response> {
   const path = new URL(request.url).pathname;
@@ -56,12 +61,16 @@ export async function forwardMcpGateway(
       headers: { ...privateCache, Allow: methods.join(", ") },
     });
   }
-  if (
-    !upstream ||
-    (target === "production"
-      ? upstream !== productionApi || previewBypass
-      : !previewBypass || !developmentApi.test(upstream))
-  ) {
+  const allowedUpstream =
+    provider === "netlify"
+      ? !previewBypass &&
+        (target === "production"
+          ? upstream === netlifyProductionApi
+          : netlifyDevelopmentApi.test(upstream ?? ""))
+      : target === "production"
+        ? upstream === productionApi && !previewBypass
+        : Boolean(previewBypass) && developmentApi.test(upstream ?? "");
+  if (!upstream || !allowedUpstream) {
     return new Response(null, { status: 503, headers: privateCache });
   }
 

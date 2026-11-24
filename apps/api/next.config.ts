@@ -3,8 +3,12 @@ import type { NextConfig } from "next";
 
 const ciDatabase = process.env.BGO_CI_DB_NAME;
 if (ciDatabase) {
+  const netlifyPreview =
+    process.env.BGO_NETLIFY_STAGE === "development" &&
+    process.env.BGO_NETLIFY_ISOLATED === "true" &&
+    !process.env.VERCEL_ENV;
   if (
-    process.env.VERCEL_ENV !== "preview" ||
+    (process.env.VERCEL_ENV !== "preview" && !netlifyPreview) ||
     !/^bgo_ci_[1-9][0-9]*_[1-9][0-9]*$/.test(ciDatabase)
   ) {
     throw new Error("CI database overrides require an isolated Preview database");
@@ -15,7 +19,7 @@ if (ciDatabase) {
     !baseDatabase ||
     baseDatabase === "[SENSITIVE]" ||
     baseDatabase.startsWith("bgo_ci_") ||
-    webhookDatabase !== baseDatabase
+    (webhookDatabase !== baseDatabase && (!netlifyPreview || webhookDatabase))
   ) {
     throw new Error("Preview CLERK_WEBHOOK_DB_NAME must match the non-CI MONGODB_DB_NAME");
   }

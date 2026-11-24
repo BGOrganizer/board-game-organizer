@@ -41,6 +41,11 @@ describe("public site routing", () => {
     expect(siteMetadata("it").robots).toEqual({ index: false, follow: false });
     vi.stubEnv("VERCEL_ENV", "production");
     expect(siteMetadata("it").robots).toBeUndefined();
+    vi.stubEnv("VERCEL_ENV", undefined);
+    vi.stubEnv("BGO_NETLIFY_STAGE", "development");
+    expect(siteMetadata("it").robots).toEqual({ index: false, follow: false });
+    vi.stubEnv("BGO_NETLIFY_STAGE", "production");
+    expect(siteMetadata("it").robots).toBeUndefined();
   });
 
   it("uses the configured Web origin, the stable APK release and working locale links", () => {

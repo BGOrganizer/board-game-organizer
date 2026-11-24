@@ -70,6 +70,7 @@ test("only mobile runtime and linked packages rebuild APK", () => {
     "messages/it.js",
     ".github/actions/mobile-build/action.yml",
     ".github/scripts/mobile-build-environment.mjs",
+    ".github/scripts/netlify-preview-target.mjs",
     "patches/heroui-native@1.0.9.patch",
   ]) {
     assert.equal(sourceAffectsMobile(path), true, path);

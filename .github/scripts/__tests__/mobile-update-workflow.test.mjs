@@ -43,10 +43,10 @@ test("only trusted Development publication and pinned Production release publish
     assert.equal(step["continue-on-error"], undefined);
   }
   assert.match(dev.if, /trusted == 'true'/);
-  assert.deepEqual(prod.needs, ["release", "build-apk", "deploy-production"]);
+  assert.deepEqual(prod.needs, ["release", "build-apk", "select-production-deployment"]);
   assert(
-    main.jobs["deploy-production"].steps.some(
-      (step) => step.name === "🔎 Read-only production smoke",
+    main.jobs["select-production-deployment"].steps.some(
+      (step) => step.name === "🔎 Select Production provider and run read-only smoke",
     ),
   );
   assert(
@@ -63,7 +63,7 @@ test("only trusted Development publication and pinned Production release publish
       position(dev, "📦 Publish/update public PR prerelease"),
   );
   assert(
-    position(prod, "📦 Stage release notes and verified APK before OTA") <
+    position(prod, "📦 Stage release notes, verified APK and MCP package before OTA") <
       position(prod, "📡 Publish verified Production OTA"),
   );
 });
@@ -121,11 +121,11 @@ test("Development APK uses its gated alias while web uses the ready immutable no
   assert.equal(alias.env.VERCEL_ORG_ID, expression("secrets.VERCEL_ORG_ID"));
   assert.equal(
     alias.env.DEVELOPMENT_API_URL,
-    expression("needs.deploy-development-api.outputs.url"),
+    expression("needs.select-development.outputs.api-url"),
   );
   assert.equal(
     alias.env.DEVELOPMENT_WEB_URL,
-    expression("needs.deploy-development-web.outputs.url"),
+    expression("needs.select-development.outputs.web-client-url"),
   );
   assert.match(alias.run.trim(), /node \.github\/scripts\/development-api-alias\.mjs$/);
   for (const gate of [
@@ -135,8 +135,7 @@ test("Development APK uses its gated alias while web uses the ready immutable no
     "integration-tests",
     "build-api",
     "build-web",
-    "deploy-development-api",
-    "deploy-development-web",
+    "select-development",
     "build-mobile-development",
   ])
     assert(publication.needs.includes(gate), gate);
@@ -144,7 +143,7 @@ test("Development APK uses its gated alias while web uses the ready immutable no
     pr.jobs["build-mobile-internal"].steps.find(
       (step) => step.uses === "./.github/actions/mobile-build",
     ).with["api-url"],
-    expression("needs.deploy-preview-api.outputs.branch-url"),
+    expression("needs.select-preview.outputs.api-client-url"),
   );
 });
 
@@ -174,12 +173,7 @@ test("all PRs share a serialized Development OTA lane while CI and Production re
 });
 
 test("Development checkout and APK provenance identify the actual merge SHA separately from the PR head guard", () => {
-  for (const name of [
-    "deploy-development-api",
-    "deploy-development-web",
-    "build-mobile-development",
-    "draft-release",
-  ])
+  for (const name of ["select-development", "build-mobile-development", "draft-release"])
     assert.equal(
       pr.jobs[name].steps.find((step) => step.uses === "actions/checkout@v4").with.ref,
       expression("github.sha"),
