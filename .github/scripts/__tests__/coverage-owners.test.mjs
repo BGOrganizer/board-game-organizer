@@ -202,6 +202,10 @@ test("actual uncovered-source collector excludes unexecuted test support without
       ],
       support: ["packages/shared/src/common/__tests__/startupQueries.test.ts"],
     },
+    mcp: {
+      runtime: ["apps/mcp/development-gateway.mts", "apps/mcp/netlify-gateway.mts"],
+      support: ["apps/mcp/src/__tests__/developmentGateway.test.ts"],
+    },
     schemas: {
       runtime: ["packages/schemas/src/groups/models/groupRecord.ts"],
       support: ["packages/schemas/src/__tests__/schemas.test.ts"],

@@ -1,10 +1,63 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import vercelHandler from "../../development-gateway.mjs";
+import netlifyHandler, { config as netlifyConfig } from "../../netlify-gateway.mjs";
 import { forwardMcpGateway, MCP_METADATA_PATH, MCP_PATH } from "../developmentGateway";
 
 const gateway = "https://mcp-dev.example.test";
 const upstream = "https://api-development-pr-33-board-game-organizers-projects.vercel.app";
 const bypass = "test bypass";
 const development = { target: "development", upstream, previewBypass: bypass } as const;
+
+describe("deployed gateway entrypoints", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it("forwards the Vercel handler to the build-selected target with its Preview bypass", async () => {
+    vi.stubGlobal("BGO_GATEWAY_TARGET", "development");
+    vi.stubEnv("BGO_MCP_UPSTREAM_URL", upstream);
+    vi.stubEnv("VERCEL_PROTECTION_BYPASS", bypass);
+    const send = vi.fn<typeof fetch>().mockResolvedValue(Response.json({}));
+    vi.stubGlobal("fetch", send);
+
+    const response = await vercelHandler(new Request(gateway + MCP_METADATA_PATH));
+
+    expect(response.status).toBe(200);
+    expect(send.mock.lastCall?.[0]).toBe(
+      `${upstream}${MCP_METADATA_PATH}?x-vercel-protection-bypass=test%20bypass`,
+    );
+  });
+
+  it.each([
+    ["development", "https://pr-34-1234-2--bgo-api-development.netlify.app"],
+    ["production", "https://bgo-api-production.netlify.app"],
+  ])("routes the Netlify %s handler to its API", async (target, origin) => {
+    vi.stubEnv("BGO_NETLIFY_STAGE", target);
+    vi.stubEnv("BGO_MCP_UPSTREAM_URL", origin);
+    vi.stubEnv("VERCEL_PROTECTION_BYPASS", bypass);
+    const send = vi.fn<typeof fetch>().mockResolvedValue(Response.json({}));
+    vi.stubGlobal("fetch", send);
+
+    expect(netlifyConfig.path).toEqual([MCP_PATH, MCP_METADATA_PATH]);
+    const response = await netlifyHandler(new Request(gateway + MCP_METADATA_PATH));
+
+    expect(response.status).toBe(200);
+    expect(send.mock.lastCall?.[0]).toBe(origin + MCP_METADATA_PATH);
+  });
+
+  it("refuses traffic from a Netlify deployment without a supported environment", async () => {
+    vi.stubEnv("BGO_NETLIFY_STAGE", "preview");
+    const send = vi.fn<typeof fetch>();
+    vi.stubGlobal("fetch", send);
+
+    const response = await netlifyHandler(new Request(gateway + MCP_PATH));
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(send).not.toHaveBeenCalled();
+  });
+});
 
 describe("the public MCP gateway", () => {
   it.each(["/", "/mcp/", "/mcp/anything", "/api/groups", "/invite/demo"])(
