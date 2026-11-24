@@ -4,6 +4,7 @@ import { expect, it, vi } from "vitest";
 import { scrollNativeListToEnd } from "@/test/nativeListGeometry";
 import {
   ContactsFixture,
+  changeContactsAppState,
   contactPress,
   contactsApi,
   contactsBoundary,
@@ -12,7 +13,6 @@ import {
   contactTab,
   fixtureJson,
   fixtureUser,
-  foregroundContacts,
   inviteLink,
   renderContacts,
 } from "./contactsScreenFixture";
@@ -91,7 +91,7 @@ it("opens settings after repeated denials and refreshes actual OS permission on 
   await waitFor(() => expect(settings).toHaveBeenCalledOnce());
   expect(contactsBoundary.requestPermissions).not.toHaveBeenCalled();
   grant();
-  await foregroundContacts();
+  await changeContactsAppState("active");
   expect(await screen.findByText("Unregistered Friend")).toBeVisible();
   expect(contactsBoundary.storage.has("contacts_denials")).toBe(false);
   expect(screen.queryByRole("button", { name: "Add contacts" })).toBeNull();
@@ -101,7 +101,7 @@ it("opens settings after repeated denials and refreshes actual OS permission on 
     canAskAgain: false,
     expires: "never",
   };
-  await foregroundContacts();
+  await changeContactsAppState("active");
   await waitFor(() => expect(screen.queryByText("Unregistered Friend")).toBeNull());
   expect(screen.getByRole("button", { name: "Add contacts" })).toBeEnabled();
   expect(
@@ -406,20 +406,29 @@ it("keeps private contacts unread during pending auth, rejected token recovery a
   expect(privateContactReads()).toEqual([]);
 });
 
-it("drops a late token issued to a session that signed out during authentication", async () => {
-  let finish: (token: string) => void = () => {};
-  const pendingToken = new Promise<string>((resolve) => {
-    finish = resolve;
-  });
-  contactsBoundary.getToken.mockImplementation(() => pendingToken);
-  const view = await renderContacts();
-  await waitFor(() => expect(contactsBoundary.getToken).toHaveBeenCalled());
-  contactsBoundary.signedIn = false;
-  await view.rerender(<ContactsFixture />);
-  await act(() => finish("late-former-owner-token"));
-  expect(privateContactReads()).toEqual([]);
-  expect(contactsFixture.writes.filter(({ path }) => path === "/api/users/presence")).toEqual([]);
-});
+it.each(["response", "rejection"] as const)(
+  "drops a late authentication %s issued to a session that already signed out",
+  async (outcome) => {
+    let finish!: (token: string) => void;
+    let fail!: (reason: Error) => void;
+    const pendingToken = new Promise<string>((resolve, reject) => {
+      finish = resolve;
+      fail = reject;
+    });
+    contactsBoundary.getToken.mockImplementation(() => pendingToken);
+    const view = await renderContacts();
+    await waitFor(() => expect(contactsBoundary.getToken).toHaveBeenCalled());
+    contactsBoundary.signedIn = false;
+    await view.rerender(<ContactsFixture />);
+    await act(() => {
+      if (outcome === "response") finish("late-former-owner-token");
+      else fail(new Error("Former session token unavailable"));
+    });
+    expect(privateContactReads()).toEqual([]);
+    expect(contactsFixture.writes.filter(({ path }) => path === "/api/users/presence")).toEqual([]);
+    expect(screen.queryByText("Could not load contacts")).toBeNull();
+  },
+);
 
 it("reuses native permission granted while the in-app consent prompt was open", async () => {
   devices();
@@ -602,48 +611,55 @@ it("rechecks delayed Android permission on foreground after an earlier lookup er
     .mockResolvedValueOnce(contactsBoundary.permission);
   grant();
   contactsBoundary.deleteSecret.mockRejectedValueOnce(new Error("Denial history unavailable"));
-  await foregroundContacts();
+  await changeContactsAppState("active");
   expect(await screen.findByText("Unregistered Friend", {}, { timeout: 3600 })).toBeVisible();
   expect(contactsBoundary.requestPermissions).not.toHaveBeenCalled();
   expect(syncWrites()).toHaveLength(1);
 });
 
-it("keeps a manual native scan failure retryable even when the platform rejects with a string", async () => {
-  devices();
-  await renderContacts();
-  await contactsReady();
-  await deviceTab();
-  contactsBoundary.permissionOnRequest = {
-    granted: true,
-    status: "granted",
-    expires: "never",
-    canAskAgain: true,
-  };
-  contactsBoundary.deleteSecret.mockRejectedValueOnce(new Error("Denial history unavailable"));
-  contactsBoundary.readContacts.mockRejectedValueOnce("Address book temporarily unavailable");
-  await consent();
-  const retry = "Could not synchronize contacts. Retry";
-  expect(await screen.findByRole("button", { name: retry })).toBeEnabled();
-  expect(syncWrites()).toEqual([]);
-  expect(contactsBoundary.report).toHaveBeenCalledWith("Address book temporarily unavailable", {
-    tags: { operation: "contacts.sync", stage: "read" },
-  });
-  await contactPress(retry);
-  expect(await screen.findByText("Unregistered Friend")).toBeVisible();
-  expect(syncWrites()).toHaveLength(1);
-});
+it.each([new Error("Native address-book read failed"), "Address book temporarily unavailable"])(
+  "keeps a manual native scan failure retryable: %s",
+  async (failure) => {
+    devices();
+    await renderContacts();
+    await contactsReady();
+    await deviceTab();
+    contactsBoundary.permissionOnRequest = {
+      granted: true,
+      status: "granted",
+      expires: "never",
+      canAskAgain: true,
+    };
+    contactsBoundary.deleteSecret.mockRejectedValueOnce(new Error("Denial history unavailable"));
+    contactsBoundary.readContacts.mockRejectedValueOnce(failure);
+    await consent();
+    const retry = "Could not synchronize contacts. Retry";
+    expect(await screen.findByRole("button", { name: retry })).toBeEnabled();
+    expect(syncWrites()).toEqual([]);
+    expect(contactsBoundary.report).toHaveBeenCalledWith(failure, {
+      tags: { operation: "contacts.sync", stage: "read" },
+    });
+    await contactPress(retry);
+    expect(await screen.findByText("Unregistered Friend")).toBeVisible();
+    expect(syncWrites()).toHaveLength(1);
+  },
+);
 
-it("discards an expired native contact page and its errors after permission is revoked", async () => {
+it("restores the address-book consent action when OS permission is revoked during the first native display page", async () => {
   grant();
   devices();
+  const oldDevices = [...contactsFixture.devices];
   const fault = new Error("Old private page cancelled");
   let rejectPage!: (reason: unknown) => void;
+  let held = false;
   contactsBoundary.readContacts.mockImplementation(
     async (_fields, page: { limit: number; offset: number }) => {
-      if (page.limit === 40)
+      if (page.limit === 40 && !held) {
+        held = true;
         return new Promise((_, reject) => {
           rejectPage = reject;
         });
+      }
       return contactsFixture.devices.slice(page.offset, page.offset + page.limit);
     },
   );
@@ -651,20 +667,32 @@ it("discards an expired native contact page and its errors after permission is r
   await contactsReady();
   await deviceTab();
   await waitFor(() => expect(rejectPage).toBeTypeOf("function"));
+  expect(syncWrites()).toHaveLength(1);
   contactsBoundary.permission = {
     granted: false,
     status: "denied",
     expires: "never",
     canAskAgain: false,
   };
-  await foregroundContacts();
-  expect(await screen.findByRole("button", { name: "Add contacts" })).toBeEnabled();
+  await changeContactsAppState("active");
+  expect(
+    await screen.findByRole("button", { name: "Add contacts", disabled: false }),
+  ).toBeEnabled();
+  contactsFixture.devices = [{ ...oldDevices[1], fullName: "Newly authorized contact" }];
+  grant();
+  await contactPress("Add contacts");
+  await contactPress("Yes");
+  await waitFor(() => expect(screen.queryByRole("button", { name: "Add contacts" })).toBeNull());
+  expect(syncWrites()).toHaveLength(1);
+
   await act(() => rejectPage(fault));
-  expect(screen.queryByText("Unregistered Friend")).toBeNull();
+  expect(await screen.findByText("Newly authorized contact")).toBeVisible();
   expect(
     screen.queryByRole("button", { name: "Could not synchronize contacts. Retry" }),
   ).toBeNull();
   expect(contactsBoundary.report).not.toHaveBeenCalledWith(fault, expect.anything());
+  expect(screen.queryByText("Unregistered Friend")).toBeNull();
+  expect(syncWrites()).toHaveLength(2);
 });
 
 it("refreshes presence with the current token and stops writing when the session cannot refresh", async () => {
@@ -736,8 +764,8 @@ it("coalesces repeated foreground refreshes behind an in-flight native contact p
   );
   expect(syncWrites()).toHaveLength(1);
 
-  await foregroundContacts();
-  await foregroundContacts();
+  await changeContactsAppState("active");
+  await changeContactsAppState("active");
   expect(syncWrites()).toHaveLength(1);
   await act(() => finish([{ ...contactsFixture.devices[40], fullName: "Stale native contact" }]));
   await waitFor(() => expect(syncWrites()).toHaveLength(2));
@@ -745,20 +773,65 @@ it("coalesces repeated foreground refreshes behind an in-flight native contact p
   expect(screen.queryByText("Stale native contact")).toBeNull();
 });
 
-it("ignores the SDK permission result when its original contacts screen was unmounted", async () => {
-  let finish!: (permission: typeof contactsBoundary.permission) => void;
-  contactsBoundary.permissions.mockImplementationOnce(
-    () =>
-      new Promise((resolve) => {
-        finish = resolve;
-      }),
-  );
-  const view = await renderContacts();
-  await waitFor(() => expect(contactsBoundary.permissions).toHaveBeenCalledOnce());
-  await view.unmount();
+it.each(["answer", "failure"] as const)(
+  "ignores the OS permission %s after its original contacts owner unmounts",
+  async (outcome) => {
+    let finish!: (permission: typeof contactsBoundary.permission) => void;
+    let fail!: (reason: Error) => void;
+    contactsBoundary.permissions.mockImplementationOnce(
+      () =>
+        new Promise((resolve, reject) => {
+          finish = resolve;
+          fail = reject;
+        }),
+    );
+    const view = await renderContacts();
+    await waitFor(() => expect(contactsBoundary.permissions).toHaveBeenCalledOnce());
+    await view.unmount();
+    grant();
+    await act(() => {
+      if (outcome === "answer") finish(contactsBoundary.permission);
+      else fail(new Error("Old contacts permission could not be read"));
+    });
+    expect(contactsBoundary.requestPermissions).not.toHaveBeenCalled();
+    expect(contactsBoundary.readContacts).not.toHaveBeenCalled();
+    expect(syncWrites()).toEqual([]);
+  },
+);
+
+it("defers address-book refresh while inactive or backgrounded and loads only on actual foreground entry", async () => {
+  devices();
+  await renderContacts();
+  await contactsReady();
+  await deviceTab();
+  expect(screen.getByRole("button", { name: "Add contacts" })).toBeEnabled();
+  contactsBoundary.permissions.mockClear();
+
   grant();
-  await act(() => finish(contactsBoundary.permission));
-  expect(contactsBoundary.requestPermissions).not.toHaveBeenCalled();
+  await changeContactsAppState("inactive");
+  await changeContactsAppState("background");
+  expect(contactsBoundary.permissions).not.toHaveBeenCalled();
   expect(contactsBoundary.readContacts).not.toHaveBeenCalled();
   expect(syncWrites()).toEqual([]);
+  expect(screen.queryByText("Unregistered Friend")).toBeNull();
+
+  await changeContactsAppState("active");
+  expect(await screen.findByText("Unregistered Friend")).toBeVisible();
+  expect(contactsBoundary.permissions).toHaveBeenCalledOnce();
+  expect(contactsBoundary.requestPermissions).not.toHaveBeenCalled();
+  expect(syncWrites()).toHaveLength(1);
+  expect(screen.queryByRole("button", { name: "Add contacts" })).toBeNull();
+});
+
+it("keeps private suggestions and address-book sync disabled for a loaded session without a fresh token", async () => {
+  grant();
+  devices();
+  contactsBoundary.token = null;
+  await renderContacts();
+  await waitFor(() => expect(contactsBoundary.getToken).toHaveBeenCalled());
+  expect(privateContactReads()).toEqual([]);
+  expect(syncWrites()).toEqual([]);
+  expect(contactsBoundary.readContacts).not.toHaveBeenCalled();
+  expect(screen.queryByText("Unregistered Friend")).toBeNull();
+  expect(contactsFixture.writes.filter(({ path }) => path === "/api/users/presence")).toEqual([]);
 });

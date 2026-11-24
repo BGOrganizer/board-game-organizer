@@ -393,9 +393,9 @@ export async function contactTab(tab: string) {
 export async function contactPress(name: string) {
   await userEvent.setup().press(screen.getByRole("button", { name }));
 }
-export async function foregroundContacts() {
+export async function changeContactsAppState(state: AppStateStatus) {
   await act(async () => {
-    for (const listener of listeners) listener("active");
+    for (const listener of listeners) listener(state);
   });
 }
 export function socialWrites() {

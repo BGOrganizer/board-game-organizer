@@ -355,8 +355,10 @@ function ContactsContent() {
             );
           }
         } finally {
-          if (generation === deviceGenerationRef.current) setSyncingContacts(false);
-          contactsSyncRef.current = null;
+          if (generation === deviceGenerationRef.current) {
+            setSyncingContacts(false);
+            contactsSyncRef.current = null;
+          }
         }
       })();
       contactsSyncRef.current = sync;
@@ -449,13 +451,17 @@ function ContactsContent() {
         const permission = await Contacts.getPermissionsAsync();
         if (!permission.granted) {
           deviceGenerationRef.current += 1;
-          if (userId)
+          contactsSyncRef.current = null;
+          if (userId) {
             queryClient.removeQueries({ queryKey: ["device-contacts", apiUrl(), userId] });
+            queryClient.removeQueries({ queryKey: ["contact-sync", apiUrl(), userId] });
+          }
           deviceHasMoreRef.current = false;
           deviceMatchesRef.current = null;
           setUnregistered([]);
           setHasMoreDeviceContacts(false);
           setLoadingDevicePage(false);
+          setSyncingContacts(false);
           setContactsReadError(false);
           initialSyncRef.current = false;
           setContactsPermission("denied");

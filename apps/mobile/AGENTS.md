@@ -41,7 +41,8 @@ to `POST /api/contacts/sync`; persist only unambiguous registered matches in `co
 discard unmatched address-book values. Repeated denials lead to an open-settings path, not silent
 permission loops. After every native permission action and whenever the app returns active from
 system settings, re-read the native permission and refresh permission-gated UI immediately; never
-rely on stale local permission state. When mobile notification permission is askable, pressing the
+rely on stale local permission state. Revoking the address-book grant retires the pending sync and
+restores the consent action. When mobile notification permission is askable, pressing the
 notification bell requests it directly; do not add a second enable button.
 
 HeroUI Native Skeleton has no intrinsic size. Give each skeleton explicit width, height, and border
