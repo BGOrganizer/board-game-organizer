@@ -1,3 +1,7 @@
+export function isProductionInviteDeployment() {
+  return process.env.VERCEL_ENV === "production" || process.env.BGO_NETLIFY_STAGE === "production";
+}
+
 /** Public fingerprints from verified EAS APKs; update on signing-key changes. */
 export function appLinkAssociation(production: boolean) {
   const development = {

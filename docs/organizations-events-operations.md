@@ -431,8 +431,8 @@ reuses stale mobile inputs, skips quality/cleanup gates or changes E2E enablemen
 
 Android invitation App Links use the stable public `api.board-game-organizer.com` domain with
 separate native path filters: Production `/invite/`, Development `/development/invite/`.
-The Production `/.well-known/assetlinks.json` contains both existing public APK signing-certificate
-SHA-256 identities; Preview associations contain Development only. Key rotation or Google Play App
+On Vercel and Netlify, Production `/.well-known/assetlinks.json` contains both existing public APK
+signing-certificate SHA-256 identities. Preview associations contain Development only. Key rotation or Google Play App
 Signing requires updating the fingerprint from the actual distributed signing certificate.
 The domain association must return HTTP 200 JSON without authentication or redirects. Installing
 these native filters requires a fresh APK; OTA cannot add them. Install after the public association

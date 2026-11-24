@@ -1,4 +1,5 @@
 import { ClerkProvider } from "@clerk/nextjs";
+import { isProductionInviteDeployment } from "@/app/lib/invites/app-link-association";
 import { InviteAppLink } from "./InviteAppLink";
 import { InviteLanding } from "./InviteLanding";
 import { InviteProviders } from "./InviteProviders";
@@ -13,8 +14,7 @@ export const dynamic = "force-dynamic";
 export default async function InvitePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
-  const production =
-    process.env.VERCEL_ENV === "production" || process.env.BGO_NETLIFY_STAGE === "production";
+  const production = isProductionInviteDeployment();
   return (
     <ClerkProvider publishableKey={publishableKey}>
       <InviteProviders>
