@@ -1,4 +1,5 @@
 const asynchronousScenarios = new Set([
+  "EventVoteButtons and OptionVoteVoters: switch protected voter sections without casting a vote",
   "EventPlayerRatingPopover: retain the current rating popover through an authoritative update",
   "actual event wizard recovery: restore the rejected local draft without resubmitting it",
   "EventDetail: cached Participants and Tables entry and reentry keeps the event header",

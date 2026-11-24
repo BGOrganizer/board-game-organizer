@@ -16,7 +16,6 @@ import { createRequire } from "node:module";
 import { hostname } from "node:os";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import ts from "typescript";
 
 const initialMain = "466220e26f672ad8de644e0a2c2ce223f02879df";
 const pausedMain = "13c84d3e9b3c17e6e817dd8685a97824336d17aa";
@@ -147,19 +146,25 @@ function verifyCheckout(root, expectedRef, execute) {
 }
 
 function webInstrumentationHash(file) {
+  // The existing Expo-pinned TypeScript exposes the source parser; the root TypeScript CLI does not.
+  const typescript = createRequire(
+    resolve(dirname(fileURLToPath(import.meta.url)), "../../apps/mobile/package.json"),
+  )("typescript");
   const source = readFileSync(file, "utf8");
-  const syntax = ts.createSourceFile(file, source, ts.ScriptTarget.Latest);
-  const exported = syntax.statements.find(ts.isExportAssignment)?.expression;
-  const config = exported && ts.isCallExpression(exported) ? exported.arguments[0] : undefined;
+  const syntax = typescript.createSourceFile(file, source, typescript.ScriptTarget.Latest);
+  const exported = syntax.statements.find(typescript.isExportAssignment)?.expression;
+  const config =
+    exported && typescript.isCallExpression(exported) ? exported.arguments[0] : undefined;
   const field = (object, key) =>
-    object && ts.isObjectLiteralExpression(object)
+    object && typescript.isObjectLiteralExpression(object)
       ? object.properties.find(
-          (property) => ts.isPropertyAssignment(property) && property.name.getText(syntax) === key,
+          (property) =>
+            typescript.isPropertyAssignment(property) && property.name.getText(syntax) === key,
         )?.initializer
       : undefined;
   const coverage = field(field(config, "test"), "coverage");
   // The exact performance configuration is hashed separately and disables coverage.
-  if (!coverage || !ts.isObjectLiteralExpression(coverage)) return hash(source);
+  if (!coverage || !typescript.isObjectLiteralExpression(coverage)) return hash(source);
   return hash(`${source.slice(0, coverage.getStart(syntax))}{}${source.slice(coverage.end)}`);
 }
 

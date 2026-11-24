@@ -116,7 +116,7 @@ reported by the comparison jobs.
 
 Calibrate commit-count ceilings from repeated runs with the same fixtures. Both suites record
 explicit scenario ceilings in `apps/{web,mobile}/performance/renderCommitBudgets.ts` and reject
-additional commits, unknown scenarios and invalid samples. Four calibrated asynchronous journeys
+additional commits, unknown scenarios and invalid samples. Five calibrated asynchronous journeys
 allow one of ten samples to exceed its ceiling by one commit. The mean may increase by at most
 0.1 in those cases. Repeated or larger excesses still fail. Recheck a changed scenario before updating its
 ceiling; do not raise budgets merely to obtain a passing run. Duration samples remain recorded
