@@ -488,8 +488,9 @@ reachable Web page on the exact deploys. A verified Vercel pair stays preferred 
 deployment uses Netlify. Enabled deploy tests use the selected pair. A missing healthy pair fails
 the relevant gate. Quality, artifact validation and release publication checks still apply.
 
-The `board-game-organizer` Netlify team owns eight unlinked projects, one each for API, Web,
-Site and MCP in Development and Production. Provision them as `bgo-<api|web|site|mcp>-<development|production>`.
+Netlify uses eight unlinked projects, one each for API, Web, Site and MCP in Development and
+Production. The default team slug is `board-game-organizer`. Set `NETLIFY_TEAM_SLUG` in the matching
+GitHub environment to use another team with the configured project names. Provision them as `bgo-<api|web|site|mcp>-<development|production>`.
 For API and Web, use Infisical Netlify Secret Sync with the matching source, site and context.
 Specify the site so the sync applies only to that project. The context names below match the
 Netlify CLI build contexts. The first Development deploy must also pass runtime attestation.
@@ -541,3 +542,38 @@ Isolated Netlify deploys have separate aliases and must attest the exact run/att
 With PR E2E disabled, a Netlify fallback verifies readiness without seeding fixtures. If E2E
 is enabled, the selected isolated deployment owns fixtures, and Netlify fixture writes require
 the trusted default-branch cleanup controller to support Netlify ownership verification.
+
+### Scaffold hosting projects
+
+Run **Scaffold hosting projects** from GitHub Actions on Main, selecting a provider (or both) and
+one environment. The workflow creates missing projects with the existing names and verifies that
+the selected team owns them. Existing projects are checked for ownership. Provider tokens come
+from the matching GitHub environment, populated by the existing Infisical `/github` sync.
+
+| GitHub environment | Infisical credentials source | Target |
+| --- | --- | --- |
+| `development` | `staging /github` | Netlify Development projects and Vercel Preview projects |
+| `production` | `prod /github` | Netlify Production projects and Vercel Production projects |
+
+- For Netlify, sync `NETLIFY_AUTH_TOKEN` and use `NETLIFY_TEAM_SLUG` when the team differs from the default.
+  Netlify project names are global because they determine the site URL. The workflow stops if a
+  required name belongs to another team. The projects inherit the team's visitor-access defaults.
+  Set the preview and published deploy visibility as described above in the Netlify dashboard.
+  The committed `netlify.toml` files and the MCP build own the deploy settings.
+- For Vercel, sync `VERCEL_TOKEN`, `VERCEL_ORG_ID` and the destination team's `VERCEL_PROTECTION_BYPASS`.
+  New `api`, `web`, `site` and `bgo-mcp-<environment>` projects use Node 26 and the repository deploy
+  configuration. API, Site and MCP use Standard Protection. The Web project follows its existing
+  public access policy. The configured CI bypass is installed on the new API and Site projects.
+  If a create succeeded but a provider settings request failed, finish the reported setup in the
+  project dashboard. Subsequent runs preserve existing provider settings.
+- After creation, attach the API and Web Infisical syncs to the new provider project and context.
+  Vercel uses Preview for staging and Production for prod. Store the destination Vercel project IDs
+  as `VERCEL_API_PROJECT_ID`, `VERCEL_WEB_PROJECT_ID` and `VERCEL_SITE_PROJECT_ID` in the matching
+  Infisical GitHub sync. Set the environment variable `VERCEL_MCP_GATEWAY_PROJECT_ID` for the gateway.
+  Follow the [existing gateway](mcp-apps.md#gateway-deployment) and
+  [Site](../apps/site/README.md#vercel-and-github-actions) setup for their initial deployment.
+
+Scaffolding and traffic cutover are separate operations. It creates unlinked projects and applies
+the supported provider settings to new projects. Existing domains, DNS, Clerk, and Infisical
+connections remain under the operator's control. Activate deployment only with the matching
+project credentials and complete a successful smoke test before changing public routing.

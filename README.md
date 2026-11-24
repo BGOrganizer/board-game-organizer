@@ -166,6 +166,7 @@ or permission. Native cache retention, build requirements and implementation rul
 - [Public Site](apps/site/README.md) | local preview, localization and deployment.
 - [MCP Apps](docs/mcp-apps.md) | OAuth, API tools and HeroUI widgets for compatible chatbots.
 - [Operations](docs/organizations-events-operations.md) | environment isolation, deployment gates and [Vercel and Netlify deployment with CI fallback](docs/organizations-events-operations.md#vercel-preflight-and-netlify-fallback).
+- [Hosting project setup](docs/organizations-events-operations.md#scaffold-hosting-projects) | create missing Vercel or Netlify projects using the manual GitHub workflow.
 - [Verification requirements](docs/implementation-progress.md) | required checks and evidence limits.
 - [Mascot and app artwork](docs/branding.md) | source assets and platform exports.
 

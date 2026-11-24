@@ -355,7 +355,10 @@ git log --show-signature -1
 Check the configured Vercel team before running its deploy jobs. Use Netlify as the fallback for
 blocked or unverified Vercel deployments. Keep provider credentials scoped to their GitHub and
 Infisical environments and attest the deployed database before directing traffic. Run deploy
-checks against the selected API/Web pair. See
+checks against the selected API/Web pair.
+Use the [manual hosting scaffold](docs/organizations-events-operations.md#scaffold-hosting-projects)
+to create missing projects in the selected team. Scope tokens through the environment's Infisical
+sync and keep existing projects, domain assignments and live credentials under their owner. See
 [Vercel preflight and Netlify fallback](docs/organizations-events-operations.md#vercel-preflight-and-netlify-fallback).
 
 Every job using local GitHub actions must checkout first. CI/workflow files and

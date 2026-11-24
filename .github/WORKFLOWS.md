@@ -6,6 +6,7 @@
 | --- | --- | --- |
 | [pr-ci.yml](workflows/pr-ci.yml) | CI | Route branch/PR events, run shared checks, then independent isolated CI and Development publication lanes. |
 | [main-ci.yml](workflows/main-ci.yml) | Release | Verify every merge, serialize version preparation, build the pinned APK, deploy and publish the verified release. |
+| [scaffold-hosting.yml](workflows/scaffold-hosting.yml) | Scaffold hosting projects | Manual Main workflow to create missing, team-owned Netlify or Vercel projects with environment-scoped provider credentials. |
 | [pr-ci-fail-fast.yml](workflows/pr-ci-fail-fast.yml) | CI watchdog | Wait for all mandatory test suites before cancelling remaining work after shared-quality failures; keep lane-specific failures isolated. |
 | [pr-ci-cleanup.yml](workflows/pr-ci-cleanup.yml) | CI cleanup | Recover resources after an unsuccessful PR run, using trusted default-branch code. |
 | [e2e-user-cleanup.yml](workflows/e2e-user-cleanup.yml) | Test users | Hourly/manual orphan cleanup after verifying the owning run has completed. |

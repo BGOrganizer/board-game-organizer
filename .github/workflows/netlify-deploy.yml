@@ -94,6 +94,7 @@ jobs:
           api-client-url: ${{ inputs.api-client-url }}
           web-url: ${{ inputs.web-url }}
           web-client-url: ${{ inputs.web-client-url }}
+          team-slug: ${{ vars.NETLIFY_TEAM_SLUG }}
           netlify-token: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           clerk-secret-key: ${{ inputs.component == 'api' && secrets.CLERK_SECRET_KEY || '' }}
           clerk-publishable-key: ${{ (inputs.component == 'api' || inputs.component == 'web') && vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || '' }}

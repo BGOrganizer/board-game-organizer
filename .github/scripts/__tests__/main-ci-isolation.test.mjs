@@ -11,7 +11,10 @@ const step = (job, name) => jobs[job].steps.find((item) => item.name === name);
 const netlifyWorkflow = "./.github/workflows/netlify-deploy.yml";
 const environmentFor = (file) => (file === "main-ci.yml" ? "production" : "development");
 const scopedEnvironmentFor = (file) =>
-  file === "netlify-deploy.yml" ? "${{ inputs.target }}" : environmentFor(file);
+  ({
+    "netlify-deploy.yml": `\${{ inputs.target }}`,
+    "scaffold-hosting.yml": `\${{ inputs.environment }}`,
+  })[file] ?? environmentFor(file);
 
 test("production APK configuration rejects missing or cross-environment API URLs", () => {
   const source = step("build-apk", "🔒 Require the Production Clerk public key").run.match(

@@ -17,6 +17,9 @@ inputs:
   release-sha:
     description: Prepared release commit, when the Main run created a version
     required: false
+  team-slug:
+    description: Netlify team slug that owns the selected projects
+    required: false
   netlify-token:
     description: Netlify credential for the BGO team
     required: true
@@ -78,6 +81,7 @@ runs:
       shell: bash
       env:
         NETLIFY_AUTH_TOKEN: ${{ inputs.netlify-token }}
+        NETLIFY_TEAM_SLUG: ${{ inputs.team-slug }}
         NETLIFY_CLI_TELEMETRY_DISABLED: '1'
         CLERK_SECRET_KEY: ${{ inputs.clerk-secret-key }}
         NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ inputs.clerk-publishable-key }}

@@ -901,6 +901,7 @@ jobs:
           BYPASS: ${{ needs.select-preview.outputs.provider == 'vercel' && secrets.VERCEL_PROTECTION_BYPASS || '' }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_TEAM_SLUG: ${{ vars.NETLIFY_TEAM_SLUG }}
         run: |
           set -euo pipefail
           if [ "$PROVIDER" = netlify ]; then
@@ -1263,6 +1264,7 @@ jobs:
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           PROVIDER: ${{ needs.select-preview.outputs.provider }}
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_TEAM_SLUG: ${{ vars.NETLIFY_TEAM_SLUG }}
           DB_NAME: ${{ needs.select-preview.outputs.db-name }}
         run: |
           set -euo pipefail

@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+team=${NETLIFY_TEAM_SLUG:-board-game-organizer}
+[[ "$team" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]
+
 target=$BGO_NETLIFY_STAGE
 component=$BGO_NETLIFY_COMPONENT
 isolated=${BGO_NETLIFY_ISOLATED:-false}
@@ -70,9 +73,9 @@ function netlify_api() {
 }
 
 # Resolve only projects belonging to the operator's team. The deploy may never create or relink a site.
-sites=$(netlify_api 'board-game-organizer/sites?per_page=100')
+sites=$(netlify_api "$team/sites?per_page=100")
 function site_id() {
-  jq -er --arg name "$1" '[.[] | select(.name == $name and .account_slug == "board-game-organizer")] |
+  jq -er --arg name "$1" --arg team "$team" '[.[] | select(.name == $name and .account_slug == $team)] |
     if length == 1 then .[0].id else empty end | select(test("^[0-9a-f-]{36}$"))' <<<"$sites"
 }
 
@@ -97,8 +100,8 @@ function verified_permalink() {
 
 function require_published_deploy() {
   local site=$1 id=$2 name=$3
-  netlify_api "sites/$site" | jq -e --arg site "$site" --arg id "$id" --arg name "$name" '
-    .id == $site and .name == $name and .account_slug == "board-game-organizer" and .published_deploy.id == $id
+  netlify_api "sites/$site" | jq -e --arg site "$site" --arg id "$id" --arg name "$name" --arg team "$team" '
+    .id == $site and .name == $name and .account_slug == $team and .published_deploy.id == $id
   ' >/dev/null
 }
 

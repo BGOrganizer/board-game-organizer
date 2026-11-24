@@ -89,7 +89,7 @@ function render_deploy() {
 context=branch-deploy
 if [ "$FIXTURE_STAGE" = production ]; then context=production; fi
 case "$url" in
-  'https://api.netlify.com/api/v1/board-game-organizer/sites?'*)
+  "https://api.netlify.com/api/v1/\${NETLIFY_TEAM_SLUG:-board-game-organizer}/sites?"*)
     jq -cn --arg account "$NETLIFY_ACCOUNT" --arg stage "$FIXTURE_STAGE" '[
       {id:"${apiId}",name:("bgo-api-"+$stage),account_slug:$account},
       {id:"${webId}",name:("bgo-web-"+$stage),account_slug:$account},
@@ -191,6 +191,19 @@ test("Netlify deploys and attests the isolated API before exposing its outputs",
   );
   assert(requests().includes(`${apiAlias}/api/health`));
   assert(!requests().some((url) => url.includes("/api/admin/ci-db")));
+});
+
+test("Netlify limits discovery and deployment to the configured team", (t) => {
+  const { executable, run, requests } = fixture(t);
+  stubIsolatedDeploy(executable);
+  const result = run(actionScript, [], {
+    ...developmentEnv,
+    BGO_NETLIFY_COMPONENT: "api",
+    NETLIFY_TEAM_SLUG: "bgo-alternate",
+    NETLIFY_ACCOUNT: "bgo-alternate",
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert(requests().includes("https://api.netlify.com/api/v1/bgo-alternate/sites?per_page=100"));
 });
 
 test("Netlify Web keeps the attested isolated API alias on a partial rerun", (t) => {
