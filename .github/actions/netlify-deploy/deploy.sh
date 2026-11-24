@@ -14,8 +14,9 @@ case "$target" in
     [[ "$GITHUB_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]]
     [[ "$CLERK_SECRET_KEY" = sk_test_* && "$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" = pk_test_* ]]
     alias="pr-$PR_NUMBER-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
-    flags=(--context deploy-preview --alias "$alias")
+    flags=(--context branch-deploy --alias "$alias")
     domain_prefix="$alias--"
+    deploy_context=branch-deploy
     ;;
   production)
     test "$GITHUB_EVENT_NAME" = push
@@ -24,6 +25,7 @@ case "$target" in
     [[ "$CLERK_SECRET_KEY" = sk_live_* && "$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" = pk_live_* ]]
     flags=(--context production --prod)
     domain_prefix=''
+    deploy_context=production
     ;;
   *) exit 1 ;;
 esac
@@ -73,22 +75,31 @@ else
 fi
 
 function attest_deploy() {
-  local result=$1 expected_site=$2 draft=$3 deploy_id
-  deploy_id=$(jq -er --arg site "$expected_site" \
-    'select(.site_id == $site) | .deploy_id | select(test("^[0-9a-f]{24}$"))' <<<"$result")
-  netlify_api "deploys/$deploy_id" | jq -er --arg site "$expected_site" --arg id "$deploy_id" \
-    --argjson draft "$draft" 'select(.id == $id and .site_id == $site and .state == "ready" and .draft == $draft)
-    | .deploy_ssl_url | select(test("^https://" + $id + "--[a-z0-9-]+[.]netlify[.]app$"))'
+  local result=$1 expected_site=$2 name=$3 context=$4 deploy_id
+  if ! deploy_id=$(jq -er --arg site "$expected_site" \
+    'select(.site_id == $site) | .deploy_id | select(test("^[0-9a-f]{24}$"))' <<<"$result"); then
+    printf 'Netlify CLI returned no verified deploy ID for %s.\n' "$name" >&2
+    return 1
+  fi
+  if ! netlify_api "deploys/$deploy_id" | jq -er --arg site "$expected_site" --arg id "$deploy_id" \
+    --arg name "$name" --arg context "$context" --arg alias "${alias:-}" \
+    -f .github/actions/netlify-deploy/permalink.jq; then
+    printf 'Netlify deploy %s did not match the ready %s deployment for %s.\n' \
+      "$deploy_id" "$context" "$name" >&2
+    return 1
+  fi
 }
 
 function deploy_next() {
-  local app=$1 project_id=$2 draft=false
+  local app=$1 project_id=$2 name="bgo-$1-$target" response
   shift 2
   require_current_source >&2 || return "$?"
-  if [ "$target" = development ]; then draft=true; fi
-  netlify deploy --filter "apps/$app" --site "$project_id" \
-    --message "$SOURCE_SHA" --json "${flags[@]}" "$@" |
-    { response=$(cat); attest_deploy "$response" "$project_id" "$draft"; }
+  if ! response=$(netlify deploy --filter "apps/$app" --site "$project_id" \
+    --message "$SOURCE_SHA" --json "${flags[@]}" "$@"); then
+    printf 'Netlify CLI could not build or deploy %s.\n' "$name" >&2
+    return 1
+  fi
+  attest_deploy "$response" "$project_id" "$name" "$deploy_context"
 }
 
 # Scope browser origins to this Web deploy. Keep the existing application origins from Infisical.
@@ -127,9 +138,9 @@ bun build apps/mcp/netlify-gateway.mts --target=node --format=esm \
   --outfile="$gateway_stage/functions/mcp.mjs"
 require_current_source
 gateway_result=$(cd "$gateway_stage" && netlify deploy --no-build --dir public \
-  --functions functions --site "$gateway_id" --prod --json --message "$SOURCE_SHA" \
+  --functions functions --site "$gateway_id" --prod --context production --json --message "$SOURCE_SHA" \
   --env "BGO_NETLIFY_STAGE=$target" --env "BGO_MCP_UPSTREAM_URL=$api_origin")
-gateway_deploy=$(attest_deploy "$gateway_result" "$gateway_id" false)
+gateway_deploy=$(attest_deploy "$gateway_result" "$gateway_id" "$gateway_site" production)
 curl --fail --silent --show-error --retry 3 --max-time 30 \
   "$gateway_deploy/.well-known/oauth-protected-resource/mcp" |
   jq -e --arg endpoint "https://$gateway_site.netlify.app/mcp" '.resource == $endpoint' >/dev/null

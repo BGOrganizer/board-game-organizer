@@ -489,8 +489,8 @@ Netlify CLI build contexts. The first Development deploy must also pass runtime 
 
 | Infisical source | Netlify destination | Context |
 | --- | --- | --- |
-| `staging /api` | `bgo-api-development` | `DeployPreview` |
-| `staging /web` | `bgo-web-development` | `DeployPreview` |
+| `staging /api` | `bgo-api-development` | `BranchDeploy` |
+| `staging /web` | `bgo-web-development` | `BranchDeploy` |
 | `prod /api` | `bgo-api-production` | `Production` |
 | `prod /web` | `bgo-web-production` | `Production` |
 
@@ -504,7 +504,9 @@ need API or database credentials. In each GitHub environment, set:
 - In Development, `BGO_NETLIFY_MCP_GATEWAY_PR_NUMBER` selects the PR authorized to publish the
   stable Netlify gateway. Vercel uses its own PR selector.
 
-PR drafts use one alias per PR, run and attempt. The Web build points to that API and the Site
+Netlify classifies CLI deployments with aliases as branch deploys. They use one alias per PR, run and
+attempt. The deploy API reports the alias as `deploy_ssl_url`; the CI derives the immutable permalink
+from the verified deploy ID and project name. The Web build points to that API and the Site
 points to that Web deployment. The API allows that exact Web origin in addition to the existing
 environment configuration. The Main Site sign-in and Production widget links use the canonical
 Web domain for Clerk Production. Browser smoke at `netlify.app` is unauthenticated. Authenticated
@@ -512,6 +514,11 @@ Production acceptance requires a verified BGO subdomain configured for the match
 The separate MCP URL is `https://bgo-mcp-<development|production>.netlify.app/mcp`; register that
 exact audience in the matching Clerk instance before using it. The endpoint exposes only MCP
 transport and OAuth discovery and forwards to its own Netlify API without provider bypass.
+
+Netlify's visitor access settings control reachability independently of Clerk. Public preview
+access on the dedicated Development API, Web and Site projects lets GitHub Actions and testers
+reach those deployments. The Development MCP gateway's published URL requires public published
+deploy access for external MCP clients. BGO authorization remains enforced by the application.
 
 The Netlify projects use provider hostnames until an operator changes DNS. The existing
 production domains, Clerk webhook URLs and Inngest registration continue to route through
