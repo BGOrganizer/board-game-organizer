@@ -1,3 +1,5 @@
+import type { EventProposalResponse } from "@board-game-organizer/schemas";
+import { CommunityApiError, eventRecordKeys } from "@board-game-organizer/shared";
 import type { AndroidNativeProps } from "@react-native-community/datetimepicker";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, userEvent, waitFor } from "@testing-library/react-native";
@@ -40,12 +42,14 @@ const table = { ...plannedTable, allowParticipantGames: true, canProposeGames: t
 const proposalPath = `/api/events/${event.id}/proposals`;
 let client: QueryClient;
 let writeResponse: Promise<Response> | undefined;
+let receipts: EventProposalResponse[];
 const writes: { input: unknown; authorization: string | null }[] = [];
 
 beforeEach(() => {
   vi.clearAllMocks();
   writes.length = 0;
   writeResponse = undefined;
+  receipts = [];
   client = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: Infinity } },
   });
@@ -69,7 +73,7 @@ beforeEach(() => {
         eventVersion: event.version,
         mode: "mine",
         nextCursor: null,
-        items: [],
+        items: receipts,
       });
     }),
   );
@@ -154,5 +158,66 @@ it.each([
     pathname: "/event/proposal",
     params: { eventId: event.id, kind, ...(kind === "game" ? { tableId: table.id } : {}) },
   });
+  expect(writes).toHaveLength(0);
+});
+
+it("keeps an uncertain proposal non-retriable and replaces it only after a correlated source read", async () => {
+  const clientRequestId = "55555555-5555-4555-8555-555555555555";
+  const payload = { kind: "date", day: "2030-06-05", startTime: "18:15" } as const;
+  const error = new CommunityApiError(503, "Verification still unavailable");
+  client.getMutationCache().build(
+    client,
+    {
+      mutationKey: [
+        ...eventRecordKeys.mutation({ apiUrl, userId: "proposer" }, event.id, "propose"),
+        "date",
+        null,
+      ],
+    },
+    {
+      context: { operation: { uncertain: true } },
+      data: undefined,
+      error,
+      failureCount: 1,
+      failureReason: error,
+      isPaused: false,
+      status: "error",
+      submittedAt: Date.now(),
+      variables: {
+        clientRequestId,
+        eventVersion: event.version,
+        payload,
+        clientLabel: "Uncertain date",
+      },
+    },
+  );
+  await render(<Fixture kind="date" />);
+  expect(await screen.findByText("Checking saved changes")).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Review unsent proposal" })).toBeNull();
+  expect(writes).toHaveLength(0);
+  const id = "66666666-6666-4666-8666-666666666666";
+  receipts = [
+    {
+      id,
+      eventId: event.id,
+      groupId: event.groupId,
+      version: 1,
+      submittedEventVersion: event.version,
+      authorName: "Owner",
+      userId: "proposer",
+      clientRequestId,
+      status: "PENDING",
+      payload,
+      label: "Verified date",
+      createdAt: event.createdAt,
+      updatedAt: event.updatedAt,
+    },
+  ];
+  await act(async () => {
+    await client.refetchQueries();
+  });
+  expect(await screen.findByTestId(`event-proposal-${id}`)).toBeOnTheScreen();
+  expect(screen.queryByText("Checking saved changes")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Review unsent proposal" })).toBeNull();
   expect(writes).toHaveLength(0);
 });

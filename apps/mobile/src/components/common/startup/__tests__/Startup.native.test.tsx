@@ -33,6 +33,7 @@ type Session = {
   sessionId: string | null;
   mobileNumber: string | undefined;
   pathname: string;
+  getToken?: () => Promise<string>;
 };
 const initialSession: Session = {
   loaded: true,
@@ -53,7 +54,7 @@ vi.mock("@clerk/expo", () => ({
       isSignedIn: options?.treatPendingAsSignedOut === false ? session.restored : session.active,
       userId: session.userId,
       sessionId: session.sessionId,
-      getToken: boundary.token,
+      getToken: session.getToken ?? boundary.token,
     };
   },
   useUser: () => {
@@ -470,4 +471,23 @@ it("rejects late granted-contact callbacks after unmount without recreating priv
   expect(client.getQueryData(["device-contacts", API, "startup-owner"])).toBeUndefined();
   expect(client.getQueryData(["contact-sync", API, "startup-owner"])).toBeUndefined();
   expect(boundary.removeNotifications).toHaveBeenCalledOnce();
+});
+
+it("does not restart settled startup work when Clerk supplies a new token getter for the same session", async () => {
+  const startedAt = Date.now();
+  const view = await render(<Fixture startedAt={startedAt} />);
+  await waitFor(() => {
+    expect(client.getQueryData(relationshipListKey(API, "startup-owner", "blocked"))).toBeDefined();
+    expect(client.isFetching()).toBe(0);
+  });
+  const prior = calls.length;
+  const permissionReads = boundary.permission.mock.calls.length;
+  const freshToken = vi.fn(async () => "fixture-renewed");
+  await view.rerender(
+    <Fixture startedAt={startedAt} session={{ ...initialSession, getToken: freshToken }} />,
+  );
+  expect(calls).toHaveLength(prior);
+  expect(freshToken).not.toHaveBeenCalled();
+  expect(boundary.permission).toHaveBeenCalledTimes(permissionReads);
+  expect(boundary.hideSplash).toHaveBeenCalled();
 });

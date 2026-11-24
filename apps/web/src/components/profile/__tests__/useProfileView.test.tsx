@@ -578,3 +578,41 @@ it("bounds rated-game choices and earlier points independently while preserving 
   view.unmount();
   client.clear();
 });
+
+it.each([false, true])(
+  "invalidates obsolete shared-collection comparisons when the owner snapshot becomes available=%s",
+  async (published) => {
+    const { client, options, wrapper } = setup();
+    const ownProfileKey = profileViewKeys.view(options, "owner");
+    const account = ["bgg-account", options.apiUrl, options.userId];
+    const compares = (commonSnapshot?: string) =>
+      bggCollectionQuery({
+        ...options,
+        subjectId: "friend",
+        snapshot: "friend-collection",
+        commonSnapshot,
+        query: "",
+      }).queryKey;
+    const oldComparison = compares("old-owner-snapshot");
+    const newComparison = compares("live-owner-snapshot");
+    const friendCollection = compares();
+    const existing = { pages: [], pageParams: [] };
+    for (const key of [account, oldComparison, newComparison, friendCollection]) {
+      client.setQueryData(key, existing);
+    }
+    client.setQueryData(ownProfileKey, {
+      ...data,
+      collection: published ? { snapshot: "live-owner-snapshot" } : null,
+    });
+
+    const { result, unmount } = renderHook(() => useProfileView(options, "owner"), { wrapper });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    await waitFor(() => expect(client.getQueryData(oldComparison)).toBeUndefined());
+    expect(client.getQueryData(friendCollection)).toEqual(existing);
+    if (published) expect(client.getQueryData(newComparison)).toEqual(existing);
+    else expect(client.getQueryData(newComparison)).toBeUndefined();
+    expect(client.getQueryState(account)?.isInvalidated).toBe(!published);
+    unmount();
+    client.clear();
+  },
+);

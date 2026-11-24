@@ -111,6 +111,7 @@ it("keeps a private draft through real friend-picker cancellation, selection, ex
   fireEvent.click(await screen.findByRole("button", { name: "Select user: Known Friend" }));
   expect(screen.getByText("@friend-player")).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Add friend" }));
+  expect(await screen.findByText("No friends found")).toBeVisible();
   expect(screen.queryByRole("button", { name: "Select user: Known Friend" })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Back" }));
   fireEvent.click(screen.getByRole("button", { name: "Remove invite: Known Friend" }));
@@ -277,3 +278,53 @@ it("shows the persisted public logo and blocks an invalid name on edit before a 
     true,
   );
 });
+
+it.each([null, "https://cdn.example/group-logo.png"])(
+  "restores rejected edits with the existing logo asset even when its preview is %s",
+  async (logo) => {
+    const cache = client();
+    const logoAssetId = "78111111-1111-4111-8111-111111111111";
+    const group = { ...groupRecord, logoAssetId, logo };
+    const writes: Record<string, unknown>[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string, init?: RequestInit) => {
+        if (new URL(input).pathname === `/api/groups/${group.id}`) {
+          if (init?.method === "PATCH") {
+            writes.push(JSON.parse(String(init.body)));
+            return Response.json({ error: "GROUP_NAME_CONFLICT" }, { status: 409 });
+          }
+          return Response.json(group);
+        }
+        return Response.json(readFixture(input));
+      }),
+    );
+    const view = mount(cache, { groupId: group.id });
+    fireEvent.change(await screen.findByRole("textbox", { name: "Group name" }), {
+      target: { value: "Recoverable edit" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() =>
+      expect(
+        cache
+          .getMutationCache()
+          .getAll()
+          .some(({ state }) => state.status === "error"),
+      ).toBe(true),
+    );
+    expect(writes).toEqual([expect.objectContaining({ name: "Recoverable edit", logoAssetId })]);
+    view.unmount();
+    mount(cache, { groupId: group.id });
+    expect(await screen.findByRole("textbox", { name: "Group name" })).toHaveValue(
+      "Recoverable edit",
+    );
+    expect(writes).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() => expect(writes).toHaveLength(2));
+    expect(writes[1]).toMatchObject({
+      name: "Recoverable edit",
+      logoAssetId,
+      version: group.version,
+    });
+  },
+);

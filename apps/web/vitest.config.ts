@@ -112,7 +112,7 @@ export default defineConfig({
         "playwright.config.ts",
         "postcss.config.mjs",
         ".next/**",
-        "coverage/**",
+        fileURLToPath(new URL("./coverage/**", import.meta.url)).replaceAll("\\", "/"),
         "**/__tests__/**",
         "**/*.{test,spec}.{js,cjs,mjs,jsx,ts,cts,mts,tsx}",
         "test-utils.tsx",

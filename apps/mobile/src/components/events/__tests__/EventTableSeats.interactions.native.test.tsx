@@ -99,7 +99,10 @@ beforeEach(() => {
           nextCursor: isPending ? null : cursor,
         });
       }
-      if (url.pathname === `/api/events/${table.eventId}`) return json(plannedEvent);
+      if (url.pathname === `/api/events/${table.eventId}`)
+        return json({ ...plannedEvent, canManage: table.canManage });
+      if (url.pathname === `/api/events/${table.eventId}/tables/${table.id}/guests/${bobId}`)
+        return json({ guestName: "Guest Player", dateVotes: {}, locationVotes: {}, gameVotes: {} });
       if (url.pathname === `/api/events/${table.eventId}/tables/${table.id}`) return json(table);
       if (url.pathname === `/api/events/${table.eventId}/tables`)
         return json({ items: [table], nextCursor: null });
@@ -507,4 +510,40 @@ it("rejects hidden or obsolete roster ends, avoids failed-page loops and retries
   await scrollNativeListToEnd(list, 4600);
   expect(reads.filter((url) => url.searchParams.get("cursor") === cursor)).toHaveLength(2);
   expect(writes).toEqual([]);
+});
+
+it("opens the selected guest ballot from the actual roster and removes controls when manager authority is revoked", async () => {
+  table = {
+    ...table,
+    adminUserId: "owner",
+    canManage: true,
+    groupType: null,
+    gameVoteRequired: true,
+    occupiedSeatIndices: [0],
+    acceptedCount: 1,
+    seatedCount: 1,
+  };
+  accepted = [
+    registration("guest:55555555-5555-4555-8555-555555555555", bobId, {
+      kind: "GUEST",
+      guestName: "Guest Player",
+    }),
+  ];
+  const view = await render(<Fixture />);
+  await ready("@Guest Player");
+  await press("Edit guest votes: Guest Player");
+  const hidden = { includeHiddenElements: true };
+  expect(await screen.findByText("Edit guest votes", hidden)).toBeOnTheScreen();
+  expect(await screen.findByRole("button", { name: "Chess: Yes", ...hidden })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Vote", ...hidden })).toBeDisabled();
+  const guestPath = `/api/events/${table.eventId}/tables/${table.id}/guests/${bobId}`;
+  expect(reads.filter((url) => url.pathname === guestPath)).toHaveLength(1);
+  await view.rerender(<Fixture active={false} />);
+  expect(screen.queryByText("Edit guest votes", hidden)).toBeNull();
+  table = { ...table, canManage: false };
+  await view.rerender(<Fixture />);
+  expect(await screen.findByText("@Guest Player")).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Edit guest votes: Guest Player" })).toBeNull();
+  expect(screen.queryByText("Edit guest votes", hidden)).toBeNull();
+  expect(reads.filter((url) => url.pathname === guestPath)).toHaveLength(1);
 });

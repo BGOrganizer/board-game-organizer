@@ -1025,7 +1025,14 @@ it("renders pending/unavailable agreements, location votes, paging and manual co
     },
   };
   const original = fetcher.getMockImplementation()!;
+  let continuePaging: () => void = () => {
+    throw new Error("Expected a pending table page");
+  };
+  const paging = new Promise<void>((resolve) => {
+    continuePaging = resolve;
+  });
   fetcher.mockImplementation(async (url: string, init?: RequestInit) => {
+    if (url.includes("/tables?") && new URL(url).searchParams.has("cursor")) await paging;
     if (url.includes("/tables?"))
       return new Response(
         JSON.stringify(
@@ -1054,7 +1061,12 @@ it("renders pending/unavailable agreements, location votes, paging and manual co
   expect(screen.queryByText(/Pending invitations still reserve places/)).toBeNull();
   expect(screen.queryByText(/No compatible accepted players/)).toBeNull();
   fireEvent.click(screen.getByRole("tab", { name: "Tables" }));
-  fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+  const loadMore = await screen.findByRole("button", { name: "Load more" });
+  fireEvent.click(loadMore);
+  await waitFor(() => expect(loadMore).toBeDisabled());
+  expect(screen.getByRole("link", { name: "Open table: Table #1" })).toBeVisible();
+  expect(screen.queryByText("No tables found")).toBeNull();
+  await act(() => continuePaging());
   expect(await screen.findByRole("link", { name: "Open table: Table #2" })).not.toBeNull();
   fireEvent.click(screen.getByRole("tab", { name: "Details" }));
   await selectVote(plannedEvent.locations[0].name);

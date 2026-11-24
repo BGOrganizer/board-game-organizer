@@ -1,4 +1,6 @@
 import { groupRecordKeys } from "@board-game-organizer/shared";
+import { setupI18n } from "@lingui/core";
+import { I18nProvider } from "@lingui/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { ReactElement } from "react";
@@ -6,6 +8,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import GroupBanPage from "@/app/(tabs)/groups/[groupId]/ban/page";
 import { groupRecord, plannedEvent } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
+import { messages as italian } from "../../../../../../messages/it.js";
 import { GroupDetail } from "../GroupDetail";
 
 function contactReadResponse(url: string, init?: RequestInit) {
@@ -485,4 +488,62 @@ it("loads the Group members from a moderation deep link after an explicit retry"
   expect(
     fetcher.mock.calls.filter(([url]) => new URL(url).pathname === `/api/groups/${group.id}`),
   ).toHaveLength(2);
+});
+
+it("shows Details when a deep link asks for the Events tab on a group the viewer may not browse", async () => {
+  const reads: URL[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string, init?: RequestInit) => {
+      const url = new URL(input);
+      reads.push(url);
+      if (url.pathname === `/api/groups/${groupRecord.id}`)
+        return Response.json({
+          ...groupRecord,
+          type: "PUBLIC",
+          role: "none",
+          canViewEvents: false,
+          canViewRankings: false,
+          canInvite: false,
+          canEdit: false,
+        });
+      return contactReadResponse(input, init) ?? Response.json({ items: [], nextCursor: null });
+    }),
+  );
+  mount("events");
+  expect(await screen.findByRole("tab", { name: "Details", selected: true })).toBeVisible();
+  expect(screen.queryByRole("tab", { name: "Events" })).toBeNull();
+  expect(screen.queryByRole("tab", { name: "Rankings" })).toBeNull();
+  expect(reads.some((url) => url.pathname === "/api/events")).toBe(false);
+});
+
+it("loads the Italian resource notifications on a localized Group detail", async () => {
+  const fetchNotifications = vi.fn();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string, init?: RequestInit) => {
+      const url = new URL(input);
+      if (url.pathname === `/api/groups/${groupRecord.id}`) return Response.json(groupRecord);
+      if (url.pathname === "/api/notifications/changes") {
+        fetchNotifications(url.searchParams.get("locale"), url.searchParams.get("id"));
+        return Response.json({
+          asOf: groupRecord.createdAt,
+          changes: [],
+          nextCursor: null,
+          tabCounts: { details: 0, members: 0, tables: 0, participants: 0 },
+        });
+      }
+      return contactReadResponse(input, init) ?? Response.json({ items: [], nextCursor: null });
+    }),
+  );
+  const i18n = setupI18n({ locale: "it", messages: { it: italian } });
+  mount(
+    "info",
+    <I18nProvider i18n={i18n}>
+      <GroupDetail groupId={groupRecord.id} />
+    </I18nProvider>,
+  );
+  await waitFor(() => expect(fetchNotifications).toHaveBeenCalledWith("it", groupRecord.id));
+  expect(fetchNotifications).not.toHaveBeenCalledWith("en", groupRecord.id);
+  expect(await screen.findByRole("tab", { name: "Dettagli", selected: true })).toBeVisible();
 });

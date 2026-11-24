@@ -228,7 +228,7 @@ it.each([403, 503])(
       vi.fn(async (input: string, init?: RequestInit) => {
         const url = new URL(input);
         expect(init?.method ?? "GET").toBe("GET");
-        if (url.pathname.endsWith("/votes")) {
+        if (url.pathname.endsWith(`/guests/${encodeURIComponent(guest.id)}`)) {
           responses.push(fail ? status : 200);
           return fail
             ? Response.json({ error: "Guest votes unavailable" }, { status })
@@ -236,7 +236,7 @@ it.each([403, 503])(
         }
         if (url.pathname.endsWith("/seats"))
           return Response.json({
-            items: url.searchParams.get("pending") ? [] : [guest],
+            items: url.searchParams.get("pending") === "true" ? [] : [guest],
             nextCursor: null,
           });
         if (url.pathname === `/api/events/${table.eventId}`)

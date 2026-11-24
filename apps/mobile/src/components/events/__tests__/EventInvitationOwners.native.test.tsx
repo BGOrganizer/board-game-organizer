@@ -650,3 +650,62 @@ it("keeps uncached event restoration distinct from invitation denial before show
   expect(await screen.findByText("@guest")).toBeVisible();
   expect(writes).toEqual([]);
 });
+
+it("explicitly closes an unsent guest draft and resets both inputs without creating a table entry", async () => {
+  await render(<Fixture picker />);
+  const user = userEvent.setup();
+  await user.press(await screen.findByRole("button", { name: "Add a guest" }));
+  await fireEvent.changeText(await screen.findByLabelText("Username"), "Temporary guest");
+  await fireEvent.changeText(screen.getByLabelText("Email"), "temporary@example.test");
+  await user.press(screen.getByRole("button", { name: "Close" }));
+  expect(screen.queryByLabelText("Username")).toBeNull();
+  expect(io.back).not.toHaveBeenCalled();
+  expect(writes).toHaveLength(0);
+
+  await user.press(screen.getByRole("button", { name: "Add a guest" }));
+  expect(await screen.findByLabelText("Username")).toHaveDisplayValue("");
+  expect(screen.getByLabelText("Email")).toHaveDisplayValue("");
+});
+
+it("keeps guest name and optional email after refusal and fences duplicate submit and dismiss while saving", async () => {
+  writeStatus = 422;
+  const { promise, resolve } = deferred();
+  pauseWrite = promise;
+  await render(<Fixture picker />);
+  const user = userEvent.setup();
+  await user.press(await screen.findByRole("button", { name: "Add a guest" }));
+  const name = await screen.findByLabelText("Username");
+  const email = screen.getByLabelText("Email");
+  await fireEvent.changeText(name, " Guest Volunteer ");
+  await fireEvent.changeText(email, " volunteer@example.test ");
+  await user.press(screen.getByRole("button", { name: "Add" }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0]).toMatchObject({
+    method: "POST",
+    path: `/api/events/${event.id}/tables/${table.id}/guests`,
+    body: { name: "Guest Volunteer", email: "volunteer@example.test" },
+  });
+  const close = screen.getByRole("button", { name: "Close" });
+  expect(close).toBeDisabled();
+  await user.press(close);
+  await fireEvent(email, "submitEditing", { nativeEvent: { text: "volunteer@example.test" } });
+  expect(io.back).not.toHaveBeenCalled();
+  expect(writes).toHaveLength(1);
+  await act(() => resolve());
+  expect(await screen.findByText("Could not add guest. Try again.")).toBeOnTheScreen();
+  expect(name).toHaveDisplayValue(" Guest Volunteer ");
+  expect(email).toHaveDisplayValue(" volunteer@example.test ");
+  expect(io.back).not.toHaveBeenCalled();
+  expect(screen.getByRole("button", { name: "Add" })).toBeEnabled();
+
+  writeStatus = 200;
+  await user.press(screen.getByRole("button", { name: "Add" }));
+  await waitFor(() => expect(io.back).toHaveBeenCalledOnce());
+  expect(writes).toHaveLength(2);
+  expect(writes[1].body).toMatchObject({
+    name: "Guest Volunteer",
+    email: "volunteer@example.test",
+  });
+  expect(screen.queryByLabelText("Username")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Select user: Guest Volunteer" })).toBeNull();
+});

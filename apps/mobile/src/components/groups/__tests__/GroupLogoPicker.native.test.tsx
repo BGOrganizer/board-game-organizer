@@ -421,3 +421,43 @@ it("ignores a native media-picker result delivered after its owning component ha
   expect(boundary.feedback.onError).not.toHaveBeenCalled();
   expect(busy).toHaveBeenLastCalledWith(false);
 });
+
+it("never opens the camera if its permission resolves after the logo editor is closed", async () => {
+  let resolvePermission!: (value: typeof boundary.permission) => void;
+  boundary.permissions.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        resolvePermission = resolve;
+      }),
+  );
+  const onChange = vi.fn();
+  const view = await render(<Fixture onChange={onChange} />);
+  await act(() => {
+    for (const listener of listeners) listener("background");
+  });
+  expect(boundary.permissions).not.toHaveBeenCalled();
+  await choose("Camera");
+  await waitFor(() => expect(boundary.permissions).toHaveBeenCalledOnce());
+  await view.unmount();
+  await act(() => resolvePermission({ granted: true, canAskAgain: false }));
+  expect(boundary.camera).not.toHaveBeenCalled();
+  expect(onChange).not.toHaveBeenCalled();
+  expect(writes).toHaveLength(0);
+});
+
+it("keeps a non-Error native picker failure local and gives the same explicit recovery", async () => {
+  boundary.library.mockRejectedValueOnce("native-picker-failure");
+  const onChange = vi.fn();
+  await render(<Fixture onChange={onChange} />);
+  await choose();
+  expect(await screen.findByText("Could not upload logo")).toBeVisible();
+  expect(boundary.feedback.onError).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({ message: "Upload failed" }),
+    "upload_group_logo",
+  );
+  expect(onChange).not.toHaveBeenCalled();
+  expect(writes).toHaveLength(0);
+  await choose();
+  await waitFor(() => expect(onChange).toHaveBeenCalledOnce());
+  expect(screen.queryByText("Could not upload logo")).toBeNull();
+});

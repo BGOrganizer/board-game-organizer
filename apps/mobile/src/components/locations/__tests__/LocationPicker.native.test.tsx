@@ -21,6 +21,7 @@ import {
   Linking,
   View,
 } from "react-native";
+import { Uniwind } from "uniwind";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import {
@@ -659,4 +660,49 @@ it("uses the actual merged location header Back control only when the native sta
   await act(() => boundary.prevented?.());
   expect(close).toHaveBeenCalledOnce();
   expect(useAppStore.getState().pendingLocation).toBeNull();
+});
+
+it("keeps a lost session's address query local and permits a later authenticated search", async () => {
+  boundary.tokenValue = null;
+  const onSelect = vi.fn();
+  await render(<Fixture onSelect={onSelect} />);
+  await fireEvent.changeText(screen.getByTestId("location-address-input"), "Unauthenticated place");
+  expect(await screen.findByText("Could not search addresses")).toBeVisible();
+  expect(searches).toHaveLength(0);
+  expect(screen.queryByTestId("address-result-0")).toBeNull();
+  await confirm();
+  expect(onSelect).not.toHaveBeenCalled();
+
+  boundary.tokenValue = "reconnected-address-token";
+  await search("Reconnected place");
+  expect(screen.queryByText("Could not search addresses")).toBeNull();
+  expect(searches).toEqual([
+    expect.objectContaining({
+      query: "Reconnected place",
+      authorization: "Bearer reconnected-address-token",
+    }),
+  ]);
+});
+
+it("switches the native map style with the app theme without dropping a verified location draft", async () => {
+  const onSelect = vi.fn();
+  try {
+    await act(() => Uniwind.setTheme("light"));
+    await render(<Fixture initial={venue} onSelect={onSelect} />);
+    const map = screen.getByTestId("native-map-boundary");
+    expect(map).toHaveProp(
+      "mapStyle",
+      "https://api.maptiler.com/maps/streets-v4/style.json?key=fixture-public-map-key",
+    );
+    await act(() => Uniwind.setTheme("dark"));
+    expect(map).toHaveProp(
+      "mapStyle",
+      "https://api.maptiler.com/maps/streets-v4-dark/style.json?key=fixture-public-map-key",
+    );
+    expect(screen.getByLabelText("Location name")).toHaveDisplayValue(venue.name);
+    await confirm();
+    expect(onSelect).toHaveBeenCalledExactlyOnceWith(venue);
+  } finally {
+    await act(() => Uniwind.setTheme("light"));
+  }
 });

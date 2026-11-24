@@ -810,3 +810,127 @@ it("uses the generic result card when a tool returns a receipt without displayab
   expect(host.openLink).not.toHaveBeenCalled();
   expect(host.callServerTool).not.toHaveBeenCalled();
 });
+
+it("opens the canonical Table from a ranking tool receipt and restores the ranked rows on Back", async () => {
+  const score = {
+    userId: "player",
+    name: "Avery",
+    username: "avery",
+    avatarUrl: null,
+    provisional: false,
+    score: 530,
+    gamesPlayed: 2,
+    gamesWon: 1,
+    nd: 0,
+  };
+  host.callServerTool.mockResolvedValueOnce(
+    response("get_table", historyTable(firstTableId, "Chess")),
+  );
+  await open(
+    "list_table_leaderboard",
+    { gameId: 1, scope: "GLOBAL", items: [score], nextCursor: null },
+    { params: { eventId, tableId: firstTableId } },
+  );
+  expect(screen.getByText("@avery")).toBeVisible();
+  expect(screen.getByText("530.00")).toBeVisible();
+  const trigger = screen.getByRole("button", { name: "Open table" });
+  trigger.focus();
+  fireEvent.click(trigger);
+  expect(await screen.findByRole("heading", { name: "Chess" })).toBeVisible();
+  expect(screen.getByRole("tablist", { name: "Table sections" })).toBeVisible();
+  expect(host.callServerTool).toHaveBeenCalledExactlyOnceWith(
+    { name: "get_table", arguments: { params: { eventId, tableId: firstTableId } } },
+    { signal: expect.any(AbortSignal) },
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  expect(screen.getByText("@avery")).toBeVisible();
+  expect(trigger).toHaveFocus();
+  expect(host.openLink).not.toHaveBeenCalled();
+});
+
+it("navigates from a provisional table score receipt's game card without publishing a final result", async () => {
+  const game = plannedTable.gamesDetail[0];
+  const table = {
+    ...historyTable(firstTableId, game.name),
+    eventStatus: "CONFIRMED" as const,
+    resultDraft: { lowerWins: false, entries: [], tieBreaks: [] },
+  };
+  host.callServerTool.mockResolvedValueOnce(response("get_bgg_games", game));
+  await open("save_table_result", { table, event: plannedEvent });
+  expect(screen.getByRole("heading", { name: "Table" })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Board games: Chess" }));
+  fireEvent.click(await screen.findByRole("button", { name: game.name }));
+  expect(await screen.findByRole("heading", { name: "Games" })).toBeVisible();
+  expect(host.callServerTool).toHaveBeenCalledExactlyOnceWith(
+    { name: "get_bgg_games", arguments: { query: { ids: String(game.id) } } },
+    { signal: expect.any(AbortSignal) },
+  );
+  expect(host.openLink).not.toHaveBeenCalled();
+});
+
+it("does not navigate to a partial Table detail when the host supplies a malformed table", async () => {
+  const invalid = { ...plannedTable, confirmed: { gameId: 1, playerIds: [] } };
+  await open("get_table", invalid, { params: { eventId, tableId: plannedTable.id } });
+  expect(screen.getByRole("alert")).toHaveTextContent("Could not load table");
+  expect(screen.queryByRole("tablist", { name: "Table sections" })).toBeNull();
+  expect(host.callServerTool).not.toHaveBeenCalled();
+  expect(host.openLink).not.toHaveBeenCalled();
+});
+
+it("stays inline and cancels a pending Table navigation when the host refuses fullscreen", async () => {
+  host.getHostContext.mockImplementationOnce(() => ({
+    locale: "en",
+    theme: "light",
+    displayMode: "inline",
+    availableDisplayModes: ["inline", "fullscreen"],
+  }));
+  await open("list_table_history", {
+    items: [historyTable(firstTableId, "Chess")],
+    nextCursor: null,
+  });
+  host.getHostContext.mockImplementationOnce(() => ({
+    locale: "en",
+    theme: "light",
+    displayMode: "inline",
+    availableDisplayModes: ["inline", "fullscreen"],
+  }));
+  host.requestDisplayMode
+    .mockRejectedValueOnce(Error("Fullscreen refused"))
+    .mockRejectedValueOnce(Error("Already inline"));
+  const read = Promise.withResolvers<ReturnType<typeof response>>();
+  host.callServerTool.mockImplementationOnce((_request, { signal }) => {
+    signal.addEventListener("abort", () =>
+      read.reject(new DOMException("Cancelled", "AbortError")),
+    );
+    return read.promise;
+  });
+  const trigger = screen.getByRole("button", { name: "Open table: Chess" });
+  trigger.focus();
+  act(() => {
+    trigger.click();
+    trigger.click();
+  });
+  expect(await screen.findByLabelText("Loading…")).toBeVisible();
+  expect(host.callServerTool).toHaveBeenCalledTimes(1);
+  expect(host.requestDisplayMode).toHaveBeenNthCalledWith(1, { mode: "fullscreen" });
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  expect(host.callServerTool.mock.calls[0][1].signal.aborted).toBe(true);
+  expect(host.requestDisplayMode).toHaveBeenNthCalledWith(2, { mode: "inline" });
+  expect(screen.getByRole("heading", { name: "History" })).toBeVisible();
+  expect(trigger).toHaveFocus();
+  expect(screen.queryByRole("alert")).toBeNull();
+});
+
+it("does not expose Member or Event shortcuts on a group receipt without those capabilities", async () => {
+  await open("update_group", {
+    ...groupRecord,
+    canViewMembers: false,
+    canViewEvents: false,
+    canViewRankings: false,
+  });
+  expect(screen.getByRole("heading", { name: "Group" })).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Members" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Events" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Rankings" })).toBeNull();
+  expect(host.callServerTool).not.toHaveBeenCalled();
+});

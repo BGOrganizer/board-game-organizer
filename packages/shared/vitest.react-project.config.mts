@@ -31,7 +31,11 @@ export default defineProject({
       "src/components/events/__tests__/EventTableResults.current.test.tsx",
       "src/components/events/__tests__/{EventGuestVoteEditor,EventInvitationPicker}.test.tsx",
       "src/components/groups/__tests__/{GroupDetail,GroupWizard,GroupWizard.interactions}.test.tsx",
-      "src/components/contacts/__tests__/Contacts.session.test.tsx",
+      "src/components/contacts/__tests__/{Contacts.session,Contacts.relationship-actions,SearchUserPage.flows}.test.tsx",
+      "src/components/events/__tests__/{EventSeatOrderEditor.requests,EventProposalSection.navigation,EventVoting.source-access,EventTableSelfIdentity,Events}.test.tsx",
+      "src/components/groups/__tests__/{GroupPeoplePicker.access,GroupLeaderboard.requests,Groups}.test.tsx",
+      "src/components/profile/__tests__/{ProfileAccess.states,ProfileBggCard.failures,ProfilePlayer.interactions}.test.tsx",
+      "src/components/notifications/__tests__/NotificationBell.requests.test.tsx",
     ],
     exclude: [
       ...test.exclude,

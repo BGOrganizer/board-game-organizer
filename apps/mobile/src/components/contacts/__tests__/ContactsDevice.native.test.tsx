@@ -1,7 +1,6 @@
 import { act, screen, waitFor } from "@testing-library/react-native";
 import { Linking, Share } from "react-native";
 import { expect, it, vi } from "vitest";
-import { warmRegisteredContacts } from "@/lib/contacts/registeredContacts";
 import { scrollNativeListToEnd } from "@/test/nativeListGeometry";
 import {
   ContactsFixture,
@@ -442,6 +441,7 @@ it("waits for the same owner's in-flight startup synchronization instead of scan
   contactsFixture.pendingSync = new Promise((resolve) => {
     finish = resolve;
   });
+  const { warmRegisteredContacts } = await import("@/lib/contacts/registeredContacts");
   const warming = warmRegisteredContacts(
     "owner",
     contactsApi,

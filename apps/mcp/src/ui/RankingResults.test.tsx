@@ -438,7 +438,7 @@ it.each([
     show(
       <WidgetNavigation
         app={app}
-        output={{ operation: testCase.operation, data: testCase.output }}
+        output={{ operation: testCase.operation, data: testCase.output, viewerUserId: undefined }}
         input={testCase.input}
         render={(output, input) =>
           output.operation === testCase.operation ? (
@@ -484,9 +484,10 @@ it("retains scoped table results through transient errors and merges the next co
   );
   expect(screen.getByText("@ada")).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Load more" }));
-  expect(await screen.findByRole("button", { name: "Try again" })).toBeVisible();
+  const retry = await screen.findByRole("button", { name: "Could not load leaderboards. Retry" });
+  expect(retry).toBeVisible();
   expect(screen.getByText("@ada")).toBeVisible();
-  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  fireEvent.click(retry);
   expect(await screen.findByText("@later")).toBeVisible();
   expect(screen.getByText("@ada")).toBeVisible();
   expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();

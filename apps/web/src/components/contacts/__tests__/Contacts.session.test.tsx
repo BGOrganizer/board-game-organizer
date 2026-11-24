@@ -260,3 +260,24 @@ it("excludes the identities and actions of unprojected pending and sent relation
       .map((url) => url.searchParams.get("type")),
   ).toEqual(expect.arrayContaining(["pending", "sent"]));
 });
+
+it("ignores a rejected token for a Contacts screen that has already been closed", async () => {
+  let reject: (error: Error) => void = () => {
+    throw new Error("Expected pending session token");
+  };
+  auth.getToken.mockReturnValue(
+    new Promise((_, fail) => {
+      reject = fail;
+    }),
+  );
+  const view = mount();
+  await advance(0);
+  expect(auth.getToken).toHaveBeenCalled();
+  view.unmount();
+  await act(() => reject(new Error("Late token failure")));
+  const tokenCalls = auth.getToken.mock.calls.length;
+  await advance(60_000);
+  expect(auth.getToken).toHaveBeenCalledTimes(tokenCalls);
+  expect(heartbeats).toEqual([]);
+  expect(fetch).not.toHaveBeenCalled();
+});

@@ -622,3 +622,73 @@ describe("installInputBehavior local owners and first blocking errors", () => {
     expect(scope.style.getPropertyValue("--input-results-height")).toBe("");
   });
 });
+
+it("restores a custom autocomplete viewport height when the component route is removed", () => {
+  const { input, scope } = form("<input><div data-input-results></div>");
+  scope.dataset.inputScope = "";
+  scope.style.setProperty("--input-results-height", "120px");
+  const results = scope.querySelector<HTMLElement>("[data-input-results]");
+  if (!results) throw new Error("Missing autocomplete results");
+  geometry(results, 100);
+  dispose = installInputBehavior();
+  input.focus();
+  flush();
+  expect(scope.style.getPropertyValue("--input-results-height")).not.toBe("120px");
+  dispose();
+  dispose = undefined;
+  expect(scope.style.getPropertyValue("--input-results-height")).toBe("120px");
+});
+
+it("preserves the original error-summary tab stop across repeated validation attempts", () => {
+  const { button, scope } = form('<div data-form-error tabindex="4">Save failed</div><input>');
+  const summary = scope.querySelector<HTMLElement>("[data-form-error]");
+  if (!summary) throw new Error("Missing error summary");
+  dispose = installInputBehavior();
+  for (let attempt = 0; attempt < 2; attempt++) {
+    button.focus();
+    button.click();
+    flush();
+    expect(document.activeElement).toBe(summary);
+    expect(summary.tabIndex).toBe(-1);
+  }
+  dispose();
+  dispose = undefined;
+  expect(summary.tabIndex).toBe(4);
+});
+
+it("keeps focused input stable when an ordinary pointer release schedules no focus restoration", () => {
+  const { scope, input, secondary } = autoDialog();
+  dispose = installInputBehavior();
+  input.focus();
+  flush();
+  const pinned = scope.style.paddingBottom;
+  secondary.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+  secondary.dispatchEvent(new Event("pointerup", { bubbles: true }));
+  vi.runOnlyPendingTimers();
+  expect(document.activeElement).toBe(input);
+  expect(scope.style.paddingBottom).toBe(pinned);
+  input.blur();
+  flush();
+  expect(scope.style.paddingBottom).toBe("4px");
+});
+
+it("updates search results after an attached picker scope changes without resetting its baseline style", async () => {
+  const { scope, input } = form("<input><div data-input-results></div>");
+  scope.setAttribute("data-input-scope", "");
+  scope.style.setProperty("--input-results-height", "250px");
+  const results = scope.querySelector<HTMLElement>("[data-input-results]");
+  if (!results) throw new Error("Missing picker results");
+  geometry(input, 30);
+  geometry(results, 100, 10);
+  dispose = installInputBehavior();
+  input.focus();
+  flush();
+  const fitted = scope.style.getPropertyValue("--input-results-height");
+  expect(fitted).not.toBe("250px");
+  results.append(document.createElement("li"));
+  await mutations();
+  expect(scope.style.getPropertyValue("--input-results-height")).toBe(fitted);
+  scope.remove();
+  await mutations();
+  expect(scope.style.getPropertyValue("--input-results-height")).toBe("250px");
+});

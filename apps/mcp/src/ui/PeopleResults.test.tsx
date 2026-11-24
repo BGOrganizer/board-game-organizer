@@ -316,28 +316,34 @@ it("renders real BGO contact rows and loads only the next page with the same sea
   );
 });
 
-it("lets a user accept a real incoming friend request through the shared BGO menu dialog", async () => {
-  services.callServerTool
-    .mockResolvedValueOnce(result("respond_to_friend_request", { success: true }))
-    .mockResolvedValueOnce(result("list_friend_requests", []));
-  open("list_friend_requests", [{ profile: one }, { profile: null }], {
-    query: { direction: "incoming" },
-  });
-  fireEvent.click(screen.getByRole("button", { name: "Actions" }));
-  fireEvent.click(await screen.findByRole("menuitem", { name: "Accept friend request" }));
-  const dialog = await screen.findByRole("dialog", { name: "Accept friend request?" });
-  expect(services.callServerTool).not.toHaveBeenCalled();
-  fireEvent.click(within(dialog).getByRole("button", { name: "Accept" }));
-  expect(await screen.findByText("No users found")).toBeVisible();
-  expect(services.callServerTool).toHaveBeenNthCalledWith(
-    1,
-    {
-      name: "respond_to_friend_request",
-      arguments: { params: { targetUserId: handle }, body: { decision: "accept" } },
-    },
-    { signal: undefined },
-  );
-});
+it.each([
+  { label: "Accept", decision: "accept" },
+  { label: "Decline", decision: "reject" },
+])(
+  "lets a user $label a real incoming friend request through the shared BGO menu dialog",
+  async ({ label, decision }) => {
+    services.callServerTool
+      .mockResolvedValueOnce(result("respond_to_friend_request", { success: true }))
+      .mockResolvedValueOnce(result("list_friend_requests", []));
+    open("list_friend_requests", [{ profile: one }, { profile: null }], {
+      query: { direction: "incoming" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Actions" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: `${label} friend request` }));
+    const dialog = await screen.findByRole("dialog", { name: `${label} friend request?` });
+    expect(services.callServerTool).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole("button", { name: label }));
+    expect(await screen.findByText("No users found")).toBeVisible();
+    expect(services.callServerTool).toHaveBeenNthCalledWith(
+      1,
+      {
+        name: "respond_to_friend_request",
+        arguments: { params: { targetUserId: handle }, body: { decision } },
+      },
+      { signal: undefined },
+    );
+  },
+);
 
 it("opens the selected profile through the host and follows through the same menu on explicit press", async () => {
   services.callServerTool
@@ -861,5 +867,93 @@ it("keeps granted catalog choices and a retry action after a temporary next-page
   expect(await screen.findByRole("option", { name: other.name })).toBeVisible();
   expect(services.callServerTool.mock.calls[0][0]).toEqual(
     services.callServerTool.mock.calls[1][0],
+  );
+});
+
+it.each([
+  {
+    kind: "friend_request",
+    target: "list_relationships",
+    args: { query: { type: "pending" } },
+    section: "Received",
+  },
+  { kind: "friend_request_accepted", target: "list_friends", args: {}, section: "Friends" },
+])(
+  "opens the appropriate Contacts scope from an existing $kind notice",
+  async ({ kind, target, args, section }) => {
+    services.callServerTool.mockResolvedValueOnce(result(target, { rows: [], nextCursor: null }));
+    open(
+      "list_notifications",
+      {
+        notifications: [{ ...notification, kind, readAt: date }],
+        unreadCount: 0,
+        nextCursor: null,
+      },
+      undefined,
+      true,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Game night/ }));
+    expect(await screen.findByRole("button", { name: section })).toBeVisible();
+    expect(services.callServerTool).toHaveBeenCalledExactlyOnceWith(
+      { name: target, arguments: args },
+      { signal: expect.any(AbortSignal) },
+    );
+    expect(services.openLink).not.toHaveBeenCalled();
+  },
+);
+
+it("opens the scoped profile from its activity view and restores the same activity on Back", async () => {
+  services.callServerTool.mockResolvedValueOnce(result("get_user_profile", visibleProfile));
+  open(
+    "list_profile_activity",
+    {
+      items: [
+        {
+          id: "activity",
+          kind: "group_join",
+          occurredAt: date,
+          context: "Friendly games",
+          author: one,
+          href: `/groups/${groupId}`,
+        },
+      ],
+      nextCursor: null,
+    },
+    { params: { userId: handle } },
+    true,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Profile" }));
+  expect(await screen.findByRole("heading", { name: "Profile" })).toBeVisible();
+  expect(services.callServerTool).toHaveBeenCalledExactlyOnceWith(
+    { name: "get_user_profile", arguments: { params: { userId: handle } } },
+    { signal: expect.any(AbortSignal) },
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  expect(await screen.findByRole("button", { name: "Friendly games" })).toBeVisible();
+  expect(services.openLink).not.toHaveBeenCalled();
+});
+
+it("hides privately scoped profile catalog rows when later access is denied", async () => {
+  services.callServerTool.mockResolvedValueOnce({
+    isError: true,
+    structuredContent: { status: 403 },
+  });
+  open(
+    "list_profile_games",
+    { items: [game], nextCursor: game.id },
+    { params: { userId: handle } },
+  );
+  fireEvent.click(screen.getByRole("button", { name: /Board game/ }));
+  expect(await screen.findByRole("option", { name: game.name })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("Could not load rating history");
+  expect(screen.queryByRole("option", { name: game.name })).toBeNull();
+  expect(screen.queryByRole("button", { name: /Board game/ })).toBeNull();
+  expect(services.callServerTool).toHaveBeenCalledExactlyOnceWith(
+    {
+      name: "list_profile_games",
+      arguments: { params: { userId: handle }, query: { cursor: game.id } },
+    },
+    { signal: expect.any(AbortSignal) },
   );
 });

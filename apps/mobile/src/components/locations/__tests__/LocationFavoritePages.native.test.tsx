@@ -5,7 +5,15 @@ import {
 } from "@board-game-organizer/schemas";
 import { useFavoriteLocations } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, render, screen, userEvent, waitFor } from "@testing-library/react-native";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  userEvent,
+  waitFor,
+  within,
+} from "@testing-library/react-native";
 import { useState } from "react";
 import { expect, it, vi } from "vitest";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
@@ -115,7 +123,9 @@ it("retries only a failed later favorites page and keeps selecting exact saved l
     );
     expect(select).toHaveBeenCalledExactlyOnceWith(next.key, nextLocation);
     expect(
-      screen.getByText("Next-page board game club", { includeHiddenElements: true }),
+      within(
+        screen.getByTestId("favorite-location-select", { includeHiddenElements: true }),
+      ).getByText("Next-page board game club", { includeHiddenElements: true }),
     ).toBeOnTheScreen();
     expect(readCursors).toEqual([null, cursor, cursor]);
   } finally {

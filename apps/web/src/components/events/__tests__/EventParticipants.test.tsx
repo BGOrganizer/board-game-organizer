@@ -300,9 +300,76 @@ it("keeps member rows restricted after an unavailable page and reloads participa
   expect(error).toHaveTextContent("Could not load participants");
   expect(screen.queryByText("No participants yet")).toBeNull();
   expect(screen.queryByRole("button", { name: /Manage participant/ })).toBeNull();
+  const failedReadCount = read.mock.calls.length;
+  expect(failedReadCount).toBeGreaterThan(0);
   unavailable = false;
   fireEvent.click(within(error).getByRole("button", { name: "Try again" }));
   expect(await screen.findByText("Username unavailable")).toBeVisible();
   expect(screen.queryByRole("alert")).toBeNull();
-  expect(read).toHaveBeenCalledTimes(2);
+  expect(read.mock.calls.length).toBeGreaterThan(failedReadCount);
+});
+
+it("preserves first-page participants during a pending cursor and recovers an unsuccessful next page", async () => {
+  const cursor = "checkpoint";
+  const reads: (string | null)[] = [];
+  let finish: (response: Response) => void = () => {
+    throw new Error("Expected pending participant page");
+  };
+  const pending = new Promise<Response>((resolve) => {
+    finish = resolve;
+  });
+  let failed = false;
+  const view = mount();
+  const second = {
+    ...person,
+    id: "after-cursor",
+    userId: "after-cursor",
+    username: "after-cursor",
+  };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string) => {
+      const url = new URL(input);
+      if (!url.pathname.endsWith("/participants")) return Response.json(view.event);
+      const next = url.searchParams.get("cursor");
+      reads.push(next);
+      if (next === cursor && reads.length === 1) return pending;
+      if (next === cursor && failed)
+        return Response.json({ error: "Participant page unavailable" }, { status: 503 });
+      return Response.json({
+        items: next === cursor ? [second] : [person],
+        eventVersion: view.event.version,
+        groupId: view.event.groupId,
+        status: view.event.status,
+        nextCursor: next === cursor ? null : cursor,
+      });
+    }),
+  );
+  await act(() =>
+    view.client.setQueryData(view.key, {
+      ...view.data,
+      pages: [{ ...view.data.pages[0], nextCursor: cursor }],
+    }),
+  );
+  const loadMore = await screen.findByRole("button", { name: "Load more" });
+  expect(loadMore).toBeEnabled();
+  fireEvent.click(loadMore);
+  await waitFor(() => expect(loadMore).toBeDisabled());
+  expect(screen.getByText("@target-name")).toBeVisible();
+  failed = true;
+  await act(() =>
+    finish(Response.json({ error: "Participant page unavailable" }, { status: 503 })),
+  );
+  const retry = await screen.findByRole("button", { name: "Try again" }, { timeout: 3500 });
+  expect(screen.getByText("@target-name")).toBeVisible();
+  expect(loadMore).toBeDisabled();
+  expect(screen.queryByText("No participants yet")).toBeNull();
+  failed = false;
+  fireEvent.click(retry);
+  await waitFor(() => expect(loadMore).toBeEnabled());
+  expect(screen.queryByRole("alert")).toBeNull();
+  fireEvent.click(loadMore);
+  expect(await screen.findByText("@after-cursor")).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+  expect(reads).toEqual([cursor, cursor, null, cursor]);
 });

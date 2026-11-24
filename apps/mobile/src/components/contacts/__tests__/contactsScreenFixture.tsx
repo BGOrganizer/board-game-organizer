@@ -33,8 +33,12 @@ export { contactsBoundary };
 
 vi.mock("@clerk/expo", () => ({
   useAuth: () => ({
-    userId: contactsBoundary.signedIn ? contactsBoundary.userId : null,
-    sessionId: `session-${contactsBoundary.userId}`,
+    userId:
+      contactsBoundary.authLoaded && contactsBoundary.signedIn ? contactsBoundary.userId : null,
+    sessionId:
+      contactsBoundary.authLoaded && contactsBoundary.signedIn
+        ? `session-${contactsBoundary.userId}`
+        : null,
     isLoaded: contactsBoundary.authLoaded,
     isSignedIn: contactsBoundary.signedIn,
     getToken: contactsBoundary.getToken,
@@ -231,6 +235,7 @@ beforeEach(() => {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.signal?.aborted) throw new DOMException("Request cancelled", "AbortError");
       const url = new URL(
         typeof input === "string" ? input : input instanceof URL ? input.href : input.url,
       );

@@ -648,3 +648,56 @@ it("uses native menu and direction controls to order the global leaderboard at t
   expect(screen.getByText("Choose a game to see the leaderboard")).toBeVisible();
   expect(screen.queryByText("@global-player")).toBeNull();
 });
+
+it("loads another game only at the nested selector's native edge and retains the selected leaderboard", async () => {
+  games = { ...games, nextCursor: 25 };
+  await render(<Fixture />);
+  await chooseGame();
+  expect(await screen.findByText("@admin")).toBeVisible();
+  await openGames();
+  const list = await screen.findByTestId("rating-game-select-list", {
+    includeHiddenElements: true,
+  });
+  const pageReads = () =>
+    reads.filter(
+      (url) => !url.searchParams.has("gameId") && url.searchParams.get("cursor") === "25",
+    );
+  let finish!: (response: Response) => void;
+  pendingGames = new Promise((resolve) => {
+    finish = resolve;
+  });
+  await scrollNativeListToEnd(list);
+  await waitFor(() => expect(pageReads()).toHaveLength(1));
+  expect(
+    screen.getByRole("button", { name: "Load more games", includeHiddenElements: true }),
+  ).toBeDisabled();
+  await scrollNativeListToEnd(list, 1328);
+  expect(pageReads()).toHaveLength(1);
+  await act(() => {
+    pendingGames = undefined;
+    finish(json(nextGames));
+  });
+  expect(
+    await screen.findByRole("option", { name: "Next game", includeHiddenElements: true }),
+  ).toBeOnTheScreen();
+  expect(screen.getByText("@admin", { includeHiddenElements: true })).toBeOnTheScreen();
+  expect(
+    screen.getByLabelText("Board game: Strategy game", { includeHiddenElements: true }),
+  ).toBeOnTheScreen();
+});
+
+it("reverses the same sort both ways while retaining the selected game and canonical position", async () => {
+  await render(<Fixture />);
+  await chooseGame();
+  expect(await screen.findByText("@admin")).toBeVisible();
+  const direction = () => screen.getByTestId("ranking-sort-direction");
+  expect(direction()).toHaveProp("accessibilityLabel", "Sort ascending");
+  await fireEvent.press(direction());
+  expect(direction()).toHaveProp("accessibilityLabel", "Sort descending");
+  await waitFor(() => expect(reads.at(-1)?.searchParams.get("direction")).toBe("asc"));
+  await fireEvent.press(direction());
+  expect(direction()).toHaveProp("accessibilityLabel", "Sort ascending");
+  expect(await screen.findByText("@admin")).toBeVisible();
+  expect(screen.getByLabelText("Board game: Strategy game")).toBeOnTheScreen();
+  expect(screen.getByRole("image", { name: "Position: #1" })).toBeVisible();
+});

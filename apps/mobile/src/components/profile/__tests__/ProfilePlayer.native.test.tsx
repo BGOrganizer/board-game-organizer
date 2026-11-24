@@ -10,6 +10,7 @@ import { act, fireEvent, render, screen, userEvent, waitFor } from "@testing-lib
 import { StyleSheet } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
+import { scrollNativeListToEnd } from "@/test/nativeListGeometry";
 import { installNativePopoverMeasurements } from "@/test/nativePopoverGeometry";
 import { positionMeasuredSelect } from "@/test/nativeSelectGeometry";
 import { ProfilePlayer } from "../ProfilePlayer";
@@ -432,3 +433,34 @@ it.each([
     expect(reads).toEqual([]);
   },
 );
+
+it("stops automatic game paging after a later cursor fails and retries only when explicitly requested", async () => {
+  games = { ...games, nextCursor: 20 };
+  moreCode = 503;
+  await render(<Fixture />);
+  await ready();
+  await open();
+  const list = screen.getByTestId("rating-game-select-list", { includeHiddenElements: true });
+  const cursorRequests = () => reads.filter(({ url }) => url.searchParams.get("cursor") === "20");
+  await scrollNativeListToEnd(list);
+  await waitFor(() => expect(cursorRequests()).toHaveLength(1));
+  await waitFor(() => expect(client.isFetching()).toBe(0));
+  expect(
+    screen.getByRole("option", { name: "Chess ranked", includeHiddenElements: true }),
+  ).toBeOnTheScreen();
+  expect(
+    screen.queryByRole("option", { name: "Azul ranked", includeHiddenElements: true }),
+  ).toBeNull();
+  await scrollNativeListToEnd(list, 1328);
+  expect(cursorRequests()).toHaveLength(1);
+
+  moreCode = 200;
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Load more games", includeHiddenElements: true }),
+  );
+  expect(
+    await screen.findByRole("option", { name: "Azul ranked", includeHiddenElements: true }),
+  ).toBeOnTheScreen();
+  expect(cursorRequests()).toHaveLength(2);
+  expect(screen.queryByText(/Current rating:/, { includeHiddenElements: true })).toBeNull();
+});

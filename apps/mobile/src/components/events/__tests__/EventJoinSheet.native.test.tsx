@@ -440,12 +440,12 @@ it("shows an explicit fallback when vote metadata for a canonical game option is
   expect(writes[0].input.gameVotes).toEqual({ "1": "YES" });
 });
 
-it("keeps a rejected pending invitation explicit without closing it or changing registration", async () => {
+it("keeps the pending invitation eligible for a new explicit attempt after optimistic close and rejection", async () => {
   const invitation = { ...seat("owner"), status: "PENDING" as const, version: 7 };
   const close = vi.fn();
   table = { ...table, myRegistration: invitation, canRespond: true, canRegister: false };
   writeStatus = 422;
-  await render(<Fixture registrationId={invitation.id} onClose={close} />);
+  const view = await render(<Fixture registrationId={invitation.id} onClose={close} />);
   await ready();
   await press("Accept invitation");
   expect(await screen.findByText("Could not accept invitation")).toBeOnTheScreen();
@@ -455,6 +455,13 @@ it("keeps a rejected pending invitation explicit without closing it or changing 
     path: `/api/table-registrations/${invitation.id}`,
     input: { action: "accept", version: 7 },
   });
-  expect(close).not.toHaveBeenCalled();
+  expect(close).toHaveBeenCalledOnce();
+  const verified = client.getQueryData<PlannedTableResponse>(
+    eventRecordKeys.table(options(), event.id, table.id),
+  );
+  expect(verified?.myRegistration).toMatchObject({ id: invitation.id, status: "PENDING" });
+  await view.rerender(<Fixture key="reopened" registrationId={invitation.id} onClose={close} />);
+  expect(await screen.findByText("Could not accept invitation")).toBeOnTheScreen();
   await ready();
+  expect(writes).toHaveLength(1);
 });

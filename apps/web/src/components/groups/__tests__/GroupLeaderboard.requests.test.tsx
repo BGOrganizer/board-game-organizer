@@ -336,20 +336,41 @@ it("keeps a truly empty global leaderboard distinct from an unselected game", as
   expect(playerReads()).toHaveLength(0);
 });
 
-it("retries a failed catalog cursor without discarding the currently visible choices", async () => {
+it("retries a failed catalog cursor while preserving the selected game and its ranking", async () => {
   games.nextCursor = 25;
   mount();
-  fireEvent.click(await screen.findByRole("button", { name: /Board game/ }));
-  expect(await screen.findByRole("option", { name: "Strategy game" })).toBeVisible();
+  await chooseGame();
+  await screen.findByText("@player-one");
+  fireEvent.click(screen.getByRole("button", { name: /Strategy game Board game/ }));
+  const choice = await screen.findByRole("option", { name: "Strategy game", selected: true });
+  const overlay = choice.closest<HTMLElement>("[data-input-overlay]");
+  if (!overlay) throw new Error("Expected the actual game picker popup");
+  const picker = within(overlay);
   pageStatus = 503;
-  fireEvent.click(screen.getByRole("button", { name: "Load more games" }));
-  const retry = await screen.findByRole("button", { name: "Could not load leaderboards. Retry" });
-  expect(screen.getByRole("option", { name: "Strategy game" })).toBeVisible();
+  fireEvent.click(picker.getByRole("button", { name: "Load more games" }));
+  await waitFor(() =>
+    expect(
+      client
+        .getQueryCache()
+        .findAll()
+        .some((query) => query.queryKey.includes("games") && query.state.status === "error"),
+    ).toBe(true),
+  );
+  expect(picker.getByRole("option", { name: "Strategy game", selected: true })).toBeVisible();
   pageStatus = 200;
-  fireEvent.click(retry);
-  expect(await screen.findByRole("option", { name: "Next game" })).toBeVisible();
-  expect(reads.map((read) => read.searchParams.get("cursor"))).toEqual(["0", "25", "25"]);
-  expect(playerReads()).toEqual([]);
+  fireEvent.click(picker.getByRole("button", { name: "Load more games" }));
+  expect(await picker.findByRole("option", { name: "Next game" })).toBeVisible();
+  fireEvent.keyDown(picker.getByRole("searchbox", { name: "Search board games" }), {
+    key: "Escape",
+  });
+  expect(screen.getByRole("grid", { name: "Group leaderboard" })).toBeVisible();
+  expect(screen.getByText("@player-one")).toBeVisible();
+  expect(
+    reads
+      .filter((read) => !read.searchParams.has("gameId"))
+      .map((read) => read.searchParams.get("cursor")),
+  ).toEqual(["0", "25", "25"]);
+  expect(playerReads()).toHaveLength(1);
 });
 
 it("keeps the selected game while recovering an errored catalog refresh", async () => {
@@ -370,4 +391,41 @@ it("keeps the selected game while recovering an errored catalog refresh", async 
   );
   expect(screen.getByText("@player-one")).toBeVisible();
   expect(playerReads()).toHaveLength(1);
+});
+
+it("distinguishes a selected unrated game from an empty ranking catalog and can reset to the chooser", async () => {
+  players.players = [];
+  mount({});
+  await chooseGame();
+  expect(await screen.findByText("No leaderboard for this game yet")).toBeVisible();
+  expect(screen.queryByRole("grid")).toBeNull();
+  expect(screen.queryByText("No rated tables played yet")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Clear board game selection" }));
+  expect(screen.getByText("Choose a game to see the leaderboard")).toBeVisible();
+  expect(screen.queryByText("No leaderboard for this game yet")).toBeNull();
+  expect(playerReads()).toHaveLength(1);
+});
+
+it("shows an active compact leaderboard row and reveals its statistics on demand", async () => {
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    media: query,
+    matches: query === "(max-width: 639px)",
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }));
+  mount();
+  await chooseGame();
+  const row = within(await screen.findByTestId("group-ranking-player-player-one"));
+  expect(row.getByText("@player-one")).toBeVisible();
+  expect(row.queryByText("Former group member")).toBeNull();
+  expect(row.queryByText("Wins")).toBeNull();
+  const details = row.getByRole("button", { name: /Game statistics: @player-one/ });
+  fireEvent.click(details);
+  expect(details).toHaveAttribute("aria-expanded", "true");
+  expect(row.getByText("Played")).toBeVisible();
+  expect(row.getByText("8")).toBeVisible();
+  expect(row.getByText("Wins")).toBeVisible();
+  expect(row.getByText("2")).toBeVisible();
+  expect(row.getByText("ND")).toBeVisible();
+  expect(row.getByText("1")).toBeVisible();
 });

@@ -107,3 +107,23 @@ it("does not invent a duration, identity or device-zone date while metadata is m
   );
   expect(screen.queryByText(/^Duration:/)).toBeNull();
 });
+
+it("renders the registered guest demonstrator using its guest artwork without inventing a member handle", () => {
+  renderWithI18n(
+    <EventTableScheduleCard
+      table={{
+        ...table,
+        demonstratorUserId: undefined,
+        demonstratorName: undefined,
+        demonstratorAvatarUrl: undefined,
+        demonstratorGuestName: "Guest guide",
+      }}
+      timeZone="UTC"
+    />,
+  );
+  const row = screen.getByRole("listitem");
+  expect(within(row).getByText("Guest guide")).toBeVisible();
+  expect(within(row).getByText("Demonstrator")).toBeVisible();
+  expect(within(row).queryByText("@Guest guide")).toBeNull();
+  expect(row.querySelector(".avatar")).not.toBeNull();
+});

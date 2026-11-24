@@ -332,3 +332,89 @@ it("resets only the revealed window and retains every authoritative cached page"
   expect(client.getQueryData(key)).toBe(data);
   expect(fetcher).not.toHaveBeenCalled();
 });
+
+it("coalesces visible pagination, exposes requests that fail and only reveals a confirmed page", async () => {
+  const { client, wrapper } = setup();
+  const first = page([row(3)], cursor(3));
+  const next = page([row(2)]);
+  client.setQueryData(notificationChangesQuery(options, scope).queryKey, {
+    pages: [first],
+    pageParams: [undefined],
+  } satisfies InfiniteData<NotificationChangesPage>);
+  const gate = Promise.withResolvers<Response>();
+  const fetcher = vi
+    .fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>()
+    .mockReturnValueOnce(gate.promise)
+    .mockResolvedValueOnce(Response.json(next));
+  vi.stubGlobal("fetch", fetcher);
+  const view = renderHook(() => useNotificationChanges(options, scope), { wrapper });
+  let pending: Promise<void> | undefined;
+  act(() => {
+    pending = view.result.current.fetchNextPage();
+    void view.result.current.fetchNextPage();
+  });
+  await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
+  expect(view.result.current.changes).toEqual(first.changes);
+  await act(async () => {
+    gate.resolve(Response.json({ code: "TEMPORARY" }, { status: 503 }));
+    await pending;
+  });
+  await waitFor(() => expect(view.result.current.isFetchNextPageError).toBe(true));
+  expect(view.result.current.changes).toEqual(first.changes);
+  expect(view.result.current.hasNextPage).toBe(true);
+
+  await act(() => view.result.current.fetchNextPage());
+  expect(view.result.current.changes).toEqual([...first.changes, ...next.changes]);
+  expect(view.result.current.hasNextPage).toBe(false);
+  await act(() => view.result.current.fetchNextPage());
+  expect(fetcher).toHaveBeenCalledTimes(2);
+  for (const [request, init] of fetcher.mock.calls) {
+    const url = new URL(String(request));
+    expect(url.pathname).toBe("/api/notifications/changes");
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      ...scope,
+      cursor: cursor(3),
+      locale: "en",
+      limit: "8",
+      "x-vercel-protection-bypass": "preview",
+    });
+    expect(init?.method).toBe("GET");
+  }
+});
+
+it("ignores an obsolete page after changing to the counts-only tab", async () => {
+  const { client, wrapper } = setup();
+  const counts: NotificationChangesScope = { ...scope, tab: "none" };
+  const first = page([row(3)], cursor(3));
+  const pages = { pages: [first], pageParams: [undefined] };
+  client.setQueryData(notificationChangesQuery(options, scope).queryKey, pages);
+  const empty = { ...page([]), tabCounts: tabs(5) };
+  client.setQueryData(notificationChangesQuery(options, counts).queryKey, {
+    pages: [empty],
+    pageParams: [undefined],
+  });
+  const gate = Promise.withResolvers<Response>();
+  const fetcher = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) => gate.promise);
+  vi.stubGlobal("fetch", fetcher);
+  const view = renderHook(({ current }) => useNotificationChanges(options, current), {
+    wrapper,
+    initialProps: { current: scope },
+  });
+  let previous: Promise<void> | undefined;
+  act(() => {
+    previous = view.result.current.fetchNextPage();
+  });
+  await waitFor(() => expect(fetcher).toHaveBeenCalledOnce());
+  view.rerender({ current: counts });
+  expect(view.result.current.changes).toEqual([]);
+  expect(view.result.current.tabCounts).toEqual(tabs(5));
+  await act(async () => {
+    gate.resolve(Response.json(page([row(2)])));
+    await previous;
+  });
+  expect(fetcher.mock.calls[0][1]?.signal?.aborted).toBe(true);
+  expect(view.result.current.changes).toEqual([]);
+  await act(() => view.result.current.fetchNextPage());
+  expect(fetcher).toHaveBeenCalledOnce();
+  expect(client.getQueryData(notificationChangesQuery(options, scope).queryKey)).toEqual(pages);
+});

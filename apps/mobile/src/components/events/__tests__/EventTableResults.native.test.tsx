@@ -545,3 +545,40 @@ it("keeps missing current scope ratings unavailable and exposes available group/
   expect(screen.getByText("900")).toBeVisible();
   expect(screen.queryByText("1,500")).toBeNull();
 });
+
+it("preserves current confirmed results after a later page failure and retries only its original cursor", async () => {
+  response = { ...response, nextCursor: "results-page-two" };
+  nextStatus = 503;
+  await render(<Fixture table={record} />);
+  expect(await screen.findByText("@owner")).toBeVisible();
+  await end();
+  expect(await screen.findByText("Could not load leaderboards. Retry")).toBeVisible();
+  expect(screen.getByText("@owner")).toBeVisible();
+  expect(screen.queryByText("@guest")).toBeNull();
+  const pages = () => reads.filter(({ url }) => url.searchParams.has("cursor"));
+  const firstReads = () => reads.filter(({ url }) => !url.searchParams.has("cursor"));
+  const initialReadCount = firstReads().length;
+  expect(pages().map(({ url }) => url.searchParams.get("cursor"))).toEqual(["results-page-two"]);
+  nextStatus = 200;
+  await press("Try again");
+  expect(await screen.findByText("@guest")).toBeVisible();
+  expect(screen.queryByText("Could not load leaderboards. Retry")).toBeNull();
+  expect(pages().map(({ url }) => url.searchParams.get("cursor"))).toEqual([
+    "results-page-two",
+    "results-page-two",
+  ]);
+  expect(firstReads()).toHaveLength(initialReadCount);
+});
+
+it("renders a confirmed historical game cover and results when the caller supplies no optional header", async () => {
+  const imageUrl = "https://game-image.example.test/chess.png";
+  record = history({
+    gamesDetail: [{ ...plannedTable.gamesDetail[0], imageUrl }],
+  });
+  await render(<Fixture table={record} header={null} />);
+  expect(screen.getByText("Chess")).toBeVisible();
+  expect(screen.getByText("@owner")).toBeVisible();
+  expect(screen.queryByText("Results header")).toBeNull();
+  expect(screen.queryByText("Excluded from confirmation")).toBeNull();
+  expect(reads).toHaveLength(0);
+});

@@ -194,3 +194,25 @@ it("retries the recent five-item preview without confusing failure with empty an
   fireEvent.click(screen.getByRole("button", { name: "View all activities" }));
   expect(boundary.push).toHaveBeenCalledExactlyOnceWith("/profiles/subject/activities");
 });
+
+it("shows progress while an older activity page loads and keeps existing links usable", async () => {
+  page.nextCursor = cursor;
+  mount();
+  await screen.findByRole("link", { name: "Current table" });
+  let finish: (response: Response) => void = () => {
+    throw new Error("Expected pending activity cursor");
+  };
+  pending = new Promise<Response>((resolve) => {
+    finish = resolve;
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+  await waitFor(() => expect(screen.queryByRole("button", { name: "Load more" })).toBeNull());
+  expect(screen.getByRole("link", { name: "Current table" })).toBeVisible();
+  expect(screen.queryByText("No activities yet")).toBeNull();
+  pending = undefined;
+  await act(() => finish(json({ items: [], nextCursor: null })));
+  await waitFor(() => expect(client.isFetching()).toBe(0));
+  expect(screen.getByRole("link", { name: "Current table" })).toBeVisible();
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(reads.map((url) => url.searchParams.get("cursor"))).toEqual([null, cursor]);
+});

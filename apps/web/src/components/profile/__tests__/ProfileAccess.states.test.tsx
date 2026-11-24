@@ -97,3 +97,28 @@ it("keeps the public handle and logout available when private collection access 
     client.clear();
   }
 });
+
+it("does not expose an internal account identifier when both public identity fields are absent", async () => {
+  const profile: ProfileView = {
+    id: options.userId,
+    name: "",
+    username: null,
+    avatarUrl: null,
+    social: { friends: 0, followers: 0, following: 0 },
+    player: { gamesPlayed: 0, gamesWon: 0, winRate: null },
+  };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string) => {
+      const path = new URL(input).pathname;
+      if (path === `/api/profiles/${options.userId}`) return Response.json(profile);
+      if (path === "/api/bgg/account") return Response.json({ active: null, pending: null });
+      if (path.endsWith("/activities")) return Response.json({ items: [], nextCursor: null });
+      throw new Error(`Unexpected Profile endpoint ${path}`);
+    }),
+  );
+  renderWithI18n(<ProfilePage />);
+  expect(await screen.findByText("Unknown")).toBeVisible();
+  expect(screen.queryByText(options.userId)).toBeNull();
+  expect(screen.getByRole("button", { name: "Sign out of your account" })).toBeVisible();
+});

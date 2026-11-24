@@ -612,3 +612,95 @@ it("chooses the newest acknowledged creation only from eligible active name/type
   expect(hook.result.current.excludedType.items).toEqual([]);
   expect(hook.result.current.excludedRole.items).toEqual([]);
 });
+
+it("projects an accepted invite while canonical group permissions are loading", async () => {
+  const { client, options, wrapper } = setup();
+  const detail = groupRecordKeys.detail(options, id);
+  const other = groupRecordKeys.detail(options, otherId);
+  const list = groupRecordKeys.list(options, "mine");
+  const accepted = membership({ version: 2 });
+  const initial: GroupRecordResponse = {
+    ...groupRecord,
+    adminUserId: "creator",
+    role: "invited",
+    myMembership: membership({ status: "PENDING" }),
+    canEdit: false,
+    canInvite: false,
+  };
+  const unrelated = { ...initial, id: otherId };
+  const authorized: GroupRecordResponse = {
+    ...initial,
+    version: 3,
+    role: "moderator",
+    myMembership: membership({ version: 3, role: "MODERATOR" }),
+    canEdit: true,
+    canInvite: true,
+  };
+  const canonical = deferred();
+  client.setQueryData(detail, initial);
+  client.setQueryData(other, unrelated);
+  client.setQueryData(list, pages([unrelated, initial]));
+  const send = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = request(input);
+    if (init?.method === "PATCH") return Response.json(accepted);
+    expect(url.pathname).toBe(`/api/groups/${id}`);
+    return canonical.promise;
+  });
+  vi.stubGlobal("fetch", send);
+  const { result } = renderHook(() => useGroupRecordActions(options, id), { wrapper });
+  act(() =>
+    result.current.membership.mutate({
+      id,
+      userId: options.userId,
+      input: { version: 1, action: "accept" },
+    }),
+  );
+  await waitFor(() => expect(send).toHaveBeenCalledTimes(2));
+  expect(client.getQueryData(detail)).toMatchObject({
+    role: "accepted",
+    myMembership: accepted,
+    canEdit: false,
+  });
+  expect(client.getQueryData(list)).toMatchObject({
+    pages: [
+      {
+        items: [
+          { id: otherId, role: "invited" },
+          { id, role: "accepted" },
+        ],
+      },
+    ],
+  });
+  expect(client.getQueryData(other)).toEqual(unrelated);
+  await act(async () => canonical.resolve(Response.json(authorized)));
+  await waitFor(() => expect(result.current.membership.isSuccess).toBe(true));
+  expect(client.getQueryData(detail)).toEqual(authorized);
+});
+
+it("keeps an acknowledged creation from leaking into a denied detail refresh", async () => {
+  const { client, options, wrapper } = setup();
+  const created = { ...groupRecord, version: 2 };
+  const canonicalKey = groupRecordKeys.detail(options, created.id);
+  const otherOwner = groupRecordKeys.detail({ ...options, userId: "other" }, created.id);
+  client.setQueryData(otherOwner, groupRecord);
+  const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = request(input);
+    expect(url.pathname).toBe("/api/groups");
+    if (init?.method === "POST") return Response.json(created);
+    return Response.json({ error: "ACCESS_REVOKED" }, { status: 403 });
+  });
+  vi.stubGlobal("fetch", fetcher);
+  const { result } = renderHook(() => useGroupRecordActions(options), { wrapper });
+  act(() =>
+    result.current.create.mutate({ name: created.name, type: "PRIVATE", invitedUserIds: [] }),
+  );
+  await waitFor(() =>
+    expect(options.feedback.onError).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 403 }),
+      "refresh_saved_changes",
+    ),
+  );
+  expect(client.getQueryData(canonicalKey)).toBeUndefined();
+  expect(client.getQueryData(otherOwner)).toBe(groupRecord);
+  expect(fetcher.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(1);
+});

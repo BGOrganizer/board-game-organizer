@@ -52,7 +52,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-it("renders only an available identity and never opens the current user or a guest as a profile", () => {
+it("renders only an available identity and never opens the current user or a guest as a profile", async () => {
   show([
     {
       id: "own-row",
@@ -71,7 +71,12 @@ it("renders only an available identity and never opens the current user or a gue
   expect(screen.getByRole("button", { name: "Username unavailable" })).toBeVisible();
   expect(screen.getByText("Player on the waiting list")).toBeVisible();
   expect(screen.getAllByText("Guest").length).toBeGreaterThan(0);
-  expect(screen.queryByRole("button", { name: "Guest" })).toBeNull();
+  const guest = screen.getByRole("button", { name: "Guest" });
+  expect(guest).toHaveAttribute("aria-expanded", "false");
+  fireEvent.click(guest);
+  expect(await screen.findByRole("dialog")).toHaveTextContent(
+    "An organizer can vote on their behalf.",
+  );
   expect(openLink).not.toHaveBeenCalled();
 });
 

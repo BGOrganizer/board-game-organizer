@@ -2,6 +2,7 @@ import type { GroupRecordResponse } from "@board-game-organizer/schemas";
 import {
   CommunityApiError,
   type CreateGroupVariables,
+  type EditGroupVariables,
   groupRecordKeys,
 } from "@board-game-organizer/shared";
 import { useAppStore } from "@board-game-organizer/store";
@@ -586,3 +587,48 @@ it("normalizes a repeated draft ID before restoring the matching rejected group 
   expect(screen.getByTestId("group-name-input")).toHaveDisplayValue("Recovered from route");
   expect(writes).toEqual([]);
 });
+
+it.each([
+  { source: "preview", preview: "https://fixture.invalid/recovered-edit.png" },
+  { source: "legacy receipt", preview: undefined },
+])(
+  "recovers the latest rejected group edit from $source without copying stale canonical logo state",
+  async ({ preview }) => {
+    const id = "22222222-2222-4222-8222-222222222222";
+    const variables: EditGroupVariables = {
+      id: canonical.id,
+      input: { version: canonical.version, name: "Pending group revision", logoAssetId: id },
+      ...(preview ? { clientDraft: { name: "Recovered pending name", logoPreview: preview } } : {}),
+    };
+    const rejected = new CommunityApiError(422, "Fixture original edit rejected");
+    client.getMutationCache().build(
+      client,
+      { mutationKey: groupRecordKeys.mutation(options, canonical.id, "update") },
+      {
+        context: undefined,
+        data: undefined,
+        error: rejected,
+        failureCount: 1,
+        failureReason: rejected,
+        isPaused: false,
+        status: "error",
+        submittedAt: Date.now(),
+        variables,
+      },
+    );
+    await render(<Fixture params={{ groupId: canonical.id }} />);
+    expect(await screen.findByTestId("group-name-input")).toHaveDisplayValue(
+      preview ? "Recovered pending name" : "Pending group revision",
+    );
+    expect(screen.getByRole("button", { name: "Change logo" })).toBeEnabled();
+    expect(screen.queryByRole("image", { name: "No logo selected" })).toBeNull();
+    expect(writes).toHaveLength(0);
+    await press("Save changes");
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0]).toMatchObject({
+      method: "PATCH",
+      path: `/api/groups/${canonical.id}`,
+      input: { version: canonical.version, logoAssetId: id },
+    });
+  },
+);
