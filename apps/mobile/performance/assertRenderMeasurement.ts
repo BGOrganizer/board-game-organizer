@@ -1,6 +1,6 @@
 import type { measureRenders } from "@callstack/reassure-measure";
 import { expect } from "vitest";
-import { withinRenderCommitBudget } from "../../../scripts/performance/render-commit-counts.mts";
+import { withinRenderCommitBudget } from "../../../scripts/performance/render-commit-counts.mjs";
 import { renderCommitBudgets } from "./renderCommitBudgets";
 
 /** Validates actual Profiler samples; timing regression limits need a host-matched baseline. */

@@ -3,7 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { hostname } from "node:os";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { withinRenderCommitBudget } from "./render-commit-counts.mts";
+import { withinRenderCommitBudget } from "./render-commit-counts.mjs";
 
 const initialMain = "466220e26f672ad8de644e0a2c2ce223f02879df";
 // Same-runtime hosted comparisons saw sub-millisecond noise and up to 12.35% phase drift.

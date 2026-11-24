@@ -16,6 +16,7 @@ import { createRequire } from "node:module";
 import { hostname } from "node:os";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import ts from "typescript";
 
 const initialMain = "466220e26f672ad8de644e0a2c2ce223f02879df";
 const pausedMain = "13c84d3e9b3c17e6e817dd8685a97824336d17aa";
@@ -145,6 +146,23 @@ function verifyCheckout(root, expectedRef, execute) {
   return git.stdout.trim();
 }
 
+function webInstrumentationHash(file) {
+  const source = readFileSync(file, "utf8");
+  const syntax = ts.createSourceFile(file, source, ts.ScriptTarget.Latest);
+  const exported = syntax.statements.find(ts.isExportAssignment)?.expression;
+  const config = exported && ts.isCallExpression(exported) ? exported.arguments[0] : undefined;
+  const field = (object, key) =>
+    object && ts.isObjectLiteralExpression(object)
+      ? object.properties.find(
+          (property) => ts.isPropertyAssignment(property) && property.name.getText(syntax) === key,
+        )?.initializer
+      : undefined;
+  const coverage = field(field(config, "test"), "coverage");
+  // The exact performance configuration is hashed separately and disables coverage.
+  if (!coverage || !ts.isObjectLiteralExpression(coverage)) return hash(source);
+  return hash(`${source.slice(0, coverage.getStart(syntax))}{}${source.slice(coverage.end)}`);
+}
+
 function prepare(root, expectedRef, app, phase, execute) {
   verifyCheckout(root, expectedRef, execute);
   const appRoot = join(root, "apps", app);
@@ -215,7 +233,14 @@ function prepare(root, expectedRef, app, phase, execute) {
     packages: Object.fromEntries(
       Object.entries(installed).map(([name, value]) => [name, value.version]),
     ),
-    files: Object.fromEntries(files.map((file) => [file, fileHash(join(root, file))])),
+    files: Object.fromEntries(
+      files.map((file) => [
+        file,
+        file === "apps/web/vitest.config.ts"
+          ? webInstrumentationHash(join(root, file))
+          : fileHash(join(root, file)),
+      ]),
+    ),
   };
   const budgetFile = join(appRoot, "performance/renderCommitBudgets.ts");
   const { renderCommitBudgets } = require(budgetFile);

@@ -5,12 +5,13 @@ const asynchronousScenarios = new Set([
   "Main list owners: Groups Events History cached reentry and real authoritative refresh",
 ]);
 
-export function withinRenderCommitBudget(
-  scenario: string,
-  counts: readonly number[],
-  meanCount: number,
-  ceiling: number,
-) {
+/**
+ * @param {string} scenario
+ * @param {readonly number[]} counts
+ * @param {number} meanCount
+ * @param {number} ceiling
+ */
+export function withinRenderCommitBudget(scenario, counts, meanCount, ceiling) {
   // These observed asynchronous list/layout transitions can schedule one extra commit.
   const excess = counts.filter((count) => count > ceiling);
   if (excess.length === 0) return meanCount <= ceiling;

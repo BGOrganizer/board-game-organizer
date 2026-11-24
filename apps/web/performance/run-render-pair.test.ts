@@ -216,6 +216,25 @@ function fixture({ app = "web", bootstrap = false, historicalRef = baseRef } = {
 // This orchestration unit controls PROCESS ports only. Actual FS/version lookup/
 // hashes/metadata remain real. Official statistical output has its separate real
 // subprocess suite; these command fixtures are never performance measurements.
+it("accepts Web coverage policy changes with the same renderer and rejects actual renderer changes", () => {
+  const f = fixture();
+  const config = (environment: string, minimum: number) => `
+    import { defineConfig } from "vitest/config";
+    export default defineConfig({
+      test: { environment: "${environment}", coverage: { thresholds: { branches: ${minimum} } } }
+    });
+  `;
+  put(join(f.baseline, "apps/web/vitest.config.ts"), config("jsdom", 90));
+  put(join(f.current, "apps/web/vitest.config.ts"), config("jsdom", 98));
+  expect(f.run()).toBe(0);
+  expect(f.proof().baseline.instrumentationSha256).toBe(f.proof().current.instrumentationSha256);
+
+  rmSync(f.output, { recursive: true, force: true });
+  put(join(f.current, "apps/web/vitest.config.ts"), config("happy-dom", 98));
+  expect(f.run()).toBe(1);
+  expect(f.summary().errors.join(" ")).toContain("instrumentation differs");
+});
+
 it("runs the isolated installed baseline then candidate, preserving reports and actual provenance", () => {
   const f = fixture();
   expect(f.run()).toBe(0);

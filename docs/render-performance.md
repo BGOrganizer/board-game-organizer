@@ -147,7 +147,9 @@ commands above remain useful for development, but are not an approved historical
 
 The helper starts the installed baseline Vitest process, then the installed current process, with
 the same worker flags. It records actual installed React, renderer, Testing Library, Reassure,
-Vitest and relevant native adapter/compiler versions, plus configuration/setup digests. Different
+Vitest and relevant native adapter/compiler versions, plus configuration/setup digests.
+Web's coverage settings are outside the instrumentation digest because the exact benchmark
+configuration disables coverage. Different
 product locks, app versions, HeroUI or generated CSS remain visible without being equated to test
 instrumentation. Unsupported instrumentation changes fail the comparison and require review;
 do not relabel another host's saved report as this job's baseline.
