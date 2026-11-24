@@ -513,7 +513,8 @@ Web domain for Clerk Production. Browser smoke at `netlify.app` is unauthenticat
 Production acceptance requires a verified BGO subdomain configured for the matching Clerk instance.
 The separate MCP URL is `https://bgo-mcp-<development|production>.netlify.app/mcp`; register that
 exact audience in the matching Clerk instance before using it. The endpoint exposes only MCP
-transport and OAuth discovery and forwards to its own Netlify API without provider bypass.
+transport and OAuth discovery and forwards to its own Netlify API without provider bypass. The
+deployment resolves the issuer from the matching Clerk publishable key and sets it on the API.
 
 Netlify's visitor access settings control reachability independently of Clerk. Public preview
 access on the dedicated Development API, Web and Site projects lets GitHub Actions and testers
@@ -527,5 +528,6 @@ webhooks, job delivery, and Web Push before a cutover.
 
 The API Vitest suite with a Testcontainers MongoDB replica set runs independently of either host.
 Netlify drafts are ordinary Development deployments with an authenticated configuration check
-and read-only smoke. The isolated E2E fixture and cleanup lane uses Vercel under its existing
-enablement controls.
+and read-only smoke. The check rejects CI database names and conflicting webhook database
+overrides. In the absence of a webhook override the API uses its application database. The
+isolated E2E fixture and cleanup lane uses Vercel under its existing enablement controls.

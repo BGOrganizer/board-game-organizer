@@ -86,3 +86,17 @@ test("Netlify verifies the branch alias and returns the immutable deploy URL", (
   assert.equal(verify({ ...deployment, branch: "old-run" }).status, 4);
   assert.equal(verify({ ...deployment, deploy_ssl_url: "https://another.netlify.app" }).status, 4);
 });
+
+test("Netlify attests the application database and its effective webhook database", () => {
+  const verify = (record) =>
+    spawnSync("jq", ["-e", "-f", ".github/actions/netlify-deploy/database.jq"], {
+      input: JSON.stringify(record),
+      encoding: "utf8",
+    }).status;
+
+  assert.equal(verify({ databaseName: "staging", webhookDbReady: false }), 0);
+  assert.equal(verify({ databaseName: "staging", webhookDatabaseName: "staging" }), 0);
+  assert.equal(verify({ databaseName: "bgo_ci_123_1" }), 1);
+  assert.equal(verify({ databaseName: "staging", webhookDatabaseName: "unexpected" }), 1);
+  assert.equal(verify({}), 1);
+});

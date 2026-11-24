@@ -17,6 +17,7 @@ case "$target" in
     flags=(--context branch-deploy --alias "$alias")
     domain_prefix="$alias--"
     deploy_context=branch-deploy
+    clerk_target=preview
     ;;
   production)
     test "$GITHUB_EVENT_NAME" = push
@@ -26,6 +27,7 @@ case "$target" in
     flags=(--context production --prod)
     domain_prefix=''
     deploy_context=production
+    clerk_target=production
     ;;
   *) exit 1 ;;
 esac
@@ -63,6 +65,11 @@ api_origin="https://$domain_prefix$api_site.netlify.app"
 web_origin="https://$domain_prefix$web_site.netlify.app"
 site_origin="https://$domain_prefix$site_site.netlify.app"
 gateway_site="bgo-mcp-$target"
+clerk_issuer=$(node --input-type=module - "$clerk_target" <<'JS'
+import { clerkFrontendOrigin } from './.github/scripts/clerk-target.mjs';
+console.log(clerkFrontendOrigin(process.argv[2], process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY));
+JS
+)
 
 # Keep the Clerk secret used for attestation out of the CLI and build child environments.
 clerk_attestation_key=$CLERK_SECRET_KEY
@@ -105,15 +112,15 @@ function deploy_next() {
 # Scope browser origins to this Web deploy. Keep the existing application origins from Infisical.
 api_deploy=$(deploy_next api "$api_id" \
   --env "BGO_NETLIFY_STAGE=$target" --env "BGO_NETLIFY_WEB_ORIGIN=$web_origin" \
-  --env "MCP_RESOURCE_URL=https://$gateway_site.netlify.app/mcp")
+  --env "MCP_RESOURCE_URL=https://$gateway_site.netlify.app/mcp" --env "MCP_CLERK_ISSUER=$clerk_issuer")
 curl --fail --silent --show-error --retry 3 --max-time 30 "$api_deploy/api/health" |
   jq -e '.ok == true and .service == "board-game-organizer-api"' >/dev/null
 curl --fail --silent --show-error --max-time 30 "$api_deploy/api/admin/sync-user" \
   --header "Authorization: Bearer $clerk_attestation_key" |
-  jq -e --arg target "$target" '.databaseName as $db |
-    ($db | type == "string" and length > 0 and (startswith("bgo_ci_") | not)) and
-    ((.webhookDatabaseName // $db) == $db) and
-    ($target == "production" or .webhookDbReady == true)' >/dev/null
+  jq -e -f .github/actions/netlify-deploy/database.jq >/dev/null || {
+    printf 'Netlify API database attestation failed for %s.\n' "$api_site" >&2
+    exit 1
+  }
 
 web_deploy=$(deploy_next web "$web_id")
 site_deploy=$(deploy_next site "$info_id")
