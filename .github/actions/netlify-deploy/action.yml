@@ -4,6 +4,10 @@ inputs:
   target:
     description: Netlify project environment, development or production
     required: true
+  isolated:
+    description: Deploy API and Web with the run-scoped CI database
+    required: false
+    default: 'false'
   source-sha:
     description: Verified commit to deploy
     required: true
@@ -22,6 +26,28 @@ inputs:
   gateway-pr:
     description: PR allowed to publish the stable Development MCP gateway
     required: false
+outputs:
+  api-url:
+    description: Verified immutable API deploy URL
+    value: ${{ steps.deploy.outputs.api-url }}
+  api-client-url:
+    description: Verified API URL used by clients
+    value: ${{ steps.deploy.outputs.api-client-url }}
+  web-url:
+    description: Verified immutable Web deploy URL
+    value: ${{ steps.deploy.outputs.web-url }}
+  web-client-url:
+    description: Verified Web URL used by clients
+    value: ${{ steps.deploy.outputs.web-client-url }}
+  site-url:
+    description: Verified Site URL
+    value: ${{ steps.deploy.outputs.site-url }}
+  gateway-url:
+    description: Verified MCP gateway URL
+    value: ${{ steps.deploy.outputs.gateway-url }}
+  ci-db-name:
+    description: Attested run-scoped CI database name on isolated deploys
+    value: ${{ steps.deploy.outputs.ci-db-name }}
 runs:
   using: composite
   steps:
@@ -33,6 +59,7 @@ runs:
       run: npm install --global netlify-cli@27.20.1
 
     - name: Verify source and deploy to Netlify
+      id: deploy
       shell: bash
       env:
         NETLIFY_AUTH_TOKEN: ${{ inputs.netlify-token }}
@@ -40,6 +67,7 @@ runs:
         CLERK_SECRET_KEY: ${{ inputs.clerk-secret-key }}
         NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ inputs.clerk-publishable-key }}
         BGO_NETLIFY_STAGE: ${{ inputs.target }}
+        BGO_NETLIFY_ISOLATED: ${{ inputs.isolated }}
         SOURCE_SHA: ${{ inputs.source-sha }}
         RELEASE_SHA: ${{ inputs.release-sha }}
         GATEWAY_PR: ${{ inputs.gateway-pr }}

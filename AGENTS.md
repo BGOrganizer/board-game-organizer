@@ -353,7 +353,8 @@ git log --show-signature -1
 ```
 
 Netlify and Vercel deployment jobs remain independent. Use the matching GitHub, Infisical and
-provider environments and attest the deployed database before directing traffic. See
+provider environments and attest the deployed database before directing traffic. Run deploy
+checks against the selected API/Web pair, preferring healthy Vercel deployments. See
 [parallel Netlify deployment](docs/organizations-events-operations.md#parallel-netlify-deployment).
 
 Every job using local GitHub actions must checkout first. CI/workflow files and

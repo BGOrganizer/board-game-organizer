@@ -2,9 +2,15 @@ import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { netlifyMobileApiAttempt } from "./netlify-preview-target.mjs";
 
 /** Keep Development's fingerprinted eas.json intact; Production APK and OTA use identical config. */
 export async function withProductionBuildEnvironment(project, env, run) {
+  if (
+    URL.parse(env.EXPO_PUBLIC_API_URL)?.hostname.endsWith(".netlify.app") &&
+    !netlifyMobileApiAttempt(env)
+  )
+    throw new Error("Verified Netlify API URL and channel required without Vercel bypass");
   if (env.APP_VARIANT !== "production") return run();
   if (env.MOBILE_BUILD_PROFILE !== "internal")
     throw new Error("Production APK environment requires the internal profile");
@@ -34,7 +40,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       if (result.status !== 0) throw new Error("Local APK build failed");
     });
   } catch {
-    console.error("APK build failed; Production environment selection remains mandatory.");
+    console.error("APK build failed; a verified build environment remains mandatory.");
     process.exitCode = 1;
   }
 }

@@ -176,7 +176,7 @@ test("optional EAS registration cannot disable the mandatory PR/Main publication
       assert(workflow.jobs.ready.needs.includes("e2e-playwright"));
     } else {
       assert(job.needs.includes("build-apk"));
-      assert(job.needs.includes("deploy-production"));
+      assert(job.needs.includes("select-production-deployment"));
     }
   }
   assert.equal(main.jobs["e2e-maestro"], undefined);

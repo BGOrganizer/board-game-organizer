@@ -16,7 +16,7 @@ green source tests do not establish authenticated browser/native acceptance.
 
 ## Actions and script boundaries
 
-Local actions own reusable runner setup, Vercel deployment, APK builds, emulator/Maestro phases,
+Local actions own reusable runner setup, provider deployment, APK builds, emulator/Maestro phases,
 E2E provisioning and publication/notification entrypoints. Workflows describe dependencies and
 credential scope; scripts implement routing, provenance, publication and recovery logic.
 
@@ -89,8 +89,10 @@ settings changes require explicit scope and preservation of reviews and unrelate
 
 ## Parallel Netlify deployment
 
-`Deploy Netlify (Development)` and `Deploy Netlify (Production)` run alongside the existing
-Vercel jobs when enabled. The Netlify action verifies the GitHub source and team-owned project
-IDs, deploys API, Web and Site, and records their links in the job summary. It also deploys the
-MCP gateway on Main and for the selected Development PR. Follow the
-[Netlify setup and isolation rules](../docs/organizations-events-operations.md#parallel-netlify-deployment).
+Netlify deploys the isolated CI, Development and Production lanes alongside Vercel when enabled.
+Each lane selects a healthy API/Web pair from one provider. The selector checks Vercel first and
+uses Netlify if Vercel cannot serve both endpoints. Enabled deploy tests use this pair. Quality
+checks run independently. A lane with no healthy pair fails its deployment gate.
+The Netlify action verifies the GitHub source and team-owned project IDs. It publishes Site and
+MCP where enabled and records deployment links in the job summary. See
+[Netlify setup and isolation](../docs/organizations-events-operations.md#parallel-netlify-deployment).

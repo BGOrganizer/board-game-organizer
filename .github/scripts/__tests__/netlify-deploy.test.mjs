@@ -16,7 +16,18 @@ test("Netlify deploys separately from Vercel, release publication and test fixtu
     const job = jobs[id];
     assert.equal(job.environment, environment);
     assert(!job.needs.some((dependency) => /^(deploy-|build-apk)/.test(dependency)));
-    assert(Object.values(jobs).every((candidate) => !candidate.needs?.includes(id)));
+    if (environment === "production") {
+      assert(jobs["select-production-deployment"].needs.includes(id));
+      assert(jobs["select-production-site"].needs.includes(id));
+      assert(!jobs["publish-release"].needs.includes(id));
+    } else {
+      assert.deepEqual(
+        Object.entries(jobs)
+          .filter(([, candidate]) => candidate.needs?.includes(id))
+          .map(([name]) => name),
+        ["select-development"],
+      );
+    }
     assert(job.steps[0].uses.startsWith("actions/checkout@"));
     const deploy = job.steps[1];
     assert.equal(deploy.uses, "./.github/actions/netlify-deploy");
@@ -99,15 +110,26 @@ test("Netlify verifies the branch alias and returns the immutable deploy URL", (
 });
 
 test("Netlify attests the application database and its effective webhook database", () => {
-  const verify = (record) =>
-    spawnSync("jq", ["-e", "-f", ".github/actions/netlify-deploy/database.jq"], {
-      input: JSON.stringify(record),
-      encoding: "utf8",
-    }).status;
+  const verify = (record, expected = "") =>
+    spawnSync(
+      "jq",
+      ["-e", "--arg", "expected", expected, "-f", ".github/actions/netlify-deploy/database.jq"],
+      {
+        input: JSON.stringify(record),
+        encoding: "utf8",
+      },
+    ).status;
 
   assert.equal(verify({ databaseName: "staging", webhookDbReady: false }), 0);
   assert.equal(verify({ databaseName: "staging", webhookDatabaseName: "staging" }), 0);
   assert.equal(verify({ databaseName: "bgo_ci_123_1" }), 1);
   assert.equal(verify({ databaseName: "staging", webhookDatabaseName: "unexpected" }), 1);
   assert.equal(verify({}), 1);
+  assert.equal(verify({ databaseName: "bgo_ci_123_1" }, "bgo_ci_123_1"), 0);
+  assert.equal(verify({ databaseName: "staging" }, "bgo_ci_123_1"), 1);
+  assert.equal(verify({ databaseName: "bgo_ci_123_2" }, "bgo_ci_123_1"), 1);
+  assert.equal(
+    verify({ databaseName: "bgo_ci_123_1", webhookDatabaseName: "bgo_ci_123_2" }, "bgo_ci_123_1"),
+    1,
+  );
 });

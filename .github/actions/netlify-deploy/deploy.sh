@@ -2,8 +2,14 @@
 set -euo pipefail
 
 target=$BGO_NETLIFY_STAGE
+isolated=${BGO_NETLIFY_ISOLATED:-false}
+ci_database=''
 [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
 test -n "$NETLIFY_AUTH_TOKEN"
+[[ "$isolated" = false || ( "$isolated" = true && "$target" = development ) ]] || {
+  printf 'Isolated Netlify deployments require the Development target.\n' >&2
+  exit 1
+}
 case "$target" in
   development)
     test "$GITHUB_EVENT_NAME" = pull_request
@@ -14,6 +20,10 @@ case "$target" in
     [[ "$GITHUB_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]]
     [[ "$CLERK_SECRET_KEY" = sk_test_* && "$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" = pk_test_* ]]
     alias="pr-$PR_NUMBER-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+    if [ "$isolated" = true ]; then
+      alias="ci-$alias"
+      ci_database="bgo_ci_${GITHUB_RUN_ID}_${GITHUB_RUN_ATTEMPT}"
+    fi
     flags=(--context branch-deploy --alias "$alias")
     domain_prefix="$alias--"
     deploy_context=branch-deploy
@@ -60,16 +70,10 @@ web_site="bgo-web-$target"
 site_site="bgo-site-$target"
 api_id=$(site_id "$api_site")
 web_id=$(site_id "$web_site")
-info_id=$(site_id "$site_site")
 api_origin="https://$domain_prefix$api_site.netlify.app"
 web_origin="https://$domain_prefix$web_site.netlify.app"
 site_origin="https://$domain_prefix$site_site.netlify.app"
 gateway_site="bgo-mcp-$target"
-clerk_issuer=$(node --input-type=module - "$clerk_target" <<'JS'
-import { clerkFrontendOrigin } from './.github/scripts/clerk-target.mjs';
-console.log(clerkFrontendOrigin(process.argv[2], process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY));
-JS
-)
 
 # Keep the Clerk secret used for attestation out of the CLI and build child environments.
 clerk_attestation_key=$CLERK_SECRET_KEY
@@ -109,30 +113,51 @@ function deploy_next() {
   attest_deploy "$response" "$project_id" "$name" "$deploy_context"
 }
 
-# Scope browser origins to this Web deploy. Keep the existing application origins from Infisical.
-api_deploy=$(deploy_next api "$api_id" \
-  --env "BGO_NETLIFY_STAGE=$target" --env "BGO_NETLIFY_WEB_ORIGIN=$web_origin" \
-  --env "MCP_RESOURCE_URL=https://$gateway_site.netlify.app/mcp" --env "MCP_CLERK_ISSUER=$clerk_issuer")
+# Keep browser access scoped to this Web deploy. Only isolated deploys override the database.
+api_env=(--env "BGO_NETLIFY_STAGE=$target" --env "BGO_NETLIFY_WEB_ORIGIN=$web_origin")
+if [ "$isolated" = true ]; then
+  api_env+=(--env "MONGODB_DB_NAME=$ci_database")
+else
+  clerk_issuer=$(node --input-type=module - "$clerk_target" <<'JS'
+import { clerkFrontendOrigin } from './.github/scripts/clerk-target.mjs';
+console.log(clerkFrontendOrigin(process.argv[2], process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY));
+JS
+  )
+  api_env+=(--env "MCP_RESOURCE_URL=https://$gateway_site.netlify.app/mcp" --env "MCP_CLERK_ISSUER=$clerk_issuer")
+fi
+api_deploy=$(BGO_CI_DB_NAME="$ci_database" deploy_next api "$api_id" "${api_env[@]}")
 curl --fail --silent --show-error --retry 3 --max-time 30 "$api_deploy/api/health" |
   jq -e '.ok == true and .service == "board-game-organizer-api"' >/dev/null
 curl --fail --silent --show-error --max-time 30 "$api_deploy/api/admin/sync-user" \
   --header "Authorization: Bearer $clerk_attestation_key" |
-  jq -e -f .github/actions/netlify-deploy/database.jq >/dev/null || {
+  jq -e --arg expected "$ci_database" -f .github/actions/netlify-deploy/database.jq >/dev/null || {
     printf 'Netlify API database attestation failed for %s.\n' "$api_site" >&2
     exit 1
   }
 
 web_deploy=$(deploy_next web "$web_id")
-site_deploy=$(deploy_next site "$info_id")
-for url in "$web_deploy/" "$site_deploy/" "$web_origin/" "$site_origin/" "$api_origin/api/health"; do
+for url in "$web_deploy/" "$web_origin/" "$api_origin/api/health"; do
   curl --fail --silent --show-error --retry 3 --max-time 30 "$url" -o /dev/null
 done
 {
-  printf '### Netlify %s\n\n' "$target"
+  printf 'api-url=%s\napi-client-url=%s\n' "$api_deploy" "$api_origin"
+  printf 'web-url=%s\nweb-client-url=%s\n' "$web_deploy" "$web_origin"
+  printf 'ci-db-name=%s\n' "$ci_database"
+} >>"$GITHUB_OUTPUT"
+{
+  if [ "$isolated" = true ]; then printf '### Netlify CI\n\n'; else printf '### Netlify %s\n\n' "$target"; fi
   printf -- '- [API](%s) · [Deploy](%s)\n' "$api_origin" "$api_deploy"
   printf -- '- [Web](%s) · [Deploy](%s)\n' "$web_origin" "$web_deploy"
-  printf -- '- [Site](%s) · [Deploy](%s)\n' "$site_origin" "$site_deploy"
 } >>"$GITHUB_STEP_SUMMARY"
+
+if [ "$isolated" = true ]; then exit 0; fi
+info_id=$(site_id "$site_site")
+site_deploy=$(deploy_next site "$info_id")
+for url in "$site_deploy/" "$site_origin/"; do
+  curl --fail --silent --show-error --retry 3 --max-time 30 "$url" -o /dev/null
+done
+printf 'site-url=%s\n' "$site_deploy" >>"$GITHUB_OUTPUT"
+printf -- '- [Site](%s) · [Deploy](%s)\n' "$site_origin" "$site_deploy" >>"$GITHUB_STEP_SUMMARY"
 
 if [ "$target" = development ] && [ "$GATEWAY_PR" != "$PR_NUMBER" ]; then
   exit 0
@@ -151,5 +176,6 @@ gateway_deploy=$(attest_deploy "$gateway_result" "$gateway_id" "$gateway_site" p
 curl --fail --silent --show-error --retry 3 --max-time 30 \
   "$gateway_deploy/.well-known/oauth-protected-resource/mcp" |
   jq -e --arg endpoint "https://$gateway_site.netlify.app/mcp" '.resource == $endpoint' >/dev/null
+printf 'gateway-url=https://%s.netlify.app/mcp\n' "$gateway_site" >>"$GITHUB_OUTPUT"
 printf -- '- [MCP](https://%s.netlify.app/mcp) · [Deploy](%s)\n' \
   "$gateway_site" "$gateway_deploy" >>"$GITHUB_STEP_SUMMARY"

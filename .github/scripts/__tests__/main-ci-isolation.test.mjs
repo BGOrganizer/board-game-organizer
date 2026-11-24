@@ -98,15 +98,19 @@ test("every workflow job consuming custom secrets selects its GitHub environment
 test("PR partial reruns retain deployment-owned database identity for fixture and cleanup consumers", () => {
   const action = parse(readFileSync(".github/actions/vercel-deploy/action.yml", "utf8"));
   assert.equal(action.outputs["ci-db-name"].value, "${{ inputs.ci-db-name }}");
-  const expression = "${{ needs.deploy-preview-api.outputs.db-name }}";
+  const expression = `\${{ needs.select-preview.outputs.db-name }}`;
+  assert.match(
+    prJobs["select-preview"].outputs["db-name"],
+    /deploy-preview-api.*deploy-netlify-preview/,
+  );
   assert.equal(
     prJobs["deploy-preview-api"].outputs["db-name"],
     "${{ steps.deploy.outputs.ci-db-name }}",
   );
   const consumers = Object.values(prJobs)
     .flatMap((j) => j.steps)
-    .filter((s) => /action:"(?:cleanup|seed-bgg)"/.test(s.run || ""));
-  assert.equal(consumers.length, 2);
+    .filter((s) => /action:"(?:cleanup|seed|seed-bgg)"/.test(s.run || ""));
+  assert.equal(consumers.length, 3);
   for (const consumer of consumers) {
     assert.equal(consumer.env.DB_NAME, expression);
     assert.doesNotMatch(consumer.run, /github\.run_attempt/);
@@ -169,11 +173,61 @@ test("every main merge runs all non-E2E gates once in parallel before preparing 
     step("release", "🔒 Release only latest validated main commit").run,
     /node \.github\/scripts\/main-release-preparation\.mjs/,
   );
-  for (const id of ["build-apk", "deploy-production", "publish-release"])
+  for (const id of [
+    "build-apk",
+    "deploy-production",
+    "select-production-deployment",
+    "publish-release",
+  ])
     assert.equal(jobs[id].steps[0].with.ref, "${{ needs.release.outputs.sha }}");
   assert(jobs["deploy-production"].needs.includes("release"));
   assert(jobs["deploy-production"].needs.includes("build-apk"));
-  assert.deepEqual(jobs["publish-release"].needs, ["release", "build-apk", "deploy-production"]);
+  assert.deepEqual(jobs["publish-release"].needs, [
+    "release",
+    "build-apk",
+    "select-production-deployment",
+  ]);
+});
+
+test("production smoke selects a complete current deployment after both provider attempts", () => {
+  const select = jobs["select-production-deployment"];
+  const smoke = select.steps.find((s) => s.id === "select");
+  assert.deepEqual(select.needs, ["release", "deploy-production", "deploy-netlify-production"]);
+  assert.match(select.if, /!cancelled\(\).*needs\.release\.result == 'success'/);
+  assert.equal(select.environment, "production");
+  assert.equal(select["continue-on-error"], undefined);
+  assert.equal(smoke.run, "node .github/scripts/select-deploy-provider.mjs");
+  assert.equal(smoke.env.TARGET, "production");
+  assert.equal(smoke.env.VERCEL_PROTECTION_BYPASS, `\${{ secrets.VERCEL_PROTECTION_BYPASS }}`);
+  for (const [provider, id] of [
+    ["VERCEL", "deploy-production"],
+    ["NETLIFY", "deploy-netlify-production"],
+  ]) {
+    assert.equal(jobs[id]["continue-on-error"], true);
+    for (const app of ["api", "web"]) {
+      assert.equal(
+        smoke.env[`${provider}_${app.toUpperCase()}_URL`],
+        `\${{ needs.${id}.outputs.${app}-url }}`,
+      );
+      assert.equal(
+        jobs[id].outputs[`${app}-url`],
+        provider === "VERCEL"
+          ? `\${{ steps.${app}.outputs.deployment-url }}`
+          : `\${{ steps.deploy.outputs.${app}-url }}`,
+      );
+    }
+  }
+  assert(jobs["deploy-production-site"]["continue-on-error"]);
+  const site = jobs["select-production-site"];
+  assert.deepEqual(site.needs, [
+    "quality",
+    "build-site",
+    "deploy-production-site",
+    "deploy-netlify-production",
+  ]);
+  assert.match(site.steps.at(-1).run, /for provider in Vercel Netlify; do/);
+  assert(!jobs["publish-release"].needs.includes("select-production-site"));
+  assert(jobs["deploy-production-mcp-gateway"]["continue-on-error"]);
 });
 test("unit and integration Codecov uploads fail closed and retain coverage reports", () => {
   for (const id of ["coverage", "integration-tests"]) {
@@ -255,9 +309,8 @@ test("main publishes and notifies only after production deploy/smoke with the ex
   assert.equal(upload.env.EXPO_TOKEN, "${{ secrets.EXPO_TOKEN }}");
   assert.match(upload.run, /node .*eas-upload\.mjs "\$APK"/);
   assert.equal(jobs["publish-release"].outputs.eas_build_url, "${{ steps.eas.outputs.url }}");
-  assert.match(step("deploy-production", "🔎 Read-only production smoke").run, /curl -fsSL/);
   assert(jobs["notify-telegram"].needs.includes("publish-release"));
-  assert(jobs["notify-telegram"].needs.includes("deploy-production"));
+  assert(jobs["notify-telegram"].needs.includes("select-production-deployment"));
   assert.match(
     step("notify-telegram", "🔒 Notify only the current production release").run,
     /RELEASE_SHA/,
@@ -279,7 +332,7 @@ test("PR keeps independent Development publication and isolated Internal cleanup
     find("build-mobile-internal", "🏗️ Build APK (eas build --local, internal profile)").with[
       "api-url"
     ],
-    "${{ needs.deploy-preview-api.outputs.branch-url }}",
+    `\${{ needs.select-preview.outputs.api-client-url }}`,
   );
   assert(prJobs["deploy-development-api"].needs.includes("unit-tests"));
   assert(prJobs["deploy-development-api"].needs.includes("integration-tests"));
@@ -301,7 +354,7 @@ test("PR keeps independent Development publication and isolated Internal cleanup
     find("build-mobile-development", "🏗️ Build internal APK against development Preview").with[
       "api-url"
     ],
-    "${{ needs.deploy-development-api.outputs.branch-url }}",
+    `\${{ needs.select-development.outputs.api-client-url }}`,
   );
   assert.equal(
     find("draft-release", "📥 Download development APK").with.name,

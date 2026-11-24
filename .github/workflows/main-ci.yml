@@ -263,6 +263,9 @@ jobs:
     needs: [quality, build-site]
     runs-on: ubuntu-latest
     environment: production
+    continue-on-error: true
+    outputs:
+      site-url: ${{ steps.deploy.outputs.deployment-url }}
     concurrency:
       group: production-site
       cancel-in-progress: false
@@ -277,6 +280,7 @@ jobs:
           fetch-depth: 0
 
       - name: 🚀 Deploy Site to Vercel (production)
+        id: deploy
         uses: ./.github/actions/vercel-deploy
         with:
           app-name: Site
@@ -294,6 +298,7 @@ jobs:
     needs: [quality, coverage]
     runs-on: ubuntu-latest
     environment: production
+    continue-on-error: true
     concurrency:
       group: production-mcp-gateway
       cancel-in-progress: false
@@ -382,7 +387,15 @@ jobs:
     needs: [release, build-site]
     runs-on: ubuntu-latest
     environment: production
+    continue-on-error: true
     timeout-minutes: 45
+    outputs:
+      api-url: ${{ steps.deploy.outputs.api-url }}
+      api-client-url: ${{ steps.deploy.outputs.api-client-url }}
+      web-url: ${{ steps.deploy.outputs.web-url }}
+      web-client-url: ${{ steps.deploy.outputs.web-client-url }}
+      site-url: ${{ steps.deploy.outputs.site-url }}
+      gateway-url: ${{ steps.deploy.outputs.gateway-url }}
     concurrency:
       group: production-netlify
       cancel-in-progress: false
@@ -395,6 +408,7 @@ jobs:
           ref: ${{ needs.release.outputs.sha || github.sha }}
           fetch-depth: 0
       - name: Deploy to Netlify
+        id: deploy
         if: vars.BGO_NETLIFY_ENABLED == 'true'
         uses: ./.github/actions/netlify-deploy
         with:
@@ -475,25 +489,15 @@ jobs:
     environment: production
 
   deploy-production:
-    name: Deploy ${{ matrix.app }} (Production)
+    name: Deploy API and Web to Vercel (Production)
     needs: [release, build-apk]
     if: needs.release.outputs.published == 'true'
     runs-on: ubuntu-latest
     environment: production
-    strategy:
-      fail-fast: true
-      matrix:
-        include:
-          - app: api
-            app-name: API
-            app-path: apps/api
-            project-id-secret: VERCEL_API_PROJECT_ID
-            status-context: vercel/api/production
-          - app: web
-            app-name: Web
-            app-path: apps/web
-            project-id-secret: VERCEL_WEB_PROJECT_ID
-            status-context: vercel/web/production
+    continue-on-error: true
+    outputs:
+      api-url: ${{ steps.api.outputs.deployment-url }}
+      web-url: ${{ steps.web.outputs.deployment-url }}
     steps:
       - name: 📥 Checkout pinned release commit
         uses: actions/checkout@v4
@@ -507,44 +511,135 @@ jobs:
           git fetch --no-tags origin main
           test "$(git rev-parse origin/main)" = "$RELEASE_SHA"
 
-      - name: 🚀 Deploy to Vercel (production)
+      - name: 🚀 Deploy Production API to Vercel
+        id: api
         uses: ./.github/actions/vercel-deploy
         with:
-          app-name: ${{ matrix.app-name }}
-          app-path: ${{ matrix.app-path }}
+          app-name: API
+          app-path: apps/api
           vercel-environment: production
           production: 'true'
-          status-context: ${{ matrix.status-context }}
+          status-context: vercel/api/production
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets[matrix.project-id-secret] }}
-          # Web production must call the custom-domain API, NOT the old
-          # Vercel alias (api-chi-two-97 died with the project rename). The
-          # project env on Vercel may still hold the old value, so pin the
-          # build-time override here (deterministic, like the Clerk keys).
-          extra-env: ${{ matrix.app == 'web' && 'NEXT_PUBLIC_API_URL=https://api.board-game-organizer.com' || '' }}
+          vercel-project-id: ${{ secrets.VERCEL_API_PROJECT_ID }}
 
-      - name: 🔎 Read-only production smoke
+      - name: 🔒 Recheck the release before deploying Web
         env:
-          APP: ${{ matrix.app }}
+          RELEASE_SHA: ${{ needs.release.outputs.sha }}
         run: |
-          set -euo pipefail
-          if [ "$APP" = api ]; then
-            url=https://api.board-game-organizer.com/api/health
-          else
-            url=https://board-game-organizer.com/
-          fi
-          curl -fsSL --retry 5 --retry-all-errors --retry-delay 3 --max-time 30 "$url" -o /dev/null
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "$RELEASE_SHA"
+
+      - name: 🚀 Deploy Production Web to Vercel
+        id: web
+        uses: ./.github/actions/vercel-deploy
+        with:
+          app-name: Web
+          app-path: apps/web
+          vercel-environment: production
+          production: 'true'
+          status-context: vercel/web/production
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_WEB_PROJECT_ID }}
+          extra-env: NEXT_PUBLIC_API_URL=https://api.board-game-organizer.com
     permissions:
       contents: read
       statuses: write
+
+  select-production-deployment:
+    name: Verify selected Production deployment
+    needs: [release, deploy-production, deploy-netlify-production]
+    if: ${{ !cancelled() && needs.release.result == 'success' && needs.release.outputs.published == 'true' }}
+    runs-on: ubuntu-latest
+    environment: production
+    outputs:
+      provider: ${{ steps.select.outputs.provider }}
+      api-url: ${{ steps.select.outputs.api-url }}
+      web-url: ${{ steps.select.outputs.web-url }}
+    steps:
+      - name: 📥 Checkout pinned release commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release.outputs.sha }}
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+
+      - name: 🔎 Select Production provider and run read-only smoke
+        id: select
+        env:
+          TARGET: production
+          VERCEL_API_URL: ${{ needs.deploy-production.outputs.api-url }}
+          VERCEL_WEB_URL: ${{ needs.deploy-production.outputs.web-url }}
+          VERCEL_PROTECTION_BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+          NETLIFY_API_URL: ${{ needs.deploy-netlify-production.outputs.api-url }}
+          NETLIFY_API_CLIENT_URL: ${{ needs.deploy-netlify-production.outputs.api-client-url }}
+          NETLIFY_WEB_URL: ${{ needs.deploy-netlify-production.outputs.web-url }}
+          NETLIFY_WEB_CLIENT_URL: ${{ needs.deploy-netlify-production.outputs.web-client-url }}
+        run: node .github/scripts/select-deploy-provider.mjs
+
+  select-production-site:
+    name: Verify selected Production Site
+    needs: [quality, build-site, deploy-production-site, deploy-netlify-production]
+    if: ${{ !cancelled() && needs.quality.result == 'success' && needs.build-site.result == 'success' }}
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: 📥 Checkout merged source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+
+      - name: 🔎 Check Site on Vercel, then Netlify if needed
+        env:
+          VERCEL_SITE_URL: ${{ needs.deploy-production-site.outputs.site-url }}
+          NETLIFY_SITE_URL: ${{ needs.deploy-netlify-production.outputs.site-url }}
+          VERCEL_PROTECTION_BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+        run: |
+          set -euo pipefail
+          result=0
+          node .github/scripts/check-site-main.mjs "$GITHUB_REF" "$GITHUB_SHA" || result=$?
+          if [ "$result" = 3 ]; then exit 0; fi
+          test "$result" = 0
+          for provider in Vercel Netlify; do
+            auth=()
+            if [ "$provider" = Vercel ]; then
+              url="$VERCEL_SITE_URL"
+              [[ "$url" =~ ^https://[a-zA-Z0-9-]+\.vercel\.app$ ]] || continue
+              if [ -n "$VERCEL_PROTECTION_BYPASS" ]; then
+                auth+=(--header "x-vercel-protection-bypass: $VERCEL_PROTECTION_BYPASS")
+              fi
+            else
+              url="$NETLIFY_SITE_URL"
+              [[ "$url" =~ ^https://[a-f0-9]{24}--bgo-site-production\.netlify\.app$ ]] || continue
+            fi
+            status=$(curl --silent --show-error --max-time 30 --retry 2 --output /dev/null \
+              --write-out '%{http_code}' "${auth[@]}" "$url/") || continue
+            [[ "$status" =~ ^2[0-9]{2}$ ]] || continue
+            printf 'Production Site verified on %s at %s\n' "$provider" "$url" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          done
+          printf 'No current Production Site deploy passed smoke.\n' >&2
+          exit 1
 
   publish-release:
     name: Publish release v${{ needs.release.outputs.version }}
     needs:
       - release
       - build-apk
-      - deploy-production
+      - select-production-deployment
     if: needs.release.outputs.published == 'true'
     runs-on: ubuntu-latest
     concurrency:
@@ -655,7 +750,7 @@ jobs:
 
   notify-telegram:
     name: Notify Telegram
-    needs: [release, publish-release, deploy-production]
+    needs: [release, publish-release, select-production-deployment]
     if: needs.release.outputs.published == 'true'
     runs-on: ubuntu-latest
     steps:

@@ -47,19 +47,19 @@ test("one application workflow routes branch/PR events and overlaps checks after
 });
 
 test("APK builds overlap but embed separate isolated and development Preview URLs", () => {
-  assert.ok(jobs["build-mobile-internal"].needs.includes("deploy-preview-api"));
-  assert.deepEqual(jobs["build-mobile-development"].needs, ["context", "deploy-development-api"]);
+  assert.ok(jobs["build-mobile-internal"].needs.includes("select-preview"));
+  assert.deepEqual(jobs["build-mobile-development"].needs, ["context", "select-development"]);
   assert.equal(
     step("build-mobile-internal", "🏗️ Build APK (eas build --local, internal profile)").with[
       "api-url"
     ],
-    `\${{ needs.deploy-preview-api.outputs.branch-url }}`,
+    `\${{ needs.select-preview.outputs.api-client-url }}`,
   );
   assert.equal(
     step("build-mobile-development", "🏗️ Build internal APK against development Preview").with[
       "api-url"
     ],
-    `\${{ needs.deploy-development-api.outputs.branch-url }}`,
+    `\${{ needs.select-development.outputs.api-client-url }}`,
   );
   assert.ok(jobs["e2e-maestro"].needs.includes("build-mobile-internal"));
   assert.ok(!jobs["e2e-maestro"].needs.includes("build-mobile-development"));
@@ -75,7 +75,7 @@ test("APK builds overlap but embed separate isolated and development Preview URL
   ]) {
     assert.equal(jobs["draft-release"].needs.includes(gate), gate === "build-mobile-development");
   }
-  assert(jobs["draft-release"].needs.includes("deploy-development-web"));
+  assert(jobs["draft-release"].needs.includes("select-development"));
   assert.equal(
     step("deploy-development-web", "🚀 Deploy Web against Development API").with["ci-db-name"],
     undefined,
@@ -130,7 +130,7 @@ test("Site builds gate branch and PR checks, while deployments follow their own 
 
   const preview = jobs["deploy-development-site"];
   assert.deepEqual(preview.needs, ["context", "build-site", "deploy-development-web"]);
-  assert.equal(preview.if, jobs["deploy-development-web"].if);
+  assert.match(preview.if, /mode == 'pr'.*trusted == 'true'.*deploy-development-web.outputs.ready/);
   assert.equal(preview.environment, "development");
   assert.deepEqual(preview.permissions, { contents: "read", "pull-requests": "write" });
   assert(!jobs.ready.needs.includes("deploy-development-site"));
@@ -240,7 +240,7 @@ test("Development publication ignores Internal results but requires every common
 
 test("intentional E2E skips cannot race fixture mirroring or CI API consumers with cleanup", () => {
   assert(jobs["cleanup-e2e-user"].needs.includes("sync-e2e-users"));
-  for (const consumer of ["cleanup-e2e-user", "build-mobile-internal", "deploy-preview-web"]) {
+  for (const consumer of ["cleanup-e2e-user", "build-mobile-internal", "initialize-preview"]) {
     assert(jobs["cleanup-e2e-db"].needs.includes(consumer), consumer);
   }
 });
@@ -325,7 +325,10 @@ test("PR publishes the verified development APK to EAS and keeps GitHub and Tele
   assert.match(publish.with["package-mcp"], /BGO_MCP_GATEWAY_PR_NUMBER.*pull_request\.number/);
   assert.equal(action.runs.steps[0].env.PACKAGE_MCP, `\${{ inputs.package-mcp }}`);
   assert.match(action.runs.steps[0].run, /publish-pr-draft\.mjs/);
-  assert.equal(publish.with["web-preview-url"], `\${{ needs.deploy-development-web.outputs.url }}`);
+  assert.equal(
+    publish.with["web-preview-url"],
+    `\${{ needs.select-development.outputs.web-client-url }}`,
+  );
   assert(steps.some((step) => step.name === "🔒 Verify current head before Telegram"));
 });
 
@@ -343,18 +346,18 @@ test("watchdog waits for all test suites before cancelling shared failures; inde
   assert.match(cleanup.jobs.cleanup.if, /conclusion != 'success'/);
   assert.match(cleanup.jobs.cleanup.steps.find((step) => step.run)?.run, /cleanup-pr-e2e\.sh/);
   assert.equal(cleanup.jobs.cleanup.environment, "development");
-  const steps = jobs["deploy-preview-api"].steps.map((item) => item.name);
+  const steps = jobs["initialize-preview"].steps.map((item) => item.name);
   assert.equal(
-    step("deploy-preview-api", "📤 Preserve URL for cancellation cleanup").with.name,
+    step("initialize-preview", "Preserve URL for cancellation cleanup").with.name,
     `ci-api-url-\${{ github.run_attempt }}`,
   );
   assert.ok(
-    steps.indexOf("📤 Preserve URL for cancellation cleanup") <
-      steps.indexOf("🌱 Seed isolated CI database"),
+    steps.indexOf("Preserve URL for cancellation cleanup") <
+      steps.indexOf("Attest and seed only the selected CI database"),
   );
   assert.ok(
-    steps.indexOf("📤 Preserve URL for cancellation cleanup") <
-      steps.indexOf("🔒 Attest API runtime database before any E2E writes"),
+    steps.indexOf("Record isolated API ownership for recovery") <
+      steps.indexOf("Preserve URL for cancellation cleanup"),
   );
   const script = readFileSync(".github/scripts/cleanup-pr-e2e.sh", "utf8");
   assert.match(script, /E2E_RUN_KEY/);
@@ -370,7 +373,8 @@ test("PR deployment, auth, build and publication secrets use the development Git
       JSON.stringify(job),
     ),
   );
-  assert.equal(consumers.length, 15);
+  assert(consumers.some(([name]) => name === "deploy-netlify-preview"));
+  assert(consumers.some(([name]) => name === "initialize-preview"));
   assert(consumers.some(([name]) => name === "deploy-development-mcp-gateway"));
   assert(consumers.some(([name]) => name === "deploy-netlify-development"));
   for (const [name, job] of consumers) assert.equal(job.environment, "development", name);

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { resolveCiContext } from "../ci-context.mjs";
 import { requireCurrentPr } from "../ci-current-pr.mjs";
-import { internalJobs, qualityJobs, verifyCiGate } from "../ci-gate.mjs";
+import { fixtureJobs, internalJobs, qualityJobs, verifyCiGate } from "../ci-gate.mjs";
 
 const repository = "BGOrganizer/board-game-organizer",
   sha = "a".repeat(40),
@@ -24,10 +24,14 @@ const push = {
 };
 const statuses = () =>
   Object.fromEntries(
-    ["context", ...qualityJobs, ...internalJobs, "e2e-maestro", "e2e-playwright"].map((name) => [
-      name,
-      "success",
-    ]),
+    [
+      "context",
+      ...qualityJobs,
+      ...internalJobs,
+      ...fixtureJobs,
+      "e2e-maestro",
+      "e2e-playwright",
+    ].map((name) => [name, "success"]),
   );
 
 test("branch without PR gets quality only; a push with PR routes without a second pipeline", async () => {
@@ -136,18 +140,25 @@ test("routing validates context and fails closed on API errors or ambiguous bran
 });
 test("merge gate requires every Internal/common result but never depends on Development", () => {
   const results = statuses();
-  assert.match(verifyCiGate("pr", results, "true"), /passed/);
-  for (const name of ["context", ...qualityJobs, ...internalJobs, "e2e-maestro", "e2e-playwright"])
+  assert.match(verifyCiGate("pr", results, "true", "vercel"), /passed/);
+  for (const name of [
+    "context",
+    ...qualityJobs,
+    ...internalJobs,
+    ...fixtureJobs,
+    "e2e-maestro",
+    "e2e-playwright",
+  ])
     for (const value of ["failure", "cancelled", "skipped", undefined, "timed_out"])
       assert.throws(
-        () => verifyCiGate("pr", { ...results, [name]: value }, "true"),
-        /CI gate|E2E result/,
+        () => verifyCiGate("pr", { ...results, [name]: value }, "true", "vercel"),
+        /CI gate|E2E result|fixture result/,
       );
   const disabled = { ...results, "e2e-maestro": "skipped", "e2e-playwright": "skipped" };
-  assert.match(verifyCiGate("pr", disabled, "false"), /not acceptance evidence/);
+  assert.match(verifyCiGate("pr", disabled, "false", "vercel"), /not acceptance evidence/);
   for (const name of ["e2e-maestro", "e2e-playwright"])
     for (const result of ["success", "failure", "cancelled", undefined])
-      assert.throws(() => verifyCiGate("pr", { ...disabled, [name]: result }, "false"));
+      assert.throws(() => verifyCiGate("pr", { ...disabled, [name]: result }, "false", "vercel"));
   for (const name of [
     "deploy-development-api",
     "deploy-development-web",
@@ -155,7 +166,17 @@ test("merge gate requires every Internal/common result but never depends on Deve
     "build-mobile-development",
     "draft-release",
   ])
-    assert.match(verifyCiGate("pr", { ...disabled, [name]: "failure" }, "false"), /passed/);
+    assert.match(
+      verifyCiGate("pr", { ...disabled, [name]: "failure" }, "false", "vercel"),
+      /passed/,
+    );
+  const fallback = {
+    ...disabled,
+    ...Object.fromEntries(fixtureJobs.map((name) => [name, "skipped"])),
+  };
+  assert.match(verifyCiGate("pr", fallback, "false", "netlify"), /passed/);
+  assert.throws(() => verifyCiGate("pr", fallback, "true", "netlify"), /fixture result/);
+  assert.throws(() => verifyCiGate("pr", fallback, "false", ""), /provider required/);
   const branch = Object.fromEntries(["context", ...qualityJobs].map((name) => [name, "success"]));
   assert.match(verifyCiGate("branch", branch), /passed/);
   for (const name of ["context", ...qualityJobs])

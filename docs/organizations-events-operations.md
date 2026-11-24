@@ -155,20 +155,21 @@ samples; later missing/corrupt baselines fail, and no historical result is fabri
 These secret-free checks do not execute Playwright or Maestro journeys, provision users or capture
 device traces. Test matrices do not cancel their remaining active suites on failure.
 
-- Internal owns the isolated API/database, CI web, CI APK, users, mirroring, optional retained E2E
-  and exact-run cleanup. `PR ready` requires every common/Internal/cleanup result. Its job still
-  evaluates after failed dependencies, so a skipped prerequisite cannot masquerade as readiness.
-- Development owns a non-CI API, dedicated web using that immutable API, and an APK embedding its
-  stable per-PR API alias. Publication verifies artifact checksum, source head, current PR, active
+- Internal owns the isolated API/database, CI Web, CI APK, optional E2E fixtures and exact-run
+  cleanup. `PR ready` requires common checks, the verified provider pair and Internal APK, and the
+  fixture, cleanup and E2E results required by the selected provider and test policy. The gate
+  evaluates after failed dependencies so an unexpected skip cannot count as readiness.
+- Development owns a non-CI API, dedicated Web using that API, and an APK embedding the verified
+  provider's client URL. Publication verifies artifact checksum, source head, current PR, active
   run/attempt and newer same-head runs. Draft release/Telegram announce **Development availability**, not a
   successful PR or E2E. They do not wait for Internal or CI cleanup. A Development-only failure
   may leave the overall workflow red while `PR ready` is green; the failure remains visible.
 
-`BGO_PR_E2E_ENABLED` is an explicit workflow policy, currently `'false'`. Only the two matching E2E
-skips are permitted by the aggregate gate. Setting it to `'true'` requires actual success of both
-retained suites. No skips or script/VM tests establish authenticated browser/native acceptance.
-The public Site adds coverage and a build to Branch and PR gates. Trusted PRs publish a separate
-Site Preview after Development Web so sign-in uses the current run's Web URL.
+`BGO_PR_E2E_ENABLED` is an explicit workflow policy, currently `'false'`. Setting it to `'true'`
+requires actual success of both retained suites and their isolated fixtures and cleanup.
+No skips or script/VM tests establish authenticated browser/native acceptance.
+The public Site adds coverage and a build to Branch and PR gates. Trusted PRs deploy Site previews
+whose sign-in links use the corresponding provider's Development Web.
 This deployment does not wait for the APK. See the [Site setup](../apps/site/README.md#vercel-and-github-actions).
 
 Main delivery and manual operations follow the explicit operator-approved policy below; these
@@ -304,12 +305,11 @@ The exact URL remains in the APK provenance digest and must match the verified p
 Production and isolated CI fingerprints keep the API URL; all other native inputs remain covered.
 Migrating an installed `development-pr-N` APK requires one manual install of the shared-channel base.
 
-CI web uses the immutable isolated API URL; E2E APKs use the verified per-PR alias. Development web
-uses its attested immutable non-CI API URL, so it remains usable before or after a failed APK
-publication. Development APKs use a stable-within-PR `api-development-pr-N` Preview alias, distinct
-from the CI `api-pr-N` alias. The deploy job only computes its URL; the publication job assigns it
-after smoke, non-CI database attestation and current-PR checks, then verifies the exact ready
-deployment target.
+CI Web and Internal APK use the selected isolated provider; Development Web and APK use the
+selected non-CI provider. Vercel uses immutable API deploy URLs for Web and verified per-PR APK
+aliases. Its Development publisher assigns the alias after smoke, non-CI database attestation and
+current-PR checks, then verifies the exact ready deployment target. Netlify Web and APK use the
+corresponding run-scoped API alias, attested against the exact ready deploy.
 Immutable deployment URLs remain the source of deployment attestation. Development producers and
 publisher use the same pinned merge SHA for current code. `source-head.txt` records the actual APK
 build checkout, including on reuse. The PR-head guard independently rejects stale/closed/untrusted PRs.
@@ -330,9 +330,10 @@ Production OTA; the GitHub release becomes public only after OTA succeeds. Teleg
 successful publication/deploys and a current-main check. The existing narrow exhausted-EAS-quota exception remains. No app-store
 submission, provisioning, secret synchronization or database migration is introduced.
 
-The Site build and coverage run on Main. A separate Site job deploys and promotes the verified
-source on Vercel with the production Web subdomain as its sign-in target. It does not wait for APK,
-OTA or the app version and rechecks Main before promotion.
+The Site build and coverage run on Main. The provider jobs deploy the verified source with the
+production Web subdomain as its sign-in target and recheck Main before promotion. The Site smoke
+check prefers the current Vercel deployment and can verify the current Netlify deployment if needed.
+Site delivery can run for merges that prepare no app release.
 
 The release-note preset is an explicit root development dependency, compatible with the installed
 semantic-release writer independently of Commitlint's own preset. CI executes the actual configured
@@ -421,7 +422,7 @@ reuses stale mobile inputs, skips quality/cleanup gates or changes E2E enablemen
 - `expo-image-picker` changes native permissions. A JavaScript export is insufficient: create a fresh native build and exercise camera/library denial, retry, Settings-return refresh, replacement and cancelled picking in Maestro.
 - Run the current Group/Event/Table acceptance flows on both clients; verify failure/empty/privacy/cutoff paths, not only successful forms. Never silently skip missing authenticated E2E configuration.
 - [The managed HeroUI Native patch](../patches/heroui-native@1.0.9.patch) gives the default animated popover wrapper absolute-fill bounds in both source and distributed modules so visible help remains measurable and accessible. Preserve mounting, positioning, touch pass-through and animations; source checks do not replace native acceptance.
-- By explicit operator request, PR Maestro and Playwright remain retained but disabled through `BGO_PR_E2E_ENABLED: 'false'`. Their suites and report validation remain intact; Main E2E gates and the manual mobile-E2E workflow are removed by explicit operator request. `PR ready` permits only these policy-matching intentional skips; other common/Internal gates and cleanup must succeed. Development publication is independent of Internal/E2E/CI cleanup. Cleanup still waits for fixture mirroring and CI API consumers when tests are skipped. A green gate does not establish web/native E2E acceptance.
+- By explicit operator request, PR Maestro and Playwright remain retained but disabled through `BGO_PR_E2E_ENABLED: 'false'`. Their suites and report validation remain intact; Main E2E gates and the manual mobile-E2E workflow are removed by explicit operator request. `PR ready` permits only these policy-matching intentional skips; other common/Internal gates and cleanup must succeed. Development publication is independent of Internal/E2E/CI cleanup. When fixtures are created, cleanup waits for fixture mirroring and CI API consumers even if E2E tests are skipped. A green gate does not establish web/native E2E acceptance.
 - When re-enabled, PR Maestro attempts all 13 ordered flows after an earlier flow failure when native preparation succeeded and the run is not cancelled. Each failed step remains failed; final report verification still runs and rejects failed, skipped or missing reports. Shared-session failures may cascade into later flows, so inspect their actual traces before treating each failure as an independent defect.
 - Maestro uses the rendering-enabled Android 34 `google_apis;x86_64` image for Expo Location's Google Play Services provider, selected explicitly even if a cached AOSP or ATD image is present. [ATD images disable hardware rendering](https://developer.android.com/studio/test/managed-devices#use-atds) and remove GUI services; a headless emulator window must not imply a non-rendering Android guest. Keep actual screenshots/video and animated portal assertions; do not substitute longer waits or disable animations to hide missing UI.
 - GitHub native acceptance requires Linux KVM: trigger the job-local device rule with `udevadm trigger --name-match=kvm --settle` before checking read/write permissions and running `emulator -accel-check`. The ordinary trigger is asynchronous; immediate permission checks race rule application. Missing devices or denied permissions fail explicitly with device/runner diagnostics. Keep `-accel on`, never software-CPU fallback. Windows WHPX and shell simulations are not Linux KVM acceptance; verify the real runner before claiming native success.
@@ -475,11 +476,13 @@ eligible so links can activate when the Production gateway is first deployed aft
 
 ## Parallel Netlify deployment
 
-Netlify runs in separate PR and Main jobs alongside Vercel. The PR job is limited to trusted,
-current PRs after quality and build checks. Main deploys from the verified merge or the
-associated release commit when a version was prepared. Neither lane consumes Vercel deployment
-outputs. APK, OTA, GitHub release publication and the existing PR readiness gate retain their
-own dependencies.
+Netlify and Vercel deploy independently on trusted PRs and Main. Each PR deploys isolated CI and
+ordinary Development pairs. Main deploys from the verified merge or its pinned release commit.
+Each lane selects a complete API and Web pair from the same provider. The selector checks the
+exact deploys for API health and a reachable Web page, preferring Vercel when both pass. A failed
+provider job alone does not block delivery. A missing healthy pair fails the relevant gate.
+Enabled deploy tests use the selected provider. Quality, artifact validation and release
+publication checks still apply.
 
 The `board-game-organizer` Netlify team owns eight unlinked projects, one each for API, Web,
 Site and MCP in Development and Production. Provision them as `bgo-<api|web|site|mcp>-<development|production>`.
@@ -516,10 +519,11 @@ exact audience in the matching Clerk instance before using it. The endpoint expo
 transport and OAuth discovery and forwards to its own Netlify API without provider bypass. The
 deployment resolves the issuer from the matching Clerk publishable key and sets it on the API.
 
-Netlify's visitor access settings control reachability independently of Clerk. Public preview
-access on the dedicated Development API, Web and Site projects lets GitHub Actions and testers
-reach those deployments. The Development MCP gateway's published URL requires public published
-deploy access for external MCP clients. BGO authorization remains enforced by the application.
+Netlify's visitor access settings control reachability independently of Clerk. Use Public
+preview access for the Development API, Web and Site projects and Public published deploy access
+for their Production counterparts so GitHub Actions can perform unauthenticated smoke checks.
+External MCP clients require Public published deploy access on the corresponding MCP project.
+BGO authorization remains enforced by the application.
 
 The Netlify projects use provider hostnames until an operator changes DNS. The existing
 production domains, Clerk webhook URLs and Inngest registration continue to route through
@@ -527,7 +531,9 @@ Vercel. No duplicate webhook or worker registration is created. Check custom-dom
 webhooks, job delivery, and Web Push before a cutover.
 
 The API Vitest suite with a Testcontainers MongoDB replica set runs independently of either host.
-Netlify drafts are ordinary Development deployments with an authenticated configuration check
-and read-only smoke. The check rejects CI database names and conflicting webhook database
-overrides. In the absence of a webhook override the API uses its application database. The
-isolated E2E fixture and cleanup lane uses Vercel under its existing enablement controls.
+Ordinary Netlify deploys reject CI database names and conflicting webhook database overrides
+during runtime attestation. With no webhook override, the API uses its application database.
+Isolated Netlify deploys have separate aliases and must attest the exact run/attempt database.
+With PR E2E disabled, a Netlify fallback verifies readiness without seeding fixtures. If E2E
+is enabled, the selected isolated deployment owns fixtures, and Netlify fixture writes require
+the trusted default-branch cleanup controller to support Netlify ownership verification.
