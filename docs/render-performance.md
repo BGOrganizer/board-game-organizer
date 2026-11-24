@@ -117,10 +117,11 @@ reported by the comparison jobs.
 Calibrate commit-count ceilings from repeated runs with the same fixtures. Both suites record
 explicit scenario ceilings in `apps/{web,mobile}/performance/renderCommitBudgets.ts` and reject
 additional commits, unknown scenarios and invalid samples. Portable multi-commit budgets allow
-one extra commit in at most two of ten samples, with a maximum mean increase of 0.2. Four hosted
-comparisons of unchanged application code observed that spread in real list, popover and wrapper
-transitions. Single-commit scenarios keep a strict ceiling on every sample. Larger or recurring
-excesses still fail. Recheck a changed scenario before updating its
+a total of two commits above the ceiling across ten samples and a maximum mean increase of 0.2.
+Hosted runs of unchanged components occasionally observed either one or two extra commits in an
+individual list, popover or tab transition. Single-commit scenarios keep a strict ceiling on every
+sample. An excess exceeding two commits, in one sample or across several, fails. Recheck a changed
+scenario before updating its
 ceiling; do not raise budgets merely to obtain a passing run. Native detail and score-save
 scenarios deliver actual Query notifications within the React action to avoid a timer racing
 the next interaction. The score-save fixture releases the held HTTP response separately so the
@@ -134,7 +135,8 @@ The Branch/PR and Main jobs measure each app's approved baseline and the current
 own budget inventory. The current checkout runs the entire suite and must report each of its approved
 scenarios. This preserves measured history when a previously paused suite contains uncalibrated
 cases. The two checkouts have separate locked installations, completed before either timing run.
-Web and mobile have independent reports and use separate comparisons.
+Web and mobile have independent reports and use separate comparisons. The artifact name includes
+the workflow attempt so a retry can preserve its own measurements.
 
 The Web baseline at `13c84d3e` predates updates to the numbered table label, clickable vote choices
 and restored HeroUI tab indicators. The three affected scenarios run in the full candidate suite

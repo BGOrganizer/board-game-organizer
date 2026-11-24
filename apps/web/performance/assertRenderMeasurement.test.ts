@@ -30,7 +30,7 @@ it("rejects an extra commit even if an aggregate mean hides it", () => {
   expect(() => assertRenderMeasurement(measurement, scenario)).toThrow(/Render regression/);
 });
 
-it("accepts up to two single-commit variations in the measured route and rejects a recurring excess", () => {
+it("uses the same two-commit allowance whether the measured route varies once or twice", () => {
   const route =
     "EventDetail: cached Participants and Tables entry and reentry keeps the event header";
   const measurement = {
@@ -43,8 +43,11 @@ it("accepts up to two single-commit variations in the measured route and rejects
   expect(() => assertRenderMeasurement(measurement, route)).not.toThrow();
   measurement.counts[7] = 28;
   expect(() => assertRenderMeasurement(measurement, route)).toThrow(/Render regression/);
-  measurement.counts[7] = measurement.counts[8] = 26;
+  measurement.counts[7] = measurement.counts[8] = 27;
   measurement.counts[9] = 29;
+  measurement.meanCount = 27.2;
+  expect(() => assertRenderMeasurement(measurement, route)).not.toThrow();
+  measurement.counts[9] = 30;
   expect(() => assertRenderMeasurement(measurement, route)).toThrow(/Render regression/);
 });
 

@@ -72,6 +72,7 @@ test("eligible branch, preview and main runs execute the full secret-free Reassu
     );
     const report = find(job, "📤 Preserve actual render measurements");
     assert.equal(report.if, "always() && !cancelled()");
+    assert.match(report.with.name, /-attempt-\$\{\{ github\.run_attempt \}\}$/);
     assert.match(report.with.path, /\.reassure\/current\.perf/);
     assert.match(report.with.path, /\.reassure-pair/);
     assert.equal(report.with["include-hidden-files"], true);
