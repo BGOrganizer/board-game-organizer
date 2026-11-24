@@ -30,3 +30,10 @@ latest GitHub release for Android APK downloads.
 Keep the app-owned Italian and English copy together in [the Site catalog](src/lib/copy.ts). The authenticated application's Lingui catalogs are separate.
 
 The mascot and APK icon use the repository's approved BGO artwork. Resource illustrations are static and animated renders of the shared BGO DiceBear styles. Demo portraits use [DiceBear Clay](https://www.dicebear.com/styles/clay/) (CC0 1.0). The [Azul](https://boardgamegeek.com/boardgame/230802/azul) and [Hegemony](https://boardgamegeek.com/boardgame/321608/hegemony-lead-your-class-to-victory) cover thumbnails retain their original rights. Resource and cover provenance are described in the repository's [branding guide](../../docs/branding.md).
+
+## Netlify
+
+GitHub Actions also supports deploying this app to the separate Netlify Site projects. The
+Development Site links to its run's Netlify Web deployment. The Production Site links to
+the canonical Clerk Production Web domain. See
+[Vercel preflight and Netlify fallback](../../docs/deployment-operations.md#vercel-preflight-and-netlify-fallback).

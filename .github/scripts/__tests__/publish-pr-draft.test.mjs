@@ -148,6 +148,38 @@ function github(options = {}) {
   };
 }
 
+test("publishes Development links from the same owned Netlify deploy on a partial rerun", async () => {
+  const fake = github();
+  const webUrl = "https://pr-22-100-1--bgo-web-development.netlify.app";
+  const apiUrl = "https://pr-22-100-1--bgo-api-development.netlify.app";
+  await publishDevelopmentDraft({ ...input, webUrl, apiUrl }, fake.request);
+  const patch = fake.writes.find((call) => call.method === "PATCH");
+  assert(patch.body.body.includes(webUrl));
+  assert(patch.body.body.includes(apiUrl));
+});
+
+test("rejects Netlify release pairs outside the same provider, PR, run and deploy", async () => {
+  const webUrl = "https://pr-22-100-2--bgo-web-development.netlify.app";
+  for (const apiUrl of [
+    input.apiUrl,
+    "https://pr-23-100-2--bgo-api-development.netlify.app",
+    "https://pr-22-101-2--bgo-api-development.netlify.app",
+    "https://pr-22-100-1--bgo-api-development.netlify.app",
+    "https://pr-22-100-3--bgo-api-development.netlify.app",
+    "https://ci-pr-22-100-2--bgo-api-development.netlify.app",
+    "https://pr-22-100-2--bgo-web-development.netlify.app",
+    "https://pr-22-100-2--other.netlify.app",
+    "https://pr-22-100-2--bgo-api-development.netlify.app\n",
+  ]) {
+    const fake = github();
+    await assert.rejects(
+      publishDevelopmentDraft({ ...input, webUrl, apiUrl }, fake.request),
+      /same PR, run and deploy/,
+    );
+    assert.deepEqual(fake.calls, []);
+  }
+});
+
 test("publishes only a verified Development MCP ZIP and prunes the previous package for that PR", async () => {
   const older = { id: 37, name: "board-game-organizer-mcp-1.3.1-dev.pr.22.sha-aaaaaaaaaaaa.zip" };
   const unrelated = {

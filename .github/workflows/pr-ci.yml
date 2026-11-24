@@ -46,6 +46,35 @@ jobs:
         id: policy
         run: printf 'e2e-enabled=%s\n' "$BGO_PR_E2E_ENABLED" >> "$GITHUB_OUTPUT"
 
+  check-vercel:
+    name: Check Vercel deployment availability
+    needs: [context]
+    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
+    environment: development
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+    outputs:
+      status: ${{ steps.check.outputs.status }}
+    steps:
+      - name: Checkout verified PR merge
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - name: Check the configured Vercel team
+        id: check
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+        run: node .github/scripts/vercel-deploy-preflight.mjs
+
   commitlint:
     name: Check commits
     needs: [context]
@@ -388,8 +417,12 @@ jobs:
   build-mobile-internal:
     name: "APK (CI): build or reuse"
     environment: development
-    needs: [context, deploy-preview-api]
-    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
+    needs: [context, select-preview]
+    if: >-
+      ${{ !cancelled()
+        && needs.context.result == 'success'
+        && needs.select-preview.result == 'success'
+        && needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -450,19 +483,19 @@ jobs:
           APP_VARIANT: development
           EXPO_UPDATE_CHANNEL: ci-pr-${{ github.event.pull_request.number }}
           MOBILE_BUILD_PROFILE: internal
-          EXPO_PUBLIC_API_URL: ${{ needs.deploy-preview-api.outputs.branch-url }}
+          EXPO_PUBLIC_API_URL: ${{ needs.select-preview.outputs.api-client-url }}
           EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
           EXPO_PUBLIC_MAPTILER_API_KEY: ${{ vars.EXPO_PUBLIC_MAPTILER_API_KEY }}
           EXPO_PUBLIC_SENTRY_DSN: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
           GOOGLE_SERVICES_JSON_CONTENT: ${{ secrets.GOOGLE_SERVICES_JSON }}
-          EXPO_PUBLIC_VERCEL_PROTECTION_BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+          EXPO_PUBLIC_VERCEL_PROTECTION_BYPASS: ${{ needs.select-preview.outputs.provider == 'vercel' && secrets.VERCEL_PROTECTION_BYPASS || '' }}
         run: node .github/scripts/mobile-build-inputs.mjs > "$RUNNER_TEMP/expected-apk-inputs.sha256"
 
       - name: 🔎 Verify reused APK targets this PR branch
         id: verify-apk
         if: steps.reuse.outputs.run-id != ''
         env:
-          EXPECTED_API_URL: ${{ needs.deploy-preview-api.outputs.branch-url }}
+          EXPECTED_API_URL: ${{ needs.select-preview.outputs.api-client-url }}
         run: |
           if [ -n "$EXPECTED_API_URL" ] && [ "$(cat apps/mobile/build-output/api-url.txt 2>/dev/null)" = "$EXPECTED_API_URL" ] \
             && cmp -s "$RUNNER_TEMP/expected-apk-inputs.sha256" apps/mobile/build-output/build-inputs.sha256 \
@@ -485,16 +518,16 @@ jobs:
           update-channel: ci-pr-${{ github.event.pull_request.number }}
           expo-token: ${{ secrets.EXPO_TOKEN }}
           clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-          api-url: ${{ needs.deploy-preview-api.outputs.branch-url }}
+          api-url: ${{ needs.select-preview.outputs.api-client-url }}
           maptiler-api-key: ${{ vars.EXPO_PUBLIC_MAPTILER_API_KEY }}
           sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
           google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
-          protection-bypass: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+          protection-bypass: ${{ needs.select-preview.outputs.provider == 'vercel' && secrets.VERCEL_PROTECTION_BYPASS || '' }}
 
       - name: 🏷️ Record API URL embedded in new APK
         if: steps.build.outcome == 'success'
         env:
-          API_URL: ${{ needs.deploy-preview-api.outputs.branch-url }}
+          API_URL: ${{ needs.select-preview.outputs.api-client-url }}
         run: printf '%s\n' "$API_URL" > apps/mobile/build-output/api-url.txt
 
       - name: 📤 Upload APK artifact
@@ -506,8 +539,12 @@ jobs:
 
   provision:
     name: Create E2E users
-    needs: [context, deploy-preview-api]
-    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
+    needs: [context, initialize-preview]
+    if: >-
+      ${{ !cancelled()
+        && needs.context.result == 'success'
+        && needs.initialize-preview.result == 'success'
+        && needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true' }}
     runs-on: ubuntu-latest
     environment: development
     outputs:
@@ -552,11 +589,13 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    needs: [context, commitlint, lint, typecheck, unit-tests, integration-tests, native-tooling, build-api]
-    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
+    needs: [context, check-vercel, commitlint, lint, typecheck, unit-tests, integration-tests, native-tooling, build-api]
+    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true' && needs.check-vercel.outputs.status != 'blocked'
+    continue-on-error: true
     runs-on: ubuntu-latest
     environment: development
     outputs:
+      ready: ${{ steps.candidate.outputs.ready }}
       url: ${{ steps.deploy.outputs.deployment-url }}
       db-name: ${{ steps.deploy.outputs.ci-db-name }}
       branch-url: ${{ steps.branch-alias.outputs.url }}
@@ -587,21 +626,6 @@ jobs:
           extra-env: |
             NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
 
-      # Persist immutable URL before any CI DB write; cancellation cleanup needs it.
-      - name: 📋 Record isolated API deployment URL
-        env:
-          API_URL: ${{ steps.deploy.outputs.deployment-url }}
-        run: |
-          test -n "$API_URL"
-          printf '%s\n' "$API_URL" > ci-api-url.txt
-
-      - name: 📤 Preserve URL for cancellation cleanup
-        uses: actions/upload-artifact@v4
-        with:
-          name: ci-api-url-${{ github.run_attempt }}
-          path: ci-api-url.txt
-          retention-days: 7
-
       - name: 🔒 Attest API runtime database before any E2E writes
         env:
           API_URL: ${{ steps.deploy.outputs.deployment-url }}
@@ -615,20 +639,6 @@ jobs:
           curl -fsS "$API_URL/api/admin/sync-user?x-vercel-protection-bypass=$BYPASS" \
             -H "Authorization: Bearer $CLERK_SECRET_KEY" |
             jq -e --arg expected "$EXPECTED_DB" '.databaseName == $expected and .webhookDbReady == true and (.webhookDatabaseName | startswith("bgo_ci_") | not)' > /dev/null
-
-      - name: 🌱 Seed isolated CI database
-        env:
-          API_URL: ${{ steps.deploy.outputs.deployment-url }}
-          BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
-          DB_NAME: bgo_ci_${{ github.run_id }}_${{ github.run_attempt }}
-        run: |
-          set -euo pipefail
-          BYPASS=$(printf '%s' "$BYPASS" | jq -sRr @uri)
-          curl -fsS -X POST "$API_URL/api/admin/ci-db?x-vercel-protection-bypass=$BYPASS" \
-            -H "Authorization: Bearer $CLERK_SECRET_KEY" -H 'Content-Type: application/json' \
-            -d "$(jq -cn --arg name "$DB_NAME" '{action:"seed",databaseName:$name}')" |
-            jq -e '.ok == true' > /dev/null
 
       - name: 🔗 Assign and verify moving PR API alias
         id: branch-alias
@@ -700,16 +710,73 @@ jobs:
           vercel(['alias', 'set', PREVIEW_URL, WEBHOOK_ALIAS]);
           NODE
 
+      - name: Mark verified Vercel candidate
+        id: candidate
+        run: echo 'ready=true' >> "$GITHUB_OUTPUT"
+
+  deploy-netlify-ci-api:
+    name: Deploy Netlify API (CI)
+    needs: [context, commitlint, lint, typecheck, unit-tests, integration-tests, build-api, deploy-preview-web]
+    if: >-
+      ${{ !cancelled()
+        && needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
+        && needs.context.result == 'success'
+        && needs.commitlint.result == 'success'
+        && needs.lint.result == 'success'
+        && needs.typecheck.result == 'success'
+        && needs.unit-tests.result == 'success'
+        && needs.integration-tests.result == 'success'
+        && needs.build-api.result == 'success'
+        && needs.deploy-preview-web.outputs.ready != 'true' }}
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    uses: ./.github/workflows/netlify-deploy.yml
+    secrets:
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+    with:
+      target: development
+      component: api
+      source-sha: ${{ github.sha }}
+      isolated: true
+
+  deploy-netlify-ci-web:
+    name: Deploy Netlify Web (CI)
+    needs: [build-web, deploy-netlify-ci-api]
+    if: >-
+      ${{ !cancelled()
+        && needs.build-web.result == 'success'
+        && needs.deploy-netlify-ci-api.result == 'success'
+        && needs.deploy-netlify-ci-api.outputs.api-url != '' }}
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    uses: ./.github/workflows/netlify-deploy.yml
+    secrets:
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+    with:
+      target: development
+      component: web
+      source-sha: ${{ github.sha }}
+      isolated: true
+      api-url: ${{ needs.deploy-netlify-ci-api.outputs.api-url }}
+      api-client-url: ${{ needs.deploy-netlify-ci-api.outputs.api-client-url }}
+
   deploy-preview-web:
     name: Deploy Web (CI)
     permissions:
       contents: read
       pull-requests: write
     needs: [context, build-web, deploy-preview-api]
-    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
+    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true' && needs.deploy-preview-api.outputs.ready == 'true'
+    continue-on-error: true
     runs-on: ubuntu-latest
     environment: development
     outputs:
+      ready: ${{ steps.candidate.outputs.ready }}
       url: ${{ steps.deploy.outputs.deployment-url }}
     steps:
       - name: 📥 Checkout
@@ -736,10 +803,131 @@ jobs:
             NEXT_PUBLIC_API_URL=${{ needs.deploy-preview-api.outputs.url }}
             NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS=${{ secrets.VERCEL_PROTECTION_BYPASS }}
 
+      - name: Verify the Vercel API/Web pair before allowing fallback
+        id: candidate
+        env:
+          TARGET: ci
+          VERCEL_API_URL: ${{ needs.deploy-preview-api.outputs.url }}
+          VERCEL_API_CLIENT_URL: ${{ needs.deploy-preview-api.outputs.branch-url }}
+          VERCEL_WEB_URL: ${{ steps.deploy.outputs.deployment-url }}
+          VERCEL_PROTECTION_BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+        run: |
+          node .github/scripts/select-deploy-provider.mjs
+          echo 'ready=true' >> "$GITHUB_OUTPUT"
+
+  select-preview:
+    name: Select verified CI deployment
+    needs: [context, deploy-preview-api, deploy-preview-web, deploy-netlify-ci-api, deploy-netlify-ci-web]
+    if: "!cancelled() && needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'"
+    runs-on: ubuntu-latest
+    environment: development
+    outputs:
+      provider: ${{ steps.select.outputs.provider }}
+      api-url: ${{ steps.select.outputs.api-url }}
+      api-client-url: ${{ steps.select.outputs.api-client-url }}
+      web-url: ${{ steps.select.outputs.web-url }}
+      web-client-url: ${{ steps.select.outputs.web-client-url }}
+      db-name: ${{ steps.select.outputs.provider == 'vercel' && needs.deploy-preview-api.outputs.db-name || needs.deploy-netlify-ci-api.outputs.ci-db-name }}
+      fixtures: ${{ steps.select.outputs.provider == 'vercel' || needs.context.outputs.e2e-enabled == 'true' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - name: Smoke test the preferred available API and Web pair
+        id: select
+        env:
+          TARGET: ci
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          VERCEL_API_URL: ${{ needs.deploy-preview-api.outputs.ready == 'true' && needs.deploy-preview-api.outputs.url || '' }}
+          VERCEL_API_CLIENT_URL: ${{ needs.deploy-preview-api.outputs.branch-url }}
+          VERCEL_VERIFIED: ${{ needs.deploy-preview-web.outputs.ready }}
+          VERCEL_WEB_URL: ${{ needs.deploy-preview-web.outputs.ready == 'true' && needs.deploy-preview-web.outputs.url || '' }}
+          NETLIFY_API_URL: ${{ needs.deploy-netlify-ci-api.outputs.api-url }}
+          NETLIFY_API_CLIENT_URL: ${{ needs.deploy-netlify-ci-api.outputs.api-client-url }}
+          NETLIFY_WEB_URL: ${{ needs.deploy-netlify-ci-web.outputs.web-url }}
+          NETLIFY_WEB_CLIENT_URL: ${{ needs.deploy-netlify-ci-web.outputs.web-client-url }}
+          VERCEL_PROTECTION_BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+        run: node .github/scripts/select-deploy-provider.mjs
+
+  initialize-preview:
+    name: Prepare selected CI fixtures
+    needs: [context, select-preview]
+    if: >-
+      ${{ !cancelled()
+        && needs.context.result == 'success'
+        && needs.select-preview.result == 'success'
+        && needs.select-preview.outputs.fixtures == 'true' }}
+    runs-on: ubuntu-latest
+    environment: development
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Verify trusted Netlify recovery support
+        if: needs.select-preview.outputs.provider == 'netlify'
+        run: |
+          git fetch --no-tags origin main
+          git show origin/main:.github/scripts/verify-netlify-ci-api.sh >/dev/null || {
+            echo 'Netlify fixture writes require its trusted cancellation recovery on main.' >&2
+            exit 1
+          }
+      - name: Record isolated API ownership for recovery
+        env:
+          API_URL: ${{ needs.select-preview.outputs.api-url }}
+          DB_NAME: ${{ needs.select-preview.outputs.db-name }}
+        run: |
+          set -euo pipefail
+          [[ "$DB_NAME" =~ ^bgo_ci_${GITHUB_RUN_ID}_[1-9][0-9]*$ ]]
+          printf '%s\n' "$API_URL" > ci-api-url.txt
+          printf '%s\n' "$DB_NAME" > ci-db-name.txt
+      - name: Preserve URL for cancellation cleanup
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-api-url-${{ github.run_attempt }}
+          path: |
+            ci-api-url.txt
+            ci-db-name.txt
+          retention-days: 7
+      - name: Attest and seed only the selected CI database
+        env:
+          API_URL: ${{ needs.select-preview.outputs.api-url }}
+          DB_NAME: ${{ needs.select-preview.outputs.db-name }}
+          PROVIDER: ${{ needs.select-preview.outputs.provider }}
+          BYPASS: ${{ needs.select-preview.outputs.provider == 'vercel' && secrets.VERCEL_PROTECTION_BYPASS || '' }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_TEAM_SLUG: ${{ vars.NETLIFY_TEAM_SLUG }}
+        run: |
+          set -euo pipefail
+          if [ "$PROVIDER" = netlify ]; then
+            bash .github/scripts/verify-netlify-ci-api.sh "$API_URL" "$GITHUB_RUN_ID" "$DB_NAME"
+          fi
+          query=''
+          if [ -n "$BYPASS" ]; then
+            query="?x-vercel-protection-bypass=$(printf '%s' "$BYPASS" | jq -sRr @uri)"
+          fi
+          curl -fsS "$API_URL/api/admin/sync-user$query" -H "Authorization: Bearer $CLERK_SECRET_KEY" |
+            jq -e --arg name "$DB_NAME" '.databaseName == $name' >/dev/null
+          curl -fsS -X POST "$API_URL/api/admin/ci-db$query" \
+            -H "Authorization: Bearer $CLERK_SECRET_KEY" -H 'Content-Type: application/json' \
+            -d "$(jq -cn --arg name "$DB_NAME" '{action:"seed",databaseName:$name}')" |
+            jq -e '.ok == true' >/dev/null
+
   sync-e2e-users:
     name: Mirror E2E users
-    needs: [context, provision, deploy-preview-api]
-    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
+    needs: [context, provision, select-preview, initialize-preview]
+    if: >-
+      ${{ !cancelled()
+        && needs.context.result == 'success'
+        && needs.provision.result == 'success'
+        && needs.select-preview.result == 'success'
+        && needs.initialize-preview.result == 'success'
+        && needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true' }}
     runs-on: ubuntu-latest
     environment: development
     steps:
@@ -750,8 +938,8 @@ jobs:
 
       - name: 🔄 Sync isolated web/mobile actors and targets into the preview users collection
         env:
-          API_URL: ${{ needs.deploy-preview-api.outputs.url }}
-          BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+          API_URL: ${{ needs.select-preview.outputs.api-url }}
+          BYPASS: ${{ needs.select-preview.outputs.provider == 'vercel' && secrets.VERCEL_PROTECTION_BYPASS || '' }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           USER_ID: ${{ needs.provision.outputs.user_id }}
           NATIVE_USER_ID: ${{ needs.provision.outputs.native_user_id }}
@@ -763,18 +951,19 @@ jobs:
           NATIVE_USER_ID_2: ${{ needs.provision.outputs.native_user_id_2 }}
           NATIVE_EMAIL_2: ${{ needs.provision.outputs.native_email_2 }}
           NATIVE_PHONE_2: ${{ needs.provision.outputs.native_phone_2 }}
-          DB_NAME: ${{ needs.deploy-preview-api.outputs.db-name }}
+          DB_NAME: ${{ needs.select-preview.outputs.db-name }}
         run: |
           set -euo pipefail
           # The signed webhook skips E2E users; sync them only into this run's
           # isolated database via the authenticated admin endpoint.
           # (Bearer == CLERK_SECRET_KEY).
           AUTH="Authorization: Bearer $CLERK_SECRET_KEY"
-          Q="x-vercel-protection-bypass=$(printf '%s' "$BYPASS" | jq -sRr @uri)"
+          Q=''
+          if [ -n "$BYPASS" ]; then Q="?x-vercel-protection-bypass=$(printf '%s' "$BYPASS" | jq -sRr @uri)"; fi
           sync_user() {
             jq -cn --arg id "$1" --arg email "$2" --arg name "$3" --arg phone "$4" \
               '{clerkId:$id,email:$email,name:$name} + (if $phone == "" then {} else {mobileNumber:$phone} end)' |
-              curl -fsS -X POST "$API_URL/api/admin/sync-user?$Q" \
+              curl -fsS -X POST "$API_URL/api/admin/sync-user$Q" \
                 -H "$AUTH" -H 'Content-Type: application/json' -d @- |
               jq -e '.ok == true' > /dev/null
           }
@@ -784,7 +973,7 @@ jobs:
           sync_user "$NATIVE_USER_ID_2" "$NATIVE_EMAIL_2" 'E2E Target' "$NATIVE_PHONE_2"
           for actor in "$USER_ID" "$NATIVE_USER_ID"; do
             jq -cn --arg userId "$actor" --arg name "$DB_NAME" '{action:"seed-bgg",databaseName:$name,userId:$userId}' |
-              curl -fsS -X POST "$API_URL/api/admin/ci-db?$Q" \
+              curl -fsS -X POST "$API_URL/api/admin/ci-db$Q" \
                 -H "$AUTH" -H 'Content-Type: application/json' -d @- |
               jq -e '.ok == true' > /dev/null
           done
@@ -792,7 +981,14 @@ jobs:
   e2e-maestro:
     name: E2E (mobile)
     # Explicit operator policy; disabled does not establish native acceptance.
-    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true' && needs.context.outputs.e2e-enabled == 'true'
+    if: >-
+      ${{ !cancelled()
+        && needs.context.result == 'success'
+        && needs.build-mobile-internal.result == 'success'
+        && needs.sync-e2e-users.result == 'success'
+        && needs.provision.result == 'success'
+        && needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
+        && needs.context.outputs.e2e-enabled == 'true' }}
     needs: [context, build-mobile-internal, sync-e2e-users, provision]
     runs-on: ubuntu-latest
     timeout-minutes: 120
@@ -976,8 +1172,15 @@ jobs:
   e2e-playwright:
     name: E2E (web)
     # Explicit operator policy; disabled does not establish web acceptance.
-    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true' && needs.context.outputs.e2e-enabled == 'true'
-    needs: [context, deploy-preview-web, sync-e2e-users, provision]
+    if: >-
+      ${{ !cancelled()
+        && needs.context.result == 'success'
+        && needs.select-preview.result == 'success'
+        && needs.sync-e2e-users.result == 'success'
+        && needs.provision.result == 'success'
+        && needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
+        && needs.context.outputs.e2e-enabled == 'true' }}
+    needs: [context, select-preview, sync-e2e-users, provision]
     runs-on: ubuntu-latest
     environment: development
     steps:
@@ -997,7 +1200,7 @@ jobs:
       - name: 🎭 Run Playwright against preview
         working-directory: apps/web
         env:
-          PLAYWRIGHT_BASE_URL: ${{ needs.deploy-preview-web.outputs.url }}
+          PLAYWRIGHT_BASE_URL: ${{ needs.select-preview.outputs.web-url }}
           E2E_EMAIL: ${{ needs.provision.outputs.email }}
           E2E_EMAIL_2: ${{ needs.provision.outputs.email_2 }}
           E2E_PHONE_2: ${{ needs.provision.outputs.phone_2 }}
@@ -1018,8 +1221,8 @@ jobs:
   cleanup-e2e-user:
     name: Clean E2E users
     # With both E2E jobs skipped, wait for mirroring before deleting their fixtures.
-    needs: [context, provision, sync-e2e-users, e2e-maestro, e2e-playwright]
-    if: always() && needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
+    needs: [context, initialize-preview, provision, sync-e2e-users, e2e-maestro, e2e-playwright]
+    if: always() && needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true' && needs.initialize-preview.result == 'success'
     # Cleanup failure must stay visible; otherwise leaked Clerk users accumulate silently.
     runs-on: ubuntu-latest
     environment: development
@@ -1045,22 +1248,33 @@ jobs:
   cleanup-e2e-db:
     name: Clean CI database
     # Skipped E2E must not let cleanup race remaining CI API consumers.
-    needs: [context, deploy-preview-api, cleanup-e2e-user, build-mobile-internal, deploy-preview-web]
-    if: always() && needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true' && needs.deploy-preview-api.outputs.url != ''
+    needs: [context, initialize-preview, select-preview, cleanup-e2e-user, build-mobile-internal]
+    if: always() && needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true' && needs.initialize-preview.result == 'success'
     runs-on: ubuntu-latest
     environment: development
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: 🗑️ Clear only this run's database collections
         env:
-          API_URL: ${{ needs.deploy-preview-api.outputs.url }}
-          BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+          API_URL: ${{ needs.select-preview.outputs.api-url }}
+          BYPASS: ${{ needs.select-preview.outputs.provider == 'vercel' && secrets.VERCEL_PROTECTION_BYPASS || '' }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
-          DB_NAME: ${{ needs.deploy-preview-api.outputs.db-name }}
+          PROVIDER: ${{ needs.select-preview.outputs.provider }}
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_TEAM_SLUG: ${{ vars.NETLIFY_TEAM_SLUG }}
+          DB_NAME: ${{ needs.select-preview.outputs.db-name }}
         run: |
           set -euo pipefail
-          BYPASS=$(printf '%s' "$BYPASS" | jq -sRr @uri)
-          test -n "$DB_NAME" && test -n "$BYPASS" && test -n "$CLERK_SECRET_KEY"
-          curl -fsS -X POST "$API_URL/api/admin/ci-db?x-vercel-protection-bypass=$BYPASS" \
+          if [ "$PROVIDER" = netlify ]; then
+            bash .github/scripts/verify-netlify-ci-api.sh "$API_URL" "$GITHUB_RUN_ID" "$DB_NAME"
+          fi
+          query=''
+          if [ -n "$BYPASS" ]; then query="?x-vercel-protection-bypass=$(printf '%s' "$BYPASS" | jq -sRr @uri)"; fi
+          test -n "$DB_NAME" && test -n "$CLERK_SECRET_KEY"
+          curl -fsS -X POST "$API_URL/api/admin/ci-db$query" \
             -H "Authorization: Bearer $CLERK_SECRET_KEY" -H 'Content-Type: application/json' \
             -d "$(jq -cn --arg name "$DB_NAME" '{action:"cleanup",databaseName:$name}')" |
             jq -e '.ok == true' > /dev/null
@@ -1069,10 +1283,13 @@ jobs:
   # Development publication never waits for Internal/E2E or its cleanup.
   deploy-development-mcp-gateway:
     name: Deploy MCP gateway (Development)
-    needs: [context, commitlint, lint, typecheck, unit-tests]
-    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
+    needs: [context, check-vercel, commitlint, lint, typecheck, unit-tests]
+    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true' && needs.check-vercel.outputs.status != 'blocked'
+    continue-on-error: true
     runs-on: ubuntu-latest
     environment: development
+    outputs:
+      failed: ${{ steps.deploy.outcome == 'failure' }}
     permissions:
       contents: read
       pull-requests: read
@@ -1086,6 +1303,7 @@ jobs:
           persist-credentials: false
 
       - name: 🚀 Deploy Development gateway
+        id: deploy
         uses: ./.github/actions/mcp-gateway-deploy
         with:
           target: development
@@ -1100,11 +1318,13 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    needs: [context, commitlint, lint, typecheck, unit-tests, integration-tests, native-tooling, build-api]
-    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
+    needs: [context, check-vercel, commitlint, lint, typecheck, unit-tests, integration-tests, native-tooling, build-api]
+    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true' && needs.check-vercel.outputs.status != 'blocked'
+    continue-on-error: true
     runs-on: ubuntu-latest
     environment: development
     outputs:
+      ready: ${{ steps.candidate.outputs.ready }}
       url: ${{ steps.deploy.outputs.deployment-url }}
       branch-url: ${{ steps.client-url.outputs.url }}
     steps:
@@ -1151,16 +1371,22 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: node .github/scripts/development-api-alias.mjs --url
 
+      - name: Mark verified Vercel candidate
+        id: candidate
+        run: echo 'ready=true' >> "$GITHUB_OUTPUT"
+
   deploy-development-web:
     name: Deploy Web (Development)
     permissions:
       contents: read
       pull-requests: write
     needs: [context, build-web, deploy-development-api]
-    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
+    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true' && needs.deploy-development-api.outputs.ready == 'true'
+    continue-on-error: true
     runs-on: ubuntu-latest
     environment: development
     outputs:
+      ready: ${{ steps.candidate.outputs.ready }}
       url: ${{ steps.deploy.outputs.deployment-url }}
     steps:
       - name: 📥 Checkout
@@ -1187,15 +1413,30 @@ jobs:
             NEXT_PUBLIC_API_URL=${{ needs.deploy-development-api.outputs.url }}
             NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS=${{ secrets.VERCEL_PROTECTION_BYPASS }}
 
+      - name: Verify the Vercel API/Web pair before allowing fallback
+        id: candidate
+        env:
+          TARGET: development
+          VERCEL_API_URL: ${{ needs.deploy-development-api.outputs.url }}
+          VERCEL_API_CLIENT_URL: ${{ needs.deploy-development-api.outputs.branch-url }}
+          VERCEL_WEB_URL: ${{ steps.deploy.outputs.deployment-url }}
+          VERCEL_PROTECTION_BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+        run: |
+          node .github/scripts/select-deploy-provider.mjs
+          echo 'ready=true' >> "$GITHUB_OUTPUT"
+
   deploy-development-site:
     name: Deploy Site (Development)
     permissions:
       contents: read
       pull-requests: write
     needs: [context, build-site, deploy-development-web]
-    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
+    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true' && needs.deploy-development-web.outputs.ready == 'true'
+    continue-on-error: true
     runs-on: ubuntu-latest
     environment: development
+    outputs:
+      ready: ${{ steps.smoke.outputs.ready }}
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
@@ -1207,6 +1448,7 @@ jobs:
         run: git switch -C "$GITHUB_HEAD_REF"
 
       - name: 🚀 Deploy Site against Development Web
+        id: deploy
         uses: ./.github/actions/vercel-deploy
         with:
           app-name: Site (Development)
@@ -1218,11 +1460,165 @@ jobs:
           vercel-project-id: ${{ secrets.VERCEL_SITE_PROJECT_ID }}
           extra-env: NEXT_PUBLIC_BGO_WEB_ORIGIN=${{ needs.deploy-development-web.outputs.url }}
 
+      - name: Verify the Vercel Site
+        id: smoke
+        env:
+          SITE_URL: ${{ steps.deploy.outputs.deployment-url }}
+          BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+        run: |
+          set -euo pipefail
+          [[ "$SITE_URL" =~ ^https://[a-zA-Z0-9-]+[.]vercel[.]app$ ]]
+          auth=()
+          if [ -n "$BYPASS" ]; then
+            auth+=(--get --data-urlencode "x-vercel-protection-bypass=$BYPASS")
+          fi
+          status=$(curl -sS --max-time 30 --retry 2 -o /dev/null -w '%{http_code}' "${auth[@]}" "$SITE_URL/")
+          [[ "$status" =~ ^2[0-9]{2}$ ]]
+          echo 'ready=true' >> "$GITHUB_OUTPUT"
+
+  deploy-netlify-development-api:
+    name: Deploy Netlify API (Development)
+    needs: [context, commitlint, lint, typecheck, unit-tests, integration-tests, build-api, build-web, build-site, deploy-development-web, deploy-development-site, deploy-development-mcp-gateway]
+    if: >-
+      ${{ !cancelled()
+        && needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
+        && needs.context.result == 'success'
+        && needs.commitlint.result == 'success'
+        && needs.lint.result == 'success'
+        && needs.typecheck.result == 'success'
+        && needs.unit-tests.result == 'success'
+        && needs.integration-tests.result == 'success'
+        && needs.build-api.result == 'success'
+        && needs.build-web.result == 'success'
+        && needs.build-site.result == 'success'
+        && (needs.deploy-development-web.outputs.ready != 'true' || needs.deploy-development-site.outputs.ready != 'true' || needs.deploy-development-mcp-gateway.outputs.failed == 'true' || needs.deploy-development-mcp-gateway.result == 'failure') }}
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    uses: ./.github/workflows/netlify-deploy.yml
+    secrets:
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+    with:
+      target: development
+      component: api
+      source-sha: ${{ github.sha }}
+
+  deploy-netlify-development-web:
+    name: Deploy Netlify Web (Development)
+    needs: [build-web, deploy-netlify-development-api]
+    if: >-
+      ${{ !cancelled()
+        && needs.build-web.result == 'success'
+        && needs.deploy-netlify-development-api.result == 'success'
+        && needs.deploy-netlify-development-api.outputs.api-url != '' }}
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    uses: ./.github/workflows/netlify-deploy.yml
+    secrets:
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+    with:
+      target: development
+      component: web
+      source-sha: ${{ github.sha }}
+      api-url: ${{ needs.deploy-netlify-development-api.outputs.api-url }}
+      api-client-url: ${{ needs.deploy-netlify-development-api.outputs.api-client-url }}
+
+  deploy-netlify-development-site:
+    name: Deploy Netlify Site (Development)
+    needs: [build-site, deploy-netlify-development-web, deploy-development-site]
+    if: >-
+      ${{ !cancelled()
+        && needs.build-site.result == 'success'
+        && needs.deploy-netlify-development-web.result == 'success'
+        && needs.deploy-netlify-development-web.outputs.web-url != ''
+        && needs.deploy-development-site.outputs.ready != 'true' }}
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    uses: ./.github/workflows/netlify-deploy.yml
+    secrets:
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+    with:
+      target: development
+      component: site
+      source-sha: ${{ github.sha }}
+      web-url: ${{ needs.deploy-netlify-development-web.outputs.web-url }}
+      web-client-url: ${{ needs.deploy-netlify-development-web.outputs.web-client-url }}
+
+  deploy-netlify-development-mcp:
+    name: Deploy Netlify MCP (Development)
+    needs: [deploy-netlify-development-api, deploy-development-mcp-gateway, deploy-development-web]
+    if: >-
+      ${{ !cancelled()
+        && needs.deploy-netlify-development-api.result == 'success'
+        && needs.deploy-netlify-development-api.outputs.api-url != ''
+        && (needs.deploy-development-mcp-gateway.outputs.failed == 'true' || needs.deploy-development-mcp-gateway.result != 'success' || needs.deploy-development-web.outputs.ready != 'true') }}
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    uses: ./.github/workflows/netlify-deploy.yml
+    secrets:
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+    with:
+      target: development
+      component: mcp
+      source-sha: ${{ github.sha }}
+      api-url: ${{ needs.deploy-netlify-development-api.outputs.api-url }}
+      api-client-url: ${{ needs.deploy-netlify-development-api.outputs.api-client-url }}
+
+  select-development:
+    name: Select verified development deployment
+    needs: [context, deploy-development-api, deploy-development-web, deploy-netlify-development-api, deploy-netlify-development-web]
+    if: "!cancelled() && needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'"
+    runs-on: ubuntu-latest
+    environment: development
+    outputs:
+      provider: ${{ steps.select.outputs.provider }}
+      api-url: ${{ steps.select.outputs.api-url }}
+      api-client-url: ${{ steps.select.outputs.api-client-url }}
+      web-url: ${{ steps.select.outputs.web-url }}
+      web-client-url: ${{ steps.select.outputs.web-client-url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - name: Smoke test the preferred available API and Web pair
+        id: select
+        env:
+          TARGET: development
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          VERCEL_API_URL: ${{ needs.deploy-development-api.outputs.ready == 'true' && needs.deploy-development-api.outputs.url || '' }}
+          VERCEL_API_CLIENT_URL: ${{ needs.deploy-development-api.outputs.branch-url }}
+          VERCEL_VERIFIED: ${{ needs.deploy-development-web.outputs.ready }}
+          VERCEL_WEB_URL: ${{ needs.deploy-development-web.outputs.ready == 'true' && needs.deploy-development-web.outputs.url || '' }}
+          NETLIFY_API_URL: ${{ needs.deploy-netlify-development-api.outputs.api-url }}
+          NETLIFY_API_CLIENT_URL: ${{ needs.deploy-netlify-development-api.outputs.api-client-url }}
+          NETLIFY_WEB_URL: ${{ needs.deploy-netlify-development-web.outputs.web-url }}
+          NETLIFY_WEB_CLIENT_URL: ${{ needs.deploy-netlify-development-web.outputs.web-client-url }}
+          VERCEL_PROTECTION_BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+        run: node .github/scripts/select-deploy-provider.mjs
+
   build-mobile-development:
     name: Build APK (Development)
     environment: development
-    needs: [context, deploy-development-api]
-    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
+    needs: [context, select-development]
+    if: >-
+      ${{ !cancelled()
+        && needs.context.result == 'success'
+        && needs.select-development.result == 'success'
+        && needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 180
     permissions:
@@ -1267,12 +1663,12 @@ jobs:
           APP_VARIANT: development
           EXPO_UPDATE_CHANNEL: development
           MOBILE_BUILD_PROFILE: internal
-          EXPO_PUBLIC_API_URL: ${{ needs.deploy-development-api.outputs.branch-url }}
+          EXPO_PUBLIC_API_URL: ${{ needs.select-development.outputs.api-client-url }}
           EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
           EXPO_PUBLIC_MAPTILER_API_KEY: ${{ vars.EXPO_PUBLIC_MAPTILER_API_KEY }}
           EXPO_PUBLIC_SENTRY_DSN: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
           GOOGLE_SERVICES_JSON_CONTENT: ${{ secrets.GOOGLE_SERVICES_JSON }}
-          EXPO_PUBLIC_VERCEL_PROTECTION_BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+          EXPO_PUBLIC_VERCEL_PROTECTION_BYPASS: ${{ needs.select-development.outputs.provider == 'vercel' && secrets.VERCEL_PROTECTION_BYPASS || '' }}
         run: node .github/scripts/development-apk-reuse.mjs verify "$RUNNER_TEMP/previous-development-apk"
 
       - name: 🏗️ Build internal APK against development Preview
@@ -1284,16 +1680,16 @@ jobs:
           update-channel: development
           expo-token: ${{ secrets.EXPO_TOKEN }}
           clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-          api-url: ${{ needs.deploy-development-api.outputs.branch-url }}
+          api-url: ${{ needs.select-development.outputs.api-client-url }}
           maptiler-api-key: ${{ vars.EXPO_PUBLIC_MAPTILER_API_KEY }}
           sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
           google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
-          protection-bypass: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+          protection-bypass: ${{ needs.select-development.outputs.provider == 'vercel' && secrets.VERCEL_PROTECTION_BYPASS || '' }}
 
       - name: 🏷️ Record development API URL in APK artifact
         if: steps.verify-reuse.outputs.source-sha == ''
         env:
-          API_URL: ${{ needs.deploy-development-api.outputs.branch-url }}
+          API_URL: ${{ needs.select-development.outputs.api-client-url }}
         run: |
           printf '%s\n' "$API_URL" > apps/mobile/build-output/api-url.txt
           git rev-parse HEAD > apps/mobile/build-output/source-head.txt
@@ -1312,7 +1708,20 @@ jobs:
       group: development-publication
       cancel-in-progress: false
     # Common quality + Development only. Internal/E2E cannot block publication.
-    if: success() && needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
+    if: >-
+      ${{ !cancelled()
+        && needs.context.result == 'success'
+        && needs.commitlint.result == 'success'
+        && needs.lint.result == 'success'
+        && needs.typecheck.result == 'success'
+        && needs.unit-tests.result == 'success'
+        && needs.integration-tests.result == 'success'
+        && needs.native-tooling.result == 'success'
+        && needs.build-api.result == 'success'
+        && needs.build-web.result == 'success'
+        && needs.select-development.result == 'success'
+        && needs.build-mobile-development.result == 'success'
+        && needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true' }}
     environment: development
     needs:
       - context
@@ -1324,8 +1733,7 @@ jobs:
       - native-tooling
       - build-api
       - build-web
-      - deploy-development-api
-      - deploy-development-web
+      - select-development
       - build-mobile-development
     runs-on: ubuntu-latest
     permissions:
@@ -1351,7 +1759,7 @@ jobs:
       - name: 🔒 Verify APK development API URL
         id: verify-apk
         env:
-          EXPECTED_API_URL: ${{ needs.deploy-development-api.outputs.branch-url }}
+          EXPECTED_API_URL: ${{ needs.select-development.outputs.api-client-url }}
           EXPECTED_APK_SHA: ${{ needs.build-mobile-development.outputs.source-sha }}
         run: |
           set -euo pipefail
@@ -1390,18 +1798,19 @@ jobs:
           node ../../.github/scripts/eas-upload.mjs "$GITHUB_WORKSPACE/$APK_PATH"
 
       - name: 🔗 Activate Development API after smoke and current PR checks
+        if: needs.select-development.outputs.provider == 'vercel'
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           OTA_SOURCE_SHA: ${{ github.sha }}
-          DEVELOPMENT_API_URL: ${{ needs.deploy-development-api.outputs.url }}
-          DEVELOPMENT_WEB_URL: ${{ needs.deploy-development-web.outputs.url }}
+          DEVELOPMENT_API_URL: ${{ needs.select-development.outputs.api-url }}
+          DEVELOPMENT_WEB_URL: ${{ needs.select-development.outputs.web-client-url }}
           VERCEL_API_PROJECT_ID: ${{ secrets.VERCEL_API_PROJECT_ID }}
           VERCEL_WEB_PROJECT_ID: ${{ secrets.VERCEL_WEB_PROJECT_ID }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROTECTION_BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+          VERCEL_PROTECTION_BYPASS: ${{ needs.select-development.outputs.provider == 'vercel' && secrets.VERCEL_PROTECTION_BYPASS || '' }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
         run: |
           bun add --global vercel@65.14.0
@@ -1415,12 +1824,12 @@ jobs:
           app-environment: development
           update-channel: development
           expo-token: ${{ secrets.EXPO_TOKEN }}
-          api-url: ${{ needs.deploy-development-api.outputs.branch-url }}
+          api-url: ${{ needs.select-development.outputs.api-client-url }}
           clerk-publishable-key: ${{ vars.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY }}
           maptiler-api-key: ${{ vars.EXPO_PUBLIC_MAPTILER_API_KEY }}
           sentry-dsn: ${{ vars.EXPO_PUBLIC_SENTRY_DSN }}
           google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
-          protection-bypass: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+          protection-bypass: ${{ needs.select-development.outputs.provider == 'vercel' && secrets.VERCEL_PROTECTION_BYPASS || '' }}
 
       - name: 📦 Publish/update public PR prerelease
         id: draft
@@ -1437,9 +1846,9 @@ jobs:
           apk-path: ${{ steps.meta.outputs.apk-path }}
           apk-name: ${{ steps.meta.outputs.apk-name }}
           eas-build-url: ${{ steps.eas.outputs.url }}
-          web-preview-url: ${{ needs.deploy-development-web.outputs.url }}
-          api-preview-url: ${{ needs.deploy-development-api.outputs.branch-url }}
-          package-mcp: ${{ vars.VERCEL_MCP_GATEWAY_PROJECT_ID != '' && vars.BGO_MCP_GATEWAY_PR_NUMBER == format('{0}', github.event.pull_request.number) }}
+          web-preview-url: ${{ needs.select-development.outputs.web-client-url }}
+          api-preview-url: ${{ needs.select-development.outputs.api-client-url }}
+          package-mcp: ${{ (vars.VERCEL_MCP_GATEWAY_PROJECT_ID != '' && vars.BGO_MCP_GATEWAY_PR_NUMBER == format('{0}', github.event.pull_request.number)) || vars.BGO_NETLIFY_MCP_GATEWAY_PR_NUMBER == format('{0}', github.event.pull_request.number) }}
 
       - name: 🔒 Verify current head before Telegram
         env:
@@ -1458,13 +1867,13 @@ jobs:
           pr-number: ${{ github.event.pull_request.number }}
           release-url: ${{ steps.draft.outputs.release_url }}
           apk-url: ${{ steps.draft.outputs.apk_url }}
-          web-url: ${{ needs.deploy-development-web.outputs.url }}
+          web-url: ${{ needs.select-development.outputs.web-client-url }}
           changelog-file: /tmp/pr-changelog.md
 
   ready:
     name: ${{ github.event_name == 'pull_request' && 'PR ready' || 'Branch checks' }}
     if: always() && (github.event_name == 'pull_request' || needs.context.outputs.mode == 'branch')
-    needs: [context, commitlint, lint, typecheck, unit-tests, integration-tests, native-tooling, build-api, build-web, build-site, deploy-preview-api, deploy-preview-web, build-mobile-internal, provision, sync-e2e-users, e2e-maestro, e2e-playwright, cleanup-e2e-user, cleanup-e2e-db]
+    needs: [context, commitlint, lint, typecheck, unit-tests, integration-tests, native-tooling, build-api, build-web, build-site, select-preview, initialize-preview, build-mobile-internal, provision, sync-e2e-users, e2e-maestro, e2e-playwright, cleanup-e2e-user, cleanup-e2e-db]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -1478,8 +1887,9 @@ jobs:
       - name: 🔒 Verify mandatory Branch or Internal gates
         env:
           CI_MODE: ${{ needs.context.outputs.mode }}
+          CI_DEPLOY_PROVIDER: ${{ needs.select-preview.outputs.provider }}
           PR_E2E_ENABLED: ${{ needs.context.outputs.e2e-enabled }}
           # Statuses only: never serialize provisioning outputs/credentials into the gate.
           CI_RESULTS: >-
-            {"context":"${{ needs.context.result }}","commitlint":"${{ needs.commitlint.result }}","lint":"${{ needs.lint.result }}","typecheck":"${{ needs.typecheck.result }}","unit-tests":"${{ needs.unit-tests.result }}","integration-tests":"${{ needs.integration-tests.result }}","native-tooling":"${{ needs.native-tooling.result }}","build-api":"${{ needs.build-api.result }}","build-web":"${{ needs.build-web.result }}","build-site":"${{ needs.build-site.result }}","deploy-preview-api":"${{ needs.deploy-preview-api.result }}","deploy-preview-web":"${{ needs.deploy-preview-web.result }}","build-mobile-internal":"${{ needs.build-mobile-internal.result }}","provision":"${{ needs.provision.result }}","sync-e2e-users":"${{ needs.sync-e2e-users.result }}","e2e-maestro":"${{ needs.e2e-maestro.result }}","e2e-playwright":"${{ needs.e2e-playwright.result }}","cleanup-e2e-user":"${{ needs.cleanup-e2e-user.result }}","cleanup-e2e-db":"${{ needs.cleanup-e2e-db.result }}"}
+            {"context":"${{ needs.context.result }}","commitlint":"${{ needs.commitlint.result }}","lint":"${{ needs.lint.result }}","typecheck":"${{ needs.typecheck.result }}","unit-tests":"${{ needs.unit-tests.result }}","integration-tests":"${{ needs.integration-tests.result }}","native-tooling":"${{ needs.native-tooling.result }}","build-api":"${{ needs.build-api.result }}","build-web":"${{ needs.build-web.result }}","build-site":"${{ needs.build-site.result }}","select-preview":"${{ needs.select-preview.result }}","initialize-preview":"${{ needs.initialize-preview.result }}","build-mobile-internal":"${{ needs.build-mobile-internal.result }}","provision":"${{ needs.provision.result }}","sync-e2e-users":"${{ needs.sync-e2e-users.result }}","e2e-maestro":"${{ needs.e2e-maestro.result }}","e2e-playwright":"${{ needs.e2e-playwright.result }}","cleanup-e2e-user":"${{ needs.cleanup-e2e-user.result }}","cleanup-e2e-db":"${{ needs.cleanup-e2e-db.result }}"}
         run: node .github/scripts/ci-gate.mjs

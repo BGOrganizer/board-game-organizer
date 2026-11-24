@@ -180,9 +180,11 @@ or permission. Native cache retention, build requirements and implementation rul
 - [Profiles and BGG collections](docs/profiles.md) and [Community](docs/community.md).
 - [Notifications](docs/notifications.md) | events, icons, localized copy and bell destinations.
 - [Development reference](docs/development.md) | cache, responsiveness, BGG enrichment and delivery.
-- [Public Site](apps/site/README.md) | local preview, localization and Vercel delivery.
+- [Public Site](apps/site/README.md) | local preview, localization and deployment.
 - [MCP Apps](docs/mcp-apps.md) | OAuth, BGO tools, interactive cards and fullscreen navigation.
-- [Operations](docs/deployment-operations.md) | environment isolation, providers and deployment gates.
+- [Operations](docs/deployment-operations.md) | environment isolation, deployment gates and [Vercel and Netlify deployment with CI fallback](docs/deployment-operations.md#vercel-preflight-and-netlify-fallback).
+- [Hosting project setup](docs/deployment-operations.md#scaffold-hosting-projects) | create missing Vercel or Netlify projects using the manual GitHub workflow.
+- [Production DNS](docs/deployment-operations.md#production-dns-switch) | verify canonical origins and route API, Web and Site through Cloudflare.
 - [Verification requirements](docs/verification-and-acceptance.md) | required checks and evidence limits.
 - [Mascot and app artwork](docs/branding.md) | source assets and platform exports.
 

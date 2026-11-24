@@ -18,6 +18,7 @@ import { developmentApiUrl } from "./development-api-alias.mjs";
 import { requireEquivalentDevelopmentApk } from "./development-apk-reuse.mjs";
 import { withProductionBuildEnvironment } from "./mobile-build-environment.mjs";
 import { mobileBuildInputs } from "./mobile-build-inputs.mjs";
+import { netlifyMobileApiAttempt } from "./netlify-preview-target.mjs";
 
 function command(executable, args, options = {}) {
   const result = spawnSync(executable, args, {
@@ -69,7 +70,9 @@ async function publishPreparedMobileUpdate(
       ? channel !== "production" ||
         apkSource !== source ||
         env.EXPO_PUBLIC_API_URL !== "https://api.board-game-organizer.com"
-      : channel !== "development" || env.EXPO_PUBLIC_API_URL !== developmentApiUrl(env.PR_NUMBER))
+      : channel !== "development" ||
+        (env.EXPO_PUBLIC_API_URL !== developmentApiUrl(env.PR_NUMBER) &&
+          !netlifyMobileApiAttempt(env)))
   )
     throw new Error("Verified OTA publication target required");
   requireClerkTarget(

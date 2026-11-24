@@ -11,6 +11,9 @@ export function siteMetadata(locale: Locale): Metadata {
       languages: { it: "/", en: "/en", "x-default": "/" },
     },
     icons: { icon: "/images/app-icon.webp" },
-    robots: process.env.VERCEL_ENV === "preview" ? { index: false, follow: false } : undefined,
+    robots:
+      process.env.VERCEL_ENV === "preview" || process.env.BGO_NETLIFY_STAGE === "development"
+        ? { index: false, follow: false }
+        : undefined,
   };
 }

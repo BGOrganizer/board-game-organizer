@@ -169,6 +169,7 @@ runs:
       working-directory: apps/mobile
       env:
         EXPO_TOKEN: ${{ inputs.expo-token }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
         MOBILE_BUILD_PROFILE: ${{ inputs.profile }}
         EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ inputs.clerk-publishable-key }}
         EXPO_PUBLIC_API_URL: ${{ inputs.api-url }}

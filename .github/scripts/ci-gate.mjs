@@ -10,20 +10,17 @@ export const qualityJobs = [
   "native-tooling",
   "build-site",
 ];
-export const internalJobs = [
-  "build-api",
-  "build-web",
-  "deploy-preview-api",
-  "deploy-preview-web",
-  "build-mobile-internal",
+export const fixtureJobs = [
+  "initialize-preview",
   "provision",
   "sync-e2e-users",
   "cleanup-e2e-user",
   "cleanup-e2e-db",
 ];
+export const internalJobs = ["build-api", "build-web", "select-preview", "build-mobile-internal"];
 
 /** Development publication is deliberately not a prerequisite of the merge gate. */
-export function verifyCiGate(mode, results, e2eEnabled) {
+export function verifyCiGate(mode, results, e2eEnabled, provider) {
   if (!["branch", "pr"].includes(mode)) throw new Error("Missing eligible CI context");
   if (mode === "pr" && !["true", "false"].includes(e2eEnabled))
     throw new Error("Explicit PR E2E policy required");
@@ -31,6 +28,12 @@ export function verifyCiGate(mode, results, e2eEnabled) {
   for (const name of required)
     if (results[name] !== "success") throw new Error(`Required CI gate did not succeed: ${name}`);
   if (mode === "pr") {
+    if (!["vercel", "netlify"].includes(provider))
+      throw new Error("Verified CI deploy provider required");
+    const fixtures = provider === "vercel" || e2eEnabled === "true";
+    for (const name of fixtureJobs)
+      if (results[name] !== (fixtures ? "success" : "skipped"))
+        throw new Error(`Unexpected CI fixture result: ${name}`);
     for (const name of ["e2e-maestro", "e2e-playwright"])
       if (results[name] !== (e2eEnabled === "true" ? "success" : "skipped"))
         throw new Error(`Unexpected E2E result: ${name}`);
@@ -46,6 +49,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1
         process.env.CI_MODE,
         JSON.parse(process.env.CI_RESULTS),
         process.env.PR_E2E_ENABLED,
+        process.env.CI_DEPLOY_PROVIDER,
       ),
     );
   } catch (error) {

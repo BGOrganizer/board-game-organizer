@@ -21,6 +21,32 @@ const root = fileURLToPath(new URL("../../../", import.meta.url));
 const source = "a".repeat(40);
 const runtime = "b".repeat(40);
 
+test("publishes a verified Development OTA to the selected Netlify API without Vercel bypass", async (t) => {
+  const f = fixture(false, undefined, {
+    GITHUB_RUN_ID: "100",
+    GITHUB_RUN_ATTEMPT: "2",
+    EXPO_PUBLIC_API_URL: "https://pr-22-100-1--bgo-api-development.netlify.app",
+    EXPO_PUBLIC_VERCEL_PROTECTION_BYPASS: "",
+  });
+  t.after(() => rmSync(f.folder, { recursive: true, force: true }));
+  const options = { root: f.root, run: f.run, merged: true, current() {} };
+  for (const env of [
+    { EXPO_PUBLIC_VERCEL_PROTECTION_BYPASS: "private-bypass" },
+    { GITHUB_RUN_ID: "101" },
+    { PR_NUMBER: "23" },
+    { EXPO_PUBLIC_API_URL: f.env.EXPO_PUBLIC_API_URL.replace("-100-1--", "-100-3--") },
+  ])
+    await assert.rejects(
+      publishMobileUpdate({ ...f.env, ...env }, options),
+      /Verified Netlify API/,
+    );
+  assert.deepEqual(f.calls, []);
+  await publishMobileUpdate(f.env, options);
+  const update = f.calls.find(({ tool, args }) => tool === "eas" && args[0] === "update");
+  assert.equal(update.options.env.EXPO_PUBLIC_API_URL, f.env.EXPO_PUBLIC_API_URL);
+  assert.equal(update.options.env.EXPO_PUBLIC_VERCEL_PROTECTION_BYPASS, "");
+});
+
 test("publishes a current Development OTA against a verified equivalent APK from an older merge", async (t) => {
   const f = fixture();
   t.after(() => rmSync(f.folder, { recursive: true, force: true }));
@@ -69,7 +95,7 @@ function hbc(version = 98) {
   data.writeUInt32LE(version, 8);
   return data;
 }
-function fixture(production = false, fault) {
+function fixture(production = false, fault, overrides = {}) {
   const folder = mkdtempSync(join(tmpdir(), "bgo-ota-test-"));
   const project = join(folder, "apps/mobile");
   mkdirSync(project, { recursive: true });
@@ -92,6 +118,7 @@ function fixture(production = false, fault) {
     EXPO_PUBLIC_SENTRY_DSN: "public-mobile-dsn",
     EXPO_PUBLIC_VERCEL_PROTECTION_BYPASS: production ? "" : "private-bypass",
     GOOGLE_SERVICES_JSON_CONTENT: "private-firebase-json",
+    ...overrides,
   };
   const apk = Buffer.from("owned APK fixture");
   const files = {

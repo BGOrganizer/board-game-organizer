@@ -9,12 +9,15 @@ export function getCorsHeaders(request: NextRequest | Request) {
   const origin = request.headers.get("origin") ?? "";
   const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",").map((o) => o.trim()) ?? [];
 
+  const isNetlifyWeb = origin !== "" && origin === process.env.BGO_NETLIFY_WEB_ORIGIN;
+
   // In development, allow all origins
   const isDev = process.env.NODE_ENV === "development";
   // Vercel preview deployments use unpredictable *.vercel.app subdomains:
   // allow them so preview E2E (Playwright) can call the API.
   const isVercelPreview = origin.endsWith(".vercel.app");
-  const allowOrigin = isDev || allowedOrigins.includes(origin) || isVercelPreview ? origin : "";
+  const allowOrigin =
+    isDev || allowedOrigins.includes(origin) || isVercelPreview || isNetlifyWeb ? origin : "";
 
   return {
     "Access-Control-Allow-Origin": allowOrigin || "*",

@@ -1,0 +1,70 @@
+name: Scaffold hosting projects
+
+on:
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: Hosting provider
+        type: choice
+        required: true
+        options: [netlify, vercel, both]
+      environment:
+        description: GitHub environment with Infisical-synced provider credentials
+        type: choice
+        required: true
+        options: [development, production]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hosting-project-setup
+  cancel-in-progress: false
+
+jobs:
+  netlify:
+    name: Scaffold Netlify projects
+    if: github.repository == 'BGOrganizer/board-game-organizer' && github.ref == 'refs/heads/main' && (inputs.provider == 'netlify' || inputs.provider == 'both')
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    timeout-minutes: 5
+    steps:
+      - name: Checkout trusted Main
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - name: Ensure the Netlify projects exist
+        env:
+          BGO_HOSTING_PROVIDER: netlify
+          BGO_HOSTING_ENVIRONMENT: ${{ inputs.environment }}
+          NETLIFY_TEAM_SLUG: ${{ vars.NETLIFY_TEAM_SLUG }}
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        run: node .github/scripts/scaffold-hosting-projects.mjs
+
+  vercel:
+    name: Scaffold Vercel projects
+    if: github.repository == 'BGOrganizer/board-game-organizer' && github.ref == 'refs/heads/main' && (inputs.provider == 'vercel' || inputs.provider == 'both')
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    timeout-minutes: 5
+    steps:
+      - name: Checkout trusted Main
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - name: Ensure the Vercel projects exist and configure new projects
+        env:
+          BGO_HOSTING_PROVIDER: vercel
+          BGO_HOSTING_ENVIRONMENT: ${{ inputs.environment }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROTECTION_BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+        run: node .github/scripts/scaffold-hosting-projects.mjs
