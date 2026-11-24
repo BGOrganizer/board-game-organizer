@@ -200,6 +200,29 @@ it("pages a browse widget through its authorized data tool using the original qu
   );
 });
 
+it("renders game rows when browsing an event's tables", async () => {
+  const table = historyTable(firstTableId, "Chess");
+  render(<Widget />);
+  act(() =>
+    host.ontoolresult({
+      ...response("show_bgo_records", { count: 1, hasMore: false }),
+      _meta: {
+        widgetView: {
+          mode: "browse",
+          operation: "list_event_tables",
+          input: { params: { eventId } },
+          page: { items: [table], nextCursor: null },
+        },
+      },
+    }),
+  );
+
+  fireEvent.click(screen.getByRole("button", { name: "Board games: Chess" }));
+
+  const games = await screen.findByRole("dialog");
+  expect(within(games).getByText("Chess")).toBeVisible();
+});
+
 it("renders a mixed shortlist in order and preserves it when returning from a table", async () => {
   const event = { ...plannedEvent, id: eventId };
   const table = historyTable(firstTableId, "Hegemony");
