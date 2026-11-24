@@ -5,7 +5,7 @@
 | File | Display name | Responsibility |
 | --- | --- | --- |
 | [pr-ci.yml](workflows/pr-ci.yml) | CI | Route branch/PR events, run shared checks, then independent isolated CI and Development publication lanes. |
-| [main-ci.yml](workflows/main-ci.yml) | Release | Verify every merge, serialize version preparation, build the pinned APK, deploy and publish the verified release. |
+| [main-ci.yml](workflows/main-ci.yml) | Release | Verify every merge, serialize version preparation, build the pinned APK, deploy and publish the verified release, and switch verified Production DNS when configured. |
 | [scaffold-hosting.yml](workflows/scaffold-hosting.yml) | Scaffold hosting projects | Manual Main workflow to create missing, team-owned Netlify or Vercel projects with environment-scoped provider credentials. |
 | [pr-ci-fail-fast.yml](workflows/pr-ci-fail-fast.yml) | CI watchdog | Wait for all mandatory test suites before cancelling remaining work after shared-quality failures; keep lane-specific failures isolated. |
 | [pr-ci-cleanup.yml](workflows/pr-ci-cleanup.yml) | CI cleanup | Recover resources after an unsuccessful PR run, using trusted default-branch code. |
@@ -98,3 +98,7 @@ quality checks and mandatory release gates still apply.
 Netlify API, Web, Site and MCP have separate jobs. The shared [Netlify workflow](workflows/netlify-deploy.yml)
 scopes credentials, verifies team ownership and source, and records deployment links. The
 isolated PR deploys only API and Web. See [Netlify setup and isolation](../docs/organizations-events-operations.md#vercel-preflight-and-netlify-fallback).
+
+Production traffic switches only after the selected origins serve the canonical domains with
+valid HTTPS and the API advertises the canonical MCP resource. See the
+[Cloudflare DNS gate](../docs/organizations-events-operations.md#production-dns-switch).

@@ -20,6 +20,11 @@ const webAlias = "https://ci-pr-35-123-1--bgo-web-development.netlify.app";
 const developmentApiAlias = apiAlias.replace("ci-pr", "pr");
 const developmentWebAlias = webAlias.replace("ci-pr", "pr");
 const gatewayOrigin = "https://bgo-mcp-development.netlify.app";
+const productionApiUrl = `https://${apiDeploy}--bgo-api-production.netlify.app`;
+const productionNetlifyApi = "https://bgo-api-production.netlify.app";
+const productionGateway = "https://bgo-mcp-production.netlify.app";
+const canonicalApi = "https://api.board-game-organizer.com";
+const canonicalWeb = "https://app.board-game-organizer.com";
 const sourceSha = "a".repeat(40);
 const prHead = "b".repeat(40);
 const deployTitle = `bgo:${sourceSha}:${sourceSha}:123:1`;
@@ -34,6 +39,19 @@ const developmentEnv = {
   PR_HEAD_SHA: prHead,
   SOURCE_SHA: sourceSha,
   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_fixture",
+};
+const productionEnv = {
+  BGO_NETLIFY_STAGE: "production",
+  FIXTURE_STAGE: "production",
+  GITHUB_EVENT_NAME: "push",
+  GITHUB_REF: "refs/heads/main",
+  GITHUB_RUN_ID: "123",
+  GITHUB_RUN_ATTEMPT: "1",
+  SOURCE_SHA: sourceSha,
+  RELEASE_SHA: prHead,
+  NETLIFY_TITLE: `bgo:${sourceSha}:${prHead}:123:1`,
+  API_URL: productionApiUrl,
+  API_CLIENT_URL: productionNetlifyApi,
 };
 
 function fixture(t) {
@@ -103,7 +121,7 @@ case "$url" in
     printf '%s' '{"id":"${webId}","name":"bgo-web-production","account_slug":"board-game-organizer","published_deploy":{"id":"${webDeploy}"}}'
     ;;
   'https://api.netlify.com/api/v1/sites/${gatewayId}')
-    printf '%s' '{"id":"${gatewayId}","name":"bgo-mcp-development","account_slug":"board-game-organizer","published_deploy":{"id":"${gatewayDeploy}"}}'
+    jq -cn --arg stage "$FIXTURE_STAGE" '{id:"${gatewayId}",name:("bgo-mcp-"+$stage),account_slug:"board-game-organizer",published_deploy:{id:"${gatewayDeploy}"}}'
     ;;
   'https://api.netlify.com/api/v1/deploys/${apiDeploy}')
     render_deploy '${apiDeploy}' '${apiId}' api "$FIXTURE_STAGE" "$context"
@@ -115,7 +133,7 @@ case "$url" in
     render_deploy '${siteDeploy}' '${siteId}' site development branch-deploy
     ;;
   'https://api.netlify.com/api/v1/deploys/${gatewayDeploy}')
-    render_deploy '${gatewayDeploy}' '${gatewayId}' mcp development production
+    render_deploy '${gatewayDeploy}' '${gatewayId}' mcp "$FIXTURE_STAGE" production
     ;;
   'https://api.vercel.com/v13/deployments/owned.vercel.app?teamId=team-test')
     printf '%s' '{"url":"owned.vercel.app","projectId":"project-test","target":null}'
@@ -124,18 +142,25 @@ case "$url" in
     [[ " $* " == *'Authorization: Bearer sk_test_fixture'* ]]
     jq -cn --arg db "$RECORD_DB" '{databaseName:$db}'
     ;;
+  '${productionApiUrl}/api/admin/sync-user')
+    [[ " $* " == *'Authorization: Bearer sk_live_fixture'* ]]
+    printf '%s' '{"databaseName":"bgo"}'
+    ;;
   '${apiUrl}/api/admin/ci-db'|'https://owned.vercel.app/api/admin/ci-db?x-vercel-protection-bypass=bypass')
     [[ " $* " == *'"action":"cleanup"'* ]]
     [[ " $* " == *"$RECORD_DB"* ]]
     printf '%s' '{"ok":true}'
     ;;
-  '${apiUrl}/api/health'|'${apiAlias}/api/health'|'https://bgo-api-production.netlify.app/api/health')
+  '${apiUrl}/api/health'|'${apiAlias}/api/health'|'${productionApiUrl}/api/health'|'${productionNetlifyApi}/api/health')
     printf '%s' '{"ok":true,"service":"board-game-organizer-api"}'
     ;;
   '${webUrl}/'|'${webAlias}/'|'https://${webDeploy}--bgo-web-production.netlify.app/'|'https://bgo-web-production.netlify.app/') ;;
   'https://${siteDeploy}--bgo-site-development.netlify.app/'|'https://pr-35-123-1--bgo-site-development.netlify.app/') ;;
   'https://${gatewayDeploy}--bgo-mcp-development.netlify.app/.well-known/oauth-protected-resource/mcp'|'${gatewayOrigin}/.well-known/oauth-protected-resource/mcp')
     printf '%s' '{"resource":"${gatewayOrigin}/mcp"}'
+    ;;
+  '${productionApiUrl}/.well-known/oauth-protected-resource/mcp'|'https://${gatewayDeploy}--bgo-mcp-production.netlify.app/.well-known/oauth-protected-resource/mcp'|'${productionGateway}/.well-known/oauth-protected-resource/mcp')
+    jq -cn --arg resource "\${OAUTH_RESOURCE:-${canonicalApi}/mcp}" '{resource:$resource}'
     ;;
   *) exit 1 ;;
 esac`,
@@ -326,35 +351,66 @@ printf '%s' '{"site_id":"${gatewayId}","deploy_id":"${gatewayDeploy}"}'`,
   assert(requests().includes(`${gatewayOrigin}/.well-known/oauth-protected-resource/mcp`));
 });
 
-test("Netlify Production Web checks that the upstream deploy is still published", (t) => {
-  const { executable, run, requests, outputs } = fixture(t);
-  const apiOrigin = "https://bgo-api-production.netlify.app";
+function stubProductionGit(executable) {
   executable(
     "git",
     `
 case "$1" in fetch) exit 0 ;; rev-parse) printf '${prHead}' ;; *) exit 1 ;; esac`,
   );
+}
+
+test("Netlify Production API configures canonical CORS and MCP and verifies the advertised resource", (t) => {
+  const { executable, run, requests, outputs } = fixture(t);
+  stubProductionGit(executable);
+  executable(
+    "node",
+    `test "$3" = production && test "$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" = pk_live_fixture
+printf 'https://issuer.clerk.test'`,
+  );
+  executable(
+    "netlify",
+    `
+[[ " $* " == *' --filter apps/api --site ${apiId} '* && " $* " == *' --context production --prod '* ]]
+[[ " $* " == *' --env BGO_NETLIFY_WEB_ORIGIN=${canonicalWeb} '* ]]
+[[ " $* " == *' --env MCP_RESOURCE_URL=${canonicalApi}/mcp '* ]]
+[[ " $* " == *' --env MCP_CLERK_ISSUER=https://issuer.clerk.test '* ]]
+test "$BGO_NETLIFY_SITE_WEB_ORIGIN" = '${canonicalWeb}'
+test -z "\${CLERK_SECRET_KEY:-}"
+printf '%s' '{"site_id":"${apiId}","deploy_id":"${apiDeploy}"}'`,
+  );
+  const env = {
+    ...productionEnv,
+    BGO_NETLIFY_COMPONENT: "api",
+    CLERK_SECRET_KEY: "sk_live_fixture",
+    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_live_fixture",
+  };
+  const invalid = run(actionScript, [], { ...env, OAUTH_RESOURCE: `${productionGateway}/mcp` });
+  assert.notEqual(invalid.status, 0);
+  assert.equal(outputs(), "");
+  assert(!requests().includes(`${productionApiUrl}/api/admin/sync-user`));
+
+  const result = run(actionScript, [], env);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(
+    outputs(),
+    `api-url=${productionApiUrl}\napi-client-url=${productionNetlifyApi}\nci-db-name=\n`,
+  );
+});
+
+test("Netlify Production Web uses the canonical API and checks the exact published deploy", (t) => {
+  const { executable, run, requests, outputs } = fixture(t);
+  stubProductionGit(executable);
   executable(
     "netlify",
     `
 [[ " $* " == *' --filter apps/web --site ${webId} '* && " $* " == *' --context production --prod '* ]]
-test "$BGO_NETLIFY_API_ORIGIN" = '${apiOrigin}'
+test "$BGO_NETLIFY_API_ORIGIN" = '${canonicalApi}'
 printf 'deploy command\n' >> "$REQUESTS"
 printf '%s' '{"site_id":"${webId}","deploy_id":"${webDeploy}"}'`,
   );
   const env = {
-    BGO_NETLIFY_STAGE: "production",
+    ...productionEnv,
     BGO_NETLIFY_COMPONENT: "web",
-    FIXTURE_STAGE: "production",
-    GITHUB_EVENT_NAME: "push",
-    GITHUB_REF: "refs/heads/main",
-    GITHUB_RUN_ID: "123",
-    GITHUB_RUN_ATTEMPT: "1",
-    SOURCE_SHA: sourceSha,
-    RELEASE_SHA: prHead,
-    NETLIFY_TITLE: `bgo:${sourceSha}:${prHead}:123:1`,
-    API_URL: `https://${apiDeploy}--bgo-api-production.netlify.app`,
-    API_CLIENT_URL: apiOrigin,
   };
   const superseded = run(actionScript, [], { ...env, PUBLISHED_API_DEPLOY: webDeploy });
   assert.notEqual(superseded.status, 0);
@@ -363,10 +419,33 @@ printf '%s' '{"site_id":"${webId}","deploy_id":"${webDeploy}"}'`,
 
   const result = run(actionScript, [], env);
   assert.equal(result.status, 0, result.stderr);
+  assert(requests().includes(`${productionApiUrl}/api/health`));
   assert.equal(
     outputs(),
     `web-url=https://${webDeploy}--bgo-web-production.netlify.app\nweb-client-url=https://bgo-web-production.netlify.app\n`,
   );
+});
+
+test("Netlify Production MCP probes the gateway for the canonical API OAuth resource", (t) => {
+  const { executable, run, requests, outputs } = fixture(t);
+  stubProductionGit(executable);
+  executable("bun", `test "$1" = build && touch "\${5#--outfile=}"`);
+  executable(
+    "netlify",
+    `
+[[ " $* " == *' --no-build --dir public --functions functions --site ${gatewayId} --prod '* ]]
+[[ " $* " == *'BGO_MCP_UPSTREAM_URL=${productionNetlifyApi} '* && " $* " != *' --alias '* ]]
+printf '%s' '{"site_id":"${gatewayId}","deploy_id":"${gatewayDeploy}"}'`,
+  );
+  const env = { ...productionEnv, BGO_NETLIFY_COMPONENT: "mcp" };
+  const invalid = run(actionScript, [], { ...env, OAUTH_RESOURCE: `${productionGateway}/mcp` });
+  assert.notEqual(invalid.status, 0);
+  assert.equal(outputs(), "");
+
+  const result = run(actionScript, [], env);
+  assert.equal(result.status, 0, result.stderr);
+  assert(requests().includes(`${productionGateway}/.well-known/oauth-protected-resource/mcp`));
+  assert.equal(outputs(), `gateway-url=${productionGateway}/mcp\n`);
 });
 
 test("trusted cleanup checks project, run alias and runtime DB before Netlify writes", (t) => {

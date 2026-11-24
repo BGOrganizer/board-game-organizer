@@ -171,6 +171,10 @@ project="bgo-$component-$target"
 project_id=$(site_id "$project")
 origin=$(client_origin "$project" "$alias")
 gateway_site="bgo-mcp-$target"
+canonical_api_origin=https://api.board-game-organizer.com
+canonical_web_origin=https://app.board-game-organizer.com
+mcp_resource="https://$gateway_site.netlify.app/mcp"
+if [ "$target" = production ]; then mcp_resource="$canonical_api_origin/mcp"; fi
 
 function attest_deploy() {
   local result=$1 name=$2 context=$3 deploy_id record permalink
@@ -207,14 +211,18 @@ function smoke() {
   curl --fail --silent --show-error --retry 3 --max-time 30 "$1"
 }
 
+function verify_mcp_resource() {
+  smoke "$1/.well-known/oauth-protected-resource/mcp" |
+    jq -e --arg endpoint "$mcp_resource" '.resource == $endpoint' >/dev/null
+}
+
 case "$component" in
   api)
-    # Scope browser access to the matching Web alias. Only isolated jobs override the database.
     web_origin=$(client_origin "bgo-web-$target" "$alias")
-    export BGO_NETLIFY_SITE_WEB_ORIGIN="$web_origin"
     if [ "$target" = production ]; then
-      export BGO_NETLIFY_SITE_WEB_ORIGIN=https://app.board-game-organizer.com
+      web_origin="$canonical_web_origin"
     fi
+    export BGO_NETLIFY_SITE_WEB_ORIGIN="$web_origin"
     api_env=(--env "BGO_NETLIFY_STAGE=$target" --env "BGO_NETLIFY_WEB_ORIGIN=$web_origin")
     if [ "$isolated" = true ]; then
       ci_database="bgo_ci_${GITHUB_RUN_ID}_${attempt}"
@@ -225,12 +233,15 @@ import { clerkFrontendOrigin } from './.github/scripts/clerk-target.mjs';
 console.log(clerkFrontendOrigin(process.argv[2], process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY));
 JS
       )
-      api_env+=(--env "MCP_RESOURCE_URL=https://$gateway_site.netlify.app/mcp" --env "MCP_CLERK_ISSUER=$clerk_issuer")
+      api_env+=(--env "MCP_RESOURCE_URL=$mcp_resource" --env "MCP_CLERK_ISSUER=$clerk_issuer")
     fi
     deploy=$(BGO_CI_DB_NAME="$ci_database" deploy_next "${api_env[@]}")
     for url in "$deploy" "$origin"; do
       smoke "$url/api/health" | jq -e '.ok == true and .service == "board-game-organizer-api"' >/dev/null
     done
+    if [ "$target" = production ]; then
+      verify_mcp_resource "$deploy"
+    fi
     curl --fail --silent --show-error --max-time 30 "$deploy/api/admin/sync-user" \
       --header "Authorization: Bearer $clerk_attestation_key" |
       jq -e --arg expected "$ci_database" -f .github/actions/netlify-deploy/database.jq >/dev/null || {
@@ -241,7 +252,12 @@ JS
     ;;
   web)
     export BGO_NETLIFY_API_ORIGIN="$upstream_origin"
-    smoke "$upstream_origin/api/health" | jq -e '.ok == true and .service == "board-game-organizer-api"' >/dev/null
+    api_health_origin="$upstream_origin"
+    if [ "$target" = production ]; then
+      export BGO_NETLIFY_API_ORIGIN="$canonical_api_origin"
+      api_health_origin="$immutable_url"
+    fi
+    smoke "$api_health_origin/api/health" | jq -e '.ok == true and .service == "board-game-organizer-api"' >/dev/null
     deploy=$(deploy_next)
     smoke "$deploy/" >/dev/null
     smoke "$origin/" >/dev/null
@@ -249,7 +265,7 @@ JS
     ;;
   site)
     if [ "$target" = production ]; then
-      export BGO_NETLIFY_SITE_WEB_ORIGIN=https://app.board-game-organizer.com
+      export BGO_NETLIFY_SITE_WEB_ORIGIN="$canonical_web_origin"
     else
       export BGO_NETLIFY_SITE_WEB_ORIGIN="$upstream_origin"
     fi
@@ -272,8 +288,7 @@ JS
     deploy=$gateway_deploy
     origin="https://$gateway_site.netlify.app/mcp"
     for host in "$deploy" "${origin%/mcp}"; do
-      smoke "$host/.well-known/oauth-protected-resource/mcp" |
-        jq -e --arg endpoint "$origin" '.resource == $endpoint' >/dev/null
+      verify_mcp_resource "$host"
     done
     printf 'gateway-url=%s\n' "$origin" >>"$GITHUB_OUTPUT"
     ;;

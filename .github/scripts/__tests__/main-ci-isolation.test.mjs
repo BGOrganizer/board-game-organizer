@@ -303,8 +303,15 @@ test("Production smoke and publication consume only complete deploys from the cu
     "deploy-production-site",
     "deploy-netlify-production-site",
   ]);
-  assert.match(site.steps.at(-1).run, /if \[ "\$VERCEL_SITE_READY" = true \]/);
-  assert.match(site.steps.at(-1).run, /elif \[\[ "\$NETLIFY_SITE_URL"/);
+  assert.deepEqual(site.outputs, {
+    provider: `\${{ steps.select.outputs.provider }}`,
+    url: `\${{ steps.select.outputs.url }}`,
+  });
+  const selectSite = site.steps.find((s) => s.id === "select").run;
+  assert.match(selectSite, /if \[ "\$VERCEL_SITE_READY" = true \]/);
+  assert.match(selectSite, /elif \[\[ "\$NETLIFY_SITE_URL"/);
+  assert.match(selectSite, /provider=vercel.*"\$VERCEL_SITE_URL" >> "\$GITHUB_OUTPUT"/);
+  assert.match(selectSite, /provider=netlify.*"\$NETLIFY_SITE_URL" >> "\$GITHUB_OUTPUT"/);
   const verifyVercelSite = jobs["deploy-production-site"].steps.at(-1).run;
   assert.match(verifyVercelSite, /--get --data-urlencode "x-vercel-protection-bypass=/);
   assert.doesNotMatch(verifyVercelSite, /--header "x-vercel-protection-bypass/);
@@ -317,6 +324,57 @@ test("Production smoke and publication consume only complete deploys from the cu
     }
   }
 });
+
+test("only the validated Production source can switch DNS using verified provider receipts", () => {
+  const dns = jobs["switch-production-dns"];
+  const dependencies = ["release", "select-production-deployment", "select-production-site"];
+  assert.deepEqual(dns.needs, dependencies);
+  assert.match(dns.if, /!cancelled\(\)/);
+  for (const dependency of dependencies)
+    assert(dns.if.includes(`needs.${dependency}.result == 'success'`));
+  assert(dns.if.includes("needs.release.outputs.sha != ''"));
+  assert.equal(dns.environment, "production");
+  assert.deepEqual(dns.permissions, { contents: "read" });
+  assert.deepEqual(dns.concurrency, { group: "production-dns", "cancel-in-progress": false });
+  assert.match(dns.steps[0].uses, /^actions\/checkout@[a-f0-9]{40}$/);
+  assert.match(dns.steps[1].uses, /^actions\/setup-node@[a-f0-9]{40}$/);
+  assert.deepEqual(dns.steps[0].with, {
+    ref: `\${{ github.sha }}`,
+    "fetch-depth": 0,
+    "persist-credentials": false,
+  });
+  const route = dns.steps.at(-1);
+  for (const [variable, [job, output]] of Object.entries({
+    PRODUCTION_PROVIDER: ["select-production-deployment", "provider"],
+    PRODUCTION_API_URL: ["select-production-deployment", "api-url"],
+    PRODUCTION_WEB_URL: ["select-production-deployment", "web-url"],
+    PRODUCTION_SITE_PROVIDER: ["select-production-site", "provider"],
+    PRODUCTION_SITE_URL: ["select-production-site", "url"],
+  })) {
+    assert(dns.if.includes(`needs.${job}.outputs.${output} != ''`));
+    assert.equal(route.env[variable], `\${{ needs.${job}.outputs.${output} }}`);
+  }
+  for (const secret of [
+    "CLOUDFLARE_API_TOKEN",
+    "CLOUDFLARE_ZONE_ID",
+    "NETLIFY_AUTH_TOKEN",
+    "VERCEL_TOKEN",
+    "VERCEL_ORG_ID",
+    "VERCEL_API_PROJECT_ID",
+    "VERCEL_WEB_PROJECT_ID",
+    "VERCEL_SITE_PROJECT_ID",
+  ])
+    assert.equal(route.env[secret], `\${{ secrets.${secret} }}`);
+  assert.equal(route.env.NETLIFY_TEAM_SLUG, `\${{ vars.NETLIFY_TEAM_SLUG }}`);
+  assert.match(
+    route.run,
+    /node \.github\/scripts\/check-site-main\.mjs "\$GITHUB_REF" "\$GITHUB_SHA".*test "\$result" = 0\nnode \.github\/scripts\/switch-production-dns\.mjs/s,
+  );
+  assert.doesNotMatch(JSON.stringify(prJobs), /CLOUDFLARE_API_TOKEN|switch-production-dns/);
+  for (const id of ["publish-release", "notify-telegram"])
+    assert(!jobs[id].needs.includes("switch-production-dns"));
+});
+
 test("unit and integration Codecov uploads fail closed and retain coverage reports", () => {
   for (const id of ["coverage", "integration-tests"]) {
     const signing = jobs[id].steps.find(

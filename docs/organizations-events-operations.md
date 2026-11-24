@@ -515,14 +515,18 @@ need API or database credentials. In each GitHub environment, set:
 Netlify classifies CLI deployments with aliases as branch deploys. They use one alias per PR, run and
 attempt. The deploy API reports the alias as `deploy_ssl_url`; the CI derives the immutable permalink
 from the verified deploy ID and project name. Web and MCP verify the owned API deployment and
-its source before using it. Development Site verifies the Web deployment it links to. The API allows that exact Web origin in addition to the existing
-environment configuration. The Main Site sign-in and Production widget links use the canonical
-Web domain for Clerk Production. Browser smoke at `netlify.app` is unauthenticated. Authenticated
-Production acceptance requires a verified BGO subdomain configured for the matching Clerk instance.
-The separate MCP URL is `https://bgo-mcp-<development|production>.netlify.app/mcp`; register that
-exact audience in the matching Clerk instance before using it. The endpoint exposes only MCP
-transport and OAuth discovery and forwards to its own Netlify API without provider bypass. The
-deployment resolves the issuer from the matching Clerk publishable key and sets it on the API.
+its source before using it. Development Site verifies the Web deployment it links to. The
+Development API allows that exact Web origin. Production Web on either provider uses
+`https://api.board-game-organizer.com` and the Production API allows `https://app.board-game-organizer.com`.
+The Main Site sign-in and Production widget links use the canonical Web domain for Clerk Production.
+Browser smoke at `netlify.app` is unauthenticated. Authenticated Production acceptance requires a
+verified BGO subdomain configured for the matching Clerk instance.
+
+The Development MCP URL is `https://bgo-mcp-development.netlify.app/mcp`. Register that exact
+audience in the Development Clerk instance. Production always advertises
+`https://api.board-game-organizer.com/mcp`, including on Netlify. The Netlify gateways forward MCP
+transport and discovery to the same-run API without provider bypass. The deployment resolves the
+issuer from the matching Clerk publishable key.
 
 Netlify's visitor access settings control reachability independently of Clerk. Use Public
 preview access for the Development API, Web and Site projects and Public published deploy access
@@ -530,10 +534,10 @@ for their Production counterparts so GitHub Actions can perform unauthenticated 
 External MCP clients require Public published deploy access on the corresponding MCP project.
 BGO authorization remains enforced by the application.
 
-The Netlify projects use provider hostnames until an operator changes DNS. The existing
-production domains, Clerk webhook URLs and Inngest registration continue to route through
-Vercel. No duplicate webhook or worker registration is created. Check custom-domain auth,
-webhooks, job delivery, and Web Push before a cutover.
+The provider domains are available for deployment checks. Public Production traffic follows the
+canonical DNS records. Clerk webhook URLs and Inngest registration stay on the canonical API.
+Check custom-domain login, webhooks, job delivery, App Links and Web Push during the first cutover.
+See [Production DNS switch](#production-dns-switch).
 
 The API Vitest suite with a Testcontainers MongoDB replica set runs independently of either host.
 Ordinary Netlify deploys reject CI database names and conflicting webhook database overrides
@@ -542,6 +546,34 @@ Isolated Netlify deploys have separate aliases and must attest the exact run/att
 With PR E2E disabled, a Netlify fallback verifies readiness without seeding fixtures. If E2E
 is enabled, the selected isolated deployment owns fixtures, and Netlify fixture writes require
 the trusted default-branch cleanup controller to support Netlify ownership verification.
+
+
+### Production DNS switch
+
+Main uses the verified API and Web provider as a pair and the separately verified Site provider.
+With `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ZONE_ID` configured in the GitHub Production environment
+through the Infisical `prod /github` sync, the DNS job updates exactly these existing names.
+
+| Cloudflare name | Canonical hostname | Selected project |
+| --- | --- | --- |
+| `api` | `api.board-game-organizer.com` | Production API |
+| `app` | `app.board-game-organizer.com` | Production Web |
+| `@` | `board-game-organizer.com` | Public Site |
+
+The Cloudflare token needs **Zone → DNS → Edit** for only this zone. Prepare custom-domain bindings
+and valid origin HTTPS at the destination provider before using the automation. The first Netlify
+certificate can require a controlled DNS change because managed certificates require the DNS to
+point to Netlify. Provider subdomain health alone does not establish this readiness. See
+[Netlify external DNS](https://docs.netlify.com/manage/domains/configure-domains/configure-external-dns/)
+and [Vercel custom domains](https://vercel.com/docs/domains/set-up-custom-domain).
+
+Before writing DNS, the job verifies provider ownership and the current Production deployments,
+probes the three canonical hosts with their original Host/TLS names directly against the selected
+origins, checks API health and the canonical MCP OAuth resource, and rechecks the current Main
+source and existing Cloudflare record snapshot. A scoped batch applies only changed routing
+records and verifies the result through Cloudflare. Existing comment, DNS TTL and proxy settings
+are reused when creating a replacement routing record. The job summary shows prior public targets
+and redacts proxied origins. Resolver propagation remains subject to the [Cloudflare batch semantics](https://developers.cloudflare.com/api/resources/dns/subresources/records/methods/batch/).
 
 ### Scaffold hosting projects
 

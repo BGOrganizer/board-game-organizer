@@ -40,6 +40,9 @@ as BoardGameGeek, still use the host's link-opening flow.
    HTTPS Frontend API origin, without a trailing slash. Sync the settings through Infisical as
    described in the [operational gates](organizations-events-operations.md). Both settings are
    required to enable MCP. Development and Production use their own Clerk instances and API data.
+   Production keeps `https://api.board-game-organizer.com/mcp` as its public endpoint and OAuth
+   audience when the active API provider changes. See the
+   [Production DNS switch](organizations-events-operations.md#production-dns-switch).
 2. In the matching Clerk instance, register the full URL under MCP servers and verify Include
    Audience is on. Configure the OAuth application for the MCP client to issue JWT access tokens
    with that resource audience. Configure the client with its host's redirect URIs, OAuth 2.1 authorization

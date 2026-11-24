@@ -711,6 +711,9 @@ jobs:
     if: ${{ !cancelled() && needs.quality.result == 'success' && needs.build-site.result == 'success' }}
     runs-on: ubuntu-latest
     environment: production
+    outputs:
+      provider: ${{ steps.select.outputs.provider }}
+      url: ${{ steps.select.outputs.url }}
     steps:
       - name: 📥 Checkout merged source
         uses: actions/checkout@v4
@@ -725,6 +728,7 @@ jobs:
           node-version: '26'
 
       - name: 🔎 Check Site on Vercel, then Netlify if needed
+        id: select
         env:
           VERCEL_SITE_URL: ${{ needs.deploy-production-site.outputs.site-url }}
           VERCEL_SITE_READY: ${{ needs.deploy-production-site.outputs.ready }}
@@ -736,13 +740,73 @@ jobs:
           if [ "$result" = 3 ]; then exit 0; fi
           test "$result" = 0
           if [ "$VERCEL_SITE_READY" = true ] && [[ "$VERCEL_SITE_URL" =~ ^https://[a-zA-Z0-9-]+\.vercel\.app$ ]]; then
+            printf 'provider=vercel\nurl=%s\n' "$VERCEL_SITE_URL" >> "$GITHUB_OUTPUT"
             printf 'Production Site verified on Vercel at %s\n' "$VERCEL_SITE_URL" >> "$GITHUB_STEP_SUMMARY"
           elif [[ "$NETLIFY_SITE_URL" =~ ^https://[a-f0-9]{24}--bgo-site-production\.netlify\.app$ ]]; then
+            printf 'provider=netlify\nurl=%s\n' "$NETLIFY_SITE_URL" >> "$GITHUB_OUTPUT"
             printf 'Production Site verified on Netlify at %s\n' "$NETLIFY_SITE_URL" >> "$GITHUB_STEP_SUMMARY"
           else
             printf 'No current Production Site deploy passed smoke.\n' >&2
             exit 1
           fi
+
+  switch-production-dns:
+    name: Route verified Production deployments in Cloudflare
+    needs: [release, select-production-deployment, select-production-site]
+    if: >-
+      ${{ !cancelled()
+        && needs.release.result == 'success' && needs.release.outputs.sha != ''
+        && needs.select-production-deployment.result == 'success'
+        && needs.select-production-deployment.outputs.provider != ''
+        && needs.select-production-deployment.outputs.api-url != ''
+        && needs.select-production-deployment.outputs.web-url != ''
+        && needs.select-production-site.result == 'success'
+        && needs.select-production-site.outputs.provider != ''
+        && needs.select-production-site.outputs.url != '' }}
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+    concurrency:
+      group: production-dns
+      cancel-in-progress: false
+    timeout-minutes: 15
+    steps:
+      - name: 📥 Checkout validated Main source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '26'
+
+      - name: Verify and route current Production deployments
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          PRODUCTION_PROVIDER: ${{ needs.select-production-deployment.outputs.provider }}
+          PRODUCTION_API_URL: ${{ needs.select-production-deployment.outputs.api-url }}
+          PRODUCTION_WEB_URL: ${{ needs.select-production-deployment.outputs.web-url }}
+          PRODUCTION_SITE_PROVIDER: ${{ needs.select-production-site.outputs.provider }}
+          PRODUCTION_SITE_URL: ${{ needs.select-production-site.outputs.url }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_API_PROJECT_ID: ${{ secrets.VERCEL_API_PROJECT_ID }}
+          VERCEL_WEB_PROJECT_ID: ${{ secrets.VERCEL_WEB_PROJECT_ID }}
+          VERCEL_SITE_PROJECT_ID: ${{ secrets.VERCEL_SITE_PROJECT_ID }}
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_TEAM_SLUG: ${{ vars.NETLIFY_TEAM_SLUG }}
+        run: |
+          set -euo pipefail
+          result=0
+          node .github/scripts/check-site-main.mjs "$GITHUB_REF" "$GITHUB_SHA" || result=$?
+          if [ "$result" = 3 ]; then exit 0; fi
+          test "$result" = 0
+          node .github/scripts/switch-production-dns.mjs
 
   publish-release:
     name: Publish release v${{ needs.release.outputs.version }}
