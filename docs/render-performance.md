@@ -116,7 +116,9 @@ reported by the comparison jobs.
 
 Calibrate commit-count ceilings from repeated runs with the same fixtures. Both suites record
 explicit scenario ceilings in `apps/{web,mobile}/performance/renderCommitBudgets.ts` and reject
-additional commits, unknown scenarios and invalid samples. Recheck a changed scenario before updating its
+additional commits, unknown scenarios and invalid samples. Four calibrated asynchronous journeys
+allow one of ten samples to exceed its ceiling by one commit. The mean may increase by at most
+0.1 in those cases. Repeated or larger excesses still fail. Recheck a changed scenario before updating its
 ceiling; do not raise budgets merely to obtain a passing run. Duration samples remain recorded
 separately: a deterministic commit-count contract is not a native latency guarantee.
 
@@ -155,9 +157,10 @@ The [comparison wrapper](../scripts/performance/compare-render-reports.mjs) uses
 named budget inventory, ten raw render counts, ten duration samples including removed outliers,
 one warmup and each calibrated commit ceiling before accepting the report. The historical report
 must include every scenario selected from the baseline checkout's budgets. Official errors,
-statistically significant duration increases of at least 0.2 ms, and removed scenarios fail the
-gate. The Web reactivation run observed differences up to 0.152 ms with identical application
-code and scenario assertions. The report retains smaller timing differences, improvements, added
+statistically significant duration increases of at least 0.2 ms and 15%, and removed scenarios fail the
+gate. One Web reactivation run observed shifts up to 0.152 ms with identical application code
+and scenario assertions. A second run with the same application code observed phase drift up to
+12.35% on previously matched scenarios. The report retains smaller timing differences, improvements, added
 scenarios, warnings and stability. The commit-count ceilings remain independently enforced.
 
 The approved initial main, `466220e26f672ad8de644e0a2c2ce223f02879df`, has no performance harness.

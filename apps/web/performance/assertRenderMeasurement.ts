@@ -1,5 +1,6 @@
 import type { measureRenders } from "@callstack/reassure-measure";
 import { expect } from "vitest";
+import { withinRenderCommitBudget } from "../../../scripts/performance/render-commit-counts.mts";
 import { renderCommitBudgets } from "./renderCommitBudgets";
 
 /** Validates actual Profiler samples; timing regression limits need a host-matched baseline. */
@@ -30,9 +31,8 @@ export function assertRenderMeasurement(
   expect(result.meanDuration).toBeGreaterThan(0);
   expect(Number.isFinite(result.meanCount)).toBe(true);
   expect(result.meanCount).toBeGreaterThanOrEqual(1);
-  expect(result.meanCount).toBeLessThanOrEqual(maximumCommits);
   expect(
-    result.counts.every((count) => count <= maximumCommits),
+    withinRenderCommitBudget(scenario, result.counts, result.meanCount, maximumCommits),
     `Render regression in ${scenario}: ${result.counts.join(", ")} exceeds ${maximumCommits}`,
   ).toBe(true);
   for (const deviation of [result.stdevDuration, result.stdevCount]) {

@@ -173,6 +173,21 @@ it("reports significant differences within the measured timing noise without fai
   expect(f.report().significant[0].durationDiff).toBeCloseTo(0.15);
   expect(f.report().gate).toMatchObject({ passed: true, minimumDurationIncreaseMs: 0.2 });
 });
+it("reports phase drift below the relative floor while rejecting a larger timed regression", () => {
+  const comparable = fixture({ baseline: [row(undefined, 100)], current: [row(undefined, 112)] });
+  expect(comparable.run().status).toBe(0);
+  expect(comparable.report().significant[0].relativeDurationDiff).toBeCloseTo(0.12);
+  expect(comparable.report().gate).toMatchObject({
+    passed: true,
+    minimumDurationIncreaseMs: 0.2,
+    minimumRelativeDurationIncrease: 0.15,
+  });
+  const regressed = fixture({ baseline: [row(undefined, 100)], current: [row(undefined, 116)] });
+  expect(regressed.run().status).toBe(1);
+  expect(regressed.report().gate.reasons).toEqual([
+    "Significant duration regression: Measured scenario",
+  ]);
+});
 it("records a significant improvement without reporting a regression", () => {
   const f = fixture({ current: [row(undefined, 5)] });
   expect(f.run().status).toBe(0);
