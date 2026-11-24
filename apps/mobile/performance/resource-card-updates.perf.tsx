@@ -53,7 +53,7 @@ type Commit = {
   phase: Parameters<ProfilerOnRenderCallback>[1];
   duration: number;
 };
-type Driver = { revise: () => void; rename: () => void };
+type Driver = { revise: () => void; updateTitle: () => void };
 const base: Record<Kind, Resource> = {
   group: groupRecord,
   event: plannedEvent,
@@ -91,7 +91,26 @@ it.each(["group", "event", "table"] as const)(
       ...base[kind],
       id: `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
       name: `Resource ${index + 1}`,
+      ...(kind === "table" && { order: index }),
     }));
+    const updatedTitle =
+      kind === "table" ? plannedTable.gamesDetail[0].name : "Updated authoritative name";
+    const updatedFirstRow: Resource =
+      kind === "table"
+        ? {
+            ...(records[0] as typeof plannedTable),
+            eventStatus: "CONFIRMED",
+            confirmed: {
+              gameId: 1,
+              startsAt: "2030-06-03T18:00:00Z",
+              playerIds: ["owner", "guest"],
+            },
+            acceptedCount: 2,
+            seatedCount: 2,
+            canRegister: false,
+            canInvite: false,
+          }
+        : { ...records[0], name: updatedTitle };
     const targets: NotificationAttentionTarget[] = records.map(({ id }) => ({ kind, id }));
     const options = {
       apiUrl: "https://performance-fixtures.test",
@@ -141,12 +160,7 @@ it.each(["group", "event", "table"] as const)(
       const [current, setCurrent] = useState(records);
       useImperativeHandle(ref, () => ({
         revise: () => setRevision((value) => value + 1),
-        rename: () =>
-          setCurrent((previous) =>
-            previous.map((record, index) =>
-              index ? record : { ...record, name: "Updated authoritative name" },
-            ),
-          ),
+        updateTitle: () => setCurrent((previous) => [updatedFirstRow, ...previous.slice(1)]),
       }));
       return (
         <NotificationAttentionProvider options={options} targets={targets}>
@@ -183,6 +197,9 @@ it.each(["group", "event", "table"] as const)(
         scenario: async () => {
           const original = rows(kind);
           expect(original).toHaveLength(8);
+          const initialTitle = kind === "table" ? "Table #1" : "Resource 1";
+          expect(original[0]).toHaveProp("accessibilityLabel", `${labels[kind]}: ${initialTitle}`);
+          expect(screen.getByText(initialTitle)).toBeVisible();
           expect(screen.queryByLabelText("Unread updates")).toBeNull();
           const mounted = new Set(
             commits.filter((commit) => commit.phase === "mount").map((c) => c.id),
@@ -215,15 +232,17 @@ it.each(["group", "event", "table"] as const)(
           await waitFor(() => expect(screen.getAllByLabelText("Unread updates")).toHaveLength(1));
           expect(original[0].props.accessibilityValue).toEqual({ text: "Unread updates" });
           original.slice(1).forEach((host) => {
-            expect(host.props.accessibilityValue).toBeUndefined();
+            expect(host.props.accessibilityValue?.text).toBeUndefined();
           });
           retained();
           stage = "rename";
-          await act(() => driver.current?.rename());
-          expect(screen.getByText("Updated authoritative name")).toBeVisible();
-          expect(screen.queryByText("Resource 1")).toBeNull();
-          expect(rows(kind)[0].props.accessibilityLabel).toBe(
-            `${labels[kind]}: Updated authoritative name`,
+          await act(() => driver.current?.updateTitle());
+          expect(screen.getByText(updatedTitle)).toBeVisible();
+          expect(screen.queryByText(initialTitle)).toBeNull();
+          if (kind === "table") expect(screen.queryByText(records[0].name)).toBeNull();
+          expect(rows(kind)[0]).toHaveProp(
+            "accessibilityLabel",
+            `${labels[kind]}: ${updatedTitle}`,
           );
           retained();
           stage = "popover";

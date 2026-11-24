@@ -26,6 +26,7 @@ const player: GroupLeaderboardResponse["players"][number] = {
 };
 let games: GroupLeaderboardResponse;
 let players: GroupLeaderboardResponse;
+let gamesStatus: number;
 let playersStatus: number;
 let pageStatus: number;
 let pending: Promise<Response> | undefined;
@@ -37,7 +38,7 @@ beforeEach(() => {
   boundary.getToken.mockResolvedValue("fresh-ranking-token");
   games = { games: [game], players: [], nextCursor: null };
   players = { games: [], players: [player], nextCursor: null };
-  playersStatus = pageStatus = 200;
+  gamesStatus = playersStatus = pageStatus = 200;
   pending = undefined;
   reads.length = 0;
   client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
@@ -52,7 +53,7 @@ beforeEach(() => {
       const isPlayers = url.searchParams.has("gameId");
       const next = url.searchParams.get("cursor") === "25";
       if (pending && (isPlayers || next)) return pending;
-      const status = next ? pageStatus : isPlayers ? playersStatus : 200;
+      const status = next ? pageStatus : isPlayers ? playersStatus : gamesStatus;
       return json(
         status !== 200
           ? { error: "Fixture ranking unavailable" }
@@ -333,4 +334,100 @@ it("keeps a truly empty global leaderboard distinct from an unselected game", as
   expect(await screen.findByText("No rated tables played yet")).toBeVisible();
   expect(screen.queryByText("Choose a game to see the leaderboard")).toBeNull();
   expect(playerReads()).toHaveLength(0);
+});
+
+it("retries a failed catalog cursor while preserving the selected game and its ranking", async () => {
+  games.nextCursor = 25;
+  mount();
+  await chooseGame();
+  await screen.findByText("@player-one");
+  fireEvent.click(screen.getByRole("button", { name: /Strategy game Board game/ }));
+  const choice = await screen.findByRole("option", { name: "Strategy game", selected: true });
+  const overlay = choice.closest<HTMLElement>("[data-input-overlay]");
+  if (!overlay) throw new Error("Expected the actual game picker popup");
+  const picker = within(overlay);
+  pageStatus = 503;
+  fireEvent.click(picker.getByRole("button", { name: "Load more games" }));
+  await waitFor(() =>
+    expect(
+      client
+        .getQueryCache()
+        .findAll()
+        .some((query) => query.queryKey.includes("games") && query.state.status === "error"),
+    ).toBe(true),
+  );
+  expect(picker.getByRole("option", { name: "Strategy game", selected: true })).toBeVisible();
+  pageStatus = 200;
+  fireEvent.click(picker.getByRole("button", { name: "Load more games" }));
+  expect(await picker.findByRole("option", { name: "Next game" })).toBeVisible();
+  fireEvent.keyDown(picker.getByRole("searchbox", { name: "Search board games" }), {
+    key: "Escape",
+  });
+  expect(screen.getByRole("grid", { name: "Group leaderboard" })).toBeVisible();
+  expect(screen.getByText("@player-one")).toBeVisible();
+  expect(
+    reads
+      .filter((read) => !read.searchParams.has("gameId"))
+      .map((read) => read.searchParams.get("cursor")),
+  ).toEqual(["0", "25", "25"]);
+  expect(playerReads()).toHaveLength(1);
+});
+
+it("keeps the selected game while recovering an errored catalog refresh", async () => {
+  mount();
+  await chooseGame();
+  await screen.findByText("@player-one");
+  gamesStatus = 503;
+  await act(async () => {
+    await client.refetchQueries({ predicate: (query) => query.queryKey.includes("games") });
+  });
+  const retry = await screen.findByRole("button", { name: "Could not load leaderboards. Retry" });
+  expect(screen.getByRole("grid", { name: "Group leaderboard" })).toBeVisible();
+  expect(screen.getByText("@player-one")).toBeVisible();
+  gamesStatus = 200;
+  fireEvent.click(retry);
+  await waitFor(() =>
+    expect(screen.queryByRole("button", { name: "Could not load leaderboards. Retry" })).toBeNull(),
+  );
+  expect(screen.getByText("@player-one")).toBeVisible();
+  expect(playerReads()).toHaveLength(1);
+});
+
+it("distinguishes a selected unrated game from an empty ranking catalog and can reset to the chooser", async () => {
+  players.players = [];
+  mount({});
+  await chooseGame();
+  expect(await screen.findByText("No leaderboard for this game yet")).toBeVisible();
+  expect(screen.queryByRole("grid")).toBeNull();
+  expect(screen.queryByText("No rated tables played yet")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Clear board game selection" }));
+  expect(screen.getByText("Choose a game to see the leaderboard")).toBeVisible();
+  expect(screen.queryByText("No leaderboard for this game yet")).toBeNull();
+  expect(playerReads()).toHaveLength(1);
+});
+
+it("shows an active compact leaderboard row and reveals its statistics on demand", async () => {
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    media: query,
+    matches: query === "(max-width: 639px)",
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }));
+  mount();
+  await chooseGame();
+  const row = within(await screen.findByTestId("group-ranking-player-player-one"));
+  expect(row.getByText("@player-one")).toBeVisible();
+  expect(row.queryByText("Former group member")).toBeNull();
+  expect(row.queryByText("Wins")).toBeNull();
+  const details = row.getByRole("button", { name: /Game statistics: @player-one/ });
+  fireEvent.click(details);
+  expect(details).toHaveAttribute("aria-expanded", "true");
+  const played = await row.findByText("Played");
+  expect(played).toBeVisible();
+  // The API includes ND in gamesPlayed; the UI reports finished games separately.
+  expect(played.nextElementSibling).toHaveTextContent("7");
+  expect(row.getByText("Wins").nextElementSibling).toHaveTextContent("2");
+  expect(row.getByText("ND").nextElementSibling).toHaveTextContent("1");
+  expect(playerReads()).toHaveLength(1);
+  expect(playerReads()[0].searchParams.get("gameId")).toBe(String(game.id));
 });

@@ -223,3 +223,44 @@ it.each(["group", "event"] as const)(
     });
   },
 );
+
+it("reveals a late group name in a table card while keeping its available event and navigation", async () => {
+  const table = { ...plannedTable, groupId: groupRecord.id, groupName: null };
+  const fixture = (groupName: string | null) => (
+    <NativeTestProviders>
+      <EventTableCard table={{ ...table, groupName }} />
+    </NativeTestProviders>
+  );
+  const view = await render(fixture(null));
+  const pending = screen.getByLabelText("Group: Loading…");
+  expect(pending).toBeVisible();
+  expect(screen.getByLabelText(`Event: ${table.eventName}`)).toBeVisible();
+  expect(screen.getByRole("button", { name: "Open table: Table #1" })).toBeEnabled();
+  await view.rerender(fixture(groupRecord.name));
+  expect(screen.queryByLabelText("Group: Loading…")).toBeNull();
+  expect(screen.getByLabelText(`Group: ${groupRecord.name}`)).toBeVisible();
+  await userEvent.setup().press(screen.getByRole("button", { name: "Open table: Table #1" }));
+  expect(sdk.push).toHaveBeenCalledExactlyOnceWith({
+    pathname: "/event/table",
+    params: { eventId: table.eventId, tableId: table.id },
+  });
+});
+
+it("shows a guest demonstrator in the frozen public schedule without treating them as a registered player", async () => {
+  const table: PlannedTableResponse = {
+    ...plannedTable,
+    groupType: "PUBLIC",
+    eventStatus: "CONFIRMED",
+    confirmed: { gameId: 1, playerIds: ["owner"], startsAt: "2030-06-03T18:00:00Z" },
+    demonstratorUserId: undefined,
+    demonstratorGuestName: "Visiting guide",
+  };
+  await render(<EventTableScheduleCard table={table} timeZone="Europe/Rome" />, {
+    wrapper: NativeTestProviders,
+  });
+  const schedule = within(screen.getByLabelText("Table schedule"));
+  expect(schedule.getByText("Date:")).toBeVisible();
+  expect(schedule.getByText("Visiting guide")).toBeVisible();
+  expect(schedule.getByText("Demonstrator")).toBeVisible();
+  expect(schedule.queryByText("Confirmed player")).toBeNull();
+});

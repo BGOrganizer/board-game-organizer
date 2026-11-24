@@ -6,10 +6,19 @@ import type {
 } from "@board-game-organizer/schemas";
 import { useAppStore } from "@board-game-organizer/store";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, render, screen, userEvent, waitFor } from "@testing-library/react-native";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  userEvent,
+  waitFor,
+  within,
+} from "@testing-library/react-native";
 import { StyleSheet } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
+import { scrollNativeListToEnd } from "@/test/nativeListGeometry";
 import { installNativePopoverMeasurements } from "@/test/nativePopoverGeometry";
 import { positionMeasuredSelect } from "@/test/nativeSelectGeometry";
 import { ProfilePlayer } from "../ProfilePlayer";
@@ -432,3 +441,58 @@ it.each([
     expect(reads).toEqual([]);
   },
 );
+
+it("stops automatic game paging after a later cursor fails and retries only when explicitly requested", async () => {
+  games = { ...games, nextCursor: 20 };
+  moreCode = 503;
+  await render(<Fixture />);
+  await ready();
+  await open();
+  const list = screen.getByTestId("rating-game-select-list", { includeHiddenElements: true });
+  const cursorRequests = () => reads.filter(({ url }) => url.searchParams.get("cursor") === "20");
+  await scrollNativeListToEnd(list);
+  await waitFor(() => expect(cursorRequests()).toHaveLength(1));
+  await waitFor(() => expect(client.isFetching()).toBe(0));
+  expect(
+    screen.getByRole("option", { name: "Chess ranked", includeHiddenElements: true }),
+  ).toBeOnTheScreen();
+  expect(
+    screen.queryByRole("option", { name: "Azul ranked", includeHiddenElements: true }),
+  ).toBeNull();
+  await scrollNativeListToEnd(list, 1328);
+  expect(cursorRequests()).toHaveLength(1);
+
+  moreCode = 200;
+  await fireEvent.press(
+    screen.getByRole("button", { name: "Load more games", includeHiddenElements: true }),
+  );
+  expect(
+    await screen.findByRole("option", { name: "Azul ranked", includeHiddenElements: true }),
+  ).toBeOnTheScreen();
+  expect(cursorRequests()).toHaveLength(2);
+  expect(screen.queryByText(/Current rating:/, { includeHiddenElements: true })).toBeNull();
+});
+
+it("retries the unavailable rating catalog from inside the open game selector", async () => {
+  gamesCode = 503;
+  await render(<Fixture />);
+  expect(await screen.findByText("Could not load rating history")).toBeVisible();
+  await open();
+  const selector = screen.getByTestId("rating-game-select-popover", {
+    includeHiddenElements: true,
+  });
+  const retry = within(selector).getByRole("button", {
+    name: "Try again",
+    includeHiddenElements: true,
+  });
+  gamesCode = 200;
+  await fireEvent.press(retry);
+  expect(
+    await within(selector).findByRole("option", {
+      name: "Chess ranked",
+      includeHiddenElements: true,
+    }),
+  ).toBeOnTheScreen();
+  expect(reads).toHaveLength(2);
+  expect(reads.every(({ url }) => url.pathname === "/api/profiles/subject/games")).toBe(true);
+});

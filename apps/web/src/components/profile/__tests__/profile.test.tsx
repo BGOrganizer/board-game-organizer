@@ -1,11 +1,21 @@
 import { useAppStore } from "@board-game-organizer/store";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import ProfilePage from "@/app/(tabs)/profile/page";
+import UserActivitiesPage from "@/app/(tabs)/profiles/[userId]/activities/page";
+import UserProfilePage from "@/app/(tabs)/profiles/[userId]/page";
 import { renderWithI18n } from "@/test-utils";
 import { Profile } from "../Profile";
-import { ProfileActivities } from "../ProfileActivities";
 
-const m = vi.hoisted(() => ({ signOut: vi.fn(), getToken: vi.fn(async () => "fresh-token") }));
+const m = vi.hoisted(() => ({
+  back: vi.fn(),
+  signOut: vi.fn(),
+  getToken: vi.fn(async () => "fresh-token"),
+}));
+vi.mock("next/navigation", async (load) => ({
+  ...(await load<typeof import("next/navigation")>()),
+  useRouter: () => ({ back: m.back }),
+}));
 vi.mock("@/lib/useCommunityApi", () => ({
   useCommunityApi: () => ({
     apiUrl: "https://api.test",
@@ -157,7 +167,7 @@ it("keeps logout reachable on profile failure even after a persisted Collection 
   useAppStore
     .getState()
     .setProfileView(JSON.stringify(["https://api.test", "owner", "owner"]), { tab: "collection" });
-  renderWithI18n(<Profile />);
+  renderWithI18n(<ProfilePage />);
   await screen.findByText("Could not load profile");
   expect(screen.queryByRole("tab", { name: "Collection" })).toBeNull();
   expect(screen.getByRole("button", { name: "Sign out of your account" })).toBeTruthy();
@@ -258,10 +268,12 @@ it("starts with an empty game selection, clears it without stale history and sta
 });
 it("quarantines all subject data after a denied child read and permits a fresh authorized retry", async () => {
   failGames = 404;
-  renderWithI18n(<Profile userId="guest" />);
+  renderWithI18n(await UserProfilePage({ params: Promise.resolve({ userId: "guest" }) }));
   const back = screen.getByRole("button", { name: "Back" });
   expect(back).toHaveTextContent("");
   expect(back.closest("[data-page-toolbar]")?.firstElementChild?.contains(back)).toBe(true);
+  fireEvent.click(back);
+  expect(m.back).toHaveBeenCalledOnce();
   await screen.findByText("Alessandro");
   fireEvent.click(screen.getByRole("tab", { name: "Player" }));
   await screen.findByText("Profile unavailable");
@@ -404,7 +416,7 @@ it("confirms logout, leaves cancellation untouched and preserves the observable 
 });
 it("source-pages activities by ten and keeps failures separate from an empty feed", async () => {
   failFeed = true;
-  renderWithI18n(<ProfileActivities userId="owner" />);
+  renderWithI18n(await UserActivitiesPage({ params: Promise.resolve({ userId: "owner" }) }));
   await screen.findByText("Could not load activities");
   expect(screen.queryByText("No activities yet")).toBeNull();
   failFeed = false;

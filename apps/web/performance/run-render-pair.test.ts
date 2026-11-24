@@ -14,6 +14,10 @@ const { runRenderPair } = await import(
   ).href
 );
 const initialMain = "466220e26f672ad8de644e0a2c2ce223f02879df";
+const legacyWebBaselines = [
+  "13c84d3e9b3c17e6e817dd8685a97824336d17aa",
+  "39d488037509a60c5fbeee377999ec29be679add",
+];
 const baseRef = "a".repeat(40),
   currentRef = "b".repeat(40);
 const flags = [
@@ -37,12 +41,12 @@ function put(file: string, value: string) {
   mkdirSync(dirname(file), { recursive: true });
   writeFileSync(file, value);
 }
-function fixture({ app = "web", bootstrap = false } = {}) {
+function fixture({ app = "web", bootstrap = false, historicalRef = baseRef } = {}) {
   const baseline = join(directory, "baseline checkout");
   const current = join(directory, "candidate checkout");
   const output = join(directory, "paired artifacts");
   const refs: Record<string, string> = {
-    [baseline]: bootstrap ? initialMain : baseRef,
+    [baseline]: bootstrap ? initialMain : historicalRef,
     [current]: currentRef,
   };
   const statuses: Record<string, number> = { baseline: 0, current: 0, comparison: 0 };
@@ -139,7 +143,7 @@ function fixture({ app = "web", bootstrap = false } = {}) {
     "--candidate-root",
     current,
     "--baseline-ref",
-    bootstrap ? initialMain : baseRef,
+    refs[baseline],
     "--current-ref",
     currentRef,
     "--output-dir",
@@ -215,6 +219,25 @@ function fixture({ app = "web", bootstrap = false } = {}) {
 // This orchestration unit controls PROCESS ports only. Actual FS/version lookup/
 // hashes/metadata remain real. Official statistical output has its separate real
 // subprocess suite; these command fixtures are never performance measurements.
+it("accepts Web coverage policy changes with the same renderer and rejects actual renderer changes", () => {
+  const f = fixture();
+  const config = (environment: string, minimum: number) => `
+    import { defineConfig } from "vitest/config";
+    export default defineConfig({
+      test: { environment: "${environment}", coverage: { thresholds: { branches: ${minimum} } } }
+    });
+  `;
+  put(join(f.baseline, "apps/web/vitest.config.ts"), config("jsdom", 90));
+  put(join(f.current, "apps/web/vitest.config.ts"), config("jsdom", 98));
+  expect(f.run()).toBe(0);
+  expect(f.proof().baseline.instrumentationSha256).toBe(f.proof().current.instrumentationSha256);
+
+  rmSync(f.output, { recursive: true, force: true });
+  put(join(f.current, "apps/web/vitest.config.ts"), config("happy-dom", 98));
+  expect(f.run()).toBe(1);
+  expect(f.summary().errors.join(" ")).toContain("instrumentation differs");
+});
+
 it("runs the isolated installed baseline then candidate, preserving reports and actual provenance", () => {
   const f = fixture();
   expect(f.run()).toBe(0);
@@ -225,10 +248,17 @@ it("runs the isolated installed baseline then candidate, preserving reports and 
   for (const { binary, args } of f.measurements()) {
     expect(binary).toBe(process.execPath);
     expect(args.slice(0, 4)).toEqual(flags);
-    expect(args.slice(-3)).toEqual(["run", "--config", "performance/vitest.config.mts"]);
+    expect(args.slice(5, 8)).toEqual(["run", "--config", "performance/vitest.config.mts"]);
   }
+  const [baseline, current] = f.measurements();
+  expect(baseline.args.at(-2)).toBe("--testNamePattern");
+  const selection = new RegExp(baseline.args.at(-1) ?? "");
+  expect(selection.test("Measured scenario")).toBe(true);
+  expect(selection.test("Not yet calibrated")).toBe(false);
+  expect(current.args).not.toContain("--testNamePattern");
   const proof = f.proof();
   expect(proof.baseline.commitHash).toBe(baseRef);
+  expect(proof.baseline.scenarios).toEqual(["Measured scenario"]);
   expect(proof.current.commitHash).toBe(currentRef);
   expect(proof.baseline.sourceChecks).toEqual({ before: true, after: true });
   expect(proof.current.sourceChecks).toEqual({ before: true, after: true });
@@ -258,7 +288,7 @@ it("runs the isolated installed baseline then candidate, preserving reports and 
 it("uses the native config and installed renderer/preset versions without importing native UI", () => {
   const f = fixture({ app: "mobile" });
   expect(f.run()).toBe(0);
-  expect(f.measurements()[0].args.at(-1)).toBe("performance/vitest.config.ts");
+  expect(f.measurements()[0].args).toContain("performance/vitest.config.ts");
   expect(f.proof().current.instrumentation.packages).toMatchObject({
     "@testing-library/react-native": "1.2.3",
     "vitest-native": "1.2.3",
@@ -269,6 +299,24 @@ it("uses the native config and installed renderer/preset versions without import
     f.proof().current.instrumentation.files["apps/mobile/performance/uniwind-native-interop.ts"],
   ).toMatch(/^[a-f\d]{64}$/);
 });
+it.each(legacyWebBaselines)(
+  "selects usable scenarios from the historical Web baseline %s",
+  (ref) => {
+    const f = fixture({ historicalRef: ref });
+    put(
+      join(f.baseline, "apps/web/performance/renderCommitBudgets.ts"),
+      `export const renderCommitBudgets = ${JSON.stringify({
+        "Measured scenario": 1,
+        "EventTableCard window: twelve cached planning tables": 1,
+        "OptionVoteVoters: compact named ballots": 1,
+        "TabBar and TabTrigger: real HeroUI detail-tab changes": 10,
+      })};`,
+    );
+    expect(f.run()).toBe(0);
+    expect(f.proof().baseline.scenarios).toEqual(["Measured scenario"]);
+    expect(f.measurements()[1].args).not.toContain("--testNamePattern");
+  },
+);
 it("allows only the initial no-harness main to bootstrap and never creates old samples", () => {
   const f = fixture({ bootstrap: true });
   expect(f.run()).toBe(0);

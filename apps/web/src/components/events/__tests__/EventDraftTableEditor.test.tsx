@@ -1,7 +1,7 @@
 import { newTableDraft } from "@board-game-organizer/shared";
 import { fireEvent, screen, within } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
-import { enterDateTime } from "@/test-fixtures/dateTime";
+import { clearDateTime, enterDateTime } from "@/test-fixtures/dateTime";
 import { renderWithI18n } from "@/test-utils";
 import { EventDraftTableEditor } from "../EventDraftTableEditor";
 
@@ -102,4 +102,104 @@ it("shows the selected demonstrator identity and clears its draft metadata expli
     demonstratorName: undefined,
     demonstratorAvatarUrl: undefined,
   });
+});
+
+it.each([
+  {
+    field: "demonstratorGuestName",
+    label: "Enter a guest name between 1 and 80 characters.",
+    games: [],
+    gameMessage: "Choose at least one game.",
+  },
+  {
+    field: "demonstratorUserId",
+    label: "Choose an available group demonstrator.",
+    games: [{ id: 1, name: "Chess", year: null, imageUrl: null }],
+    gameMessage: "Choose compatible games.",
+  },
+])(
+  "reports $field, invalid counts and games independently and changes the rating flag",
+  ({ field, label, games, gameMessage }) => {
+    const onChange = vi.fn();
+    renderWithI18n(
+      <EventDraftTableEditor
+        row={{
+          ...newTableDraft("draft"),
+          demonstratorUserId: "missing-profile",
+          startsWall: "2030-06-03T20:00",
+          rankingEnabled: false,
+          games,
+        }}
+        publicGroup
+        eventStartWall="2030-06-03T20:00"
+        eventEndWall="2030-06-03T23:00"
+        busy={false}
+        fieldError={(name) => ["games", "minPlayers", "startsAt", field].includes(name)}
+        onChange={onChange}
+        onRemove={vi.fn()}
+        onGame={vi.fn()}
+        onDemonstrator={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Unknown")).toBeVisible();
+    expect(screen.getByText(label)).toBeVisible();
+    expect(screen.getByText(gameMessage)).toBeVisible();
+    expect(screen.getByText(/Choose valid player counts/)).toBeVisible();
+    fireEvent.click(screen.getByRole("switch", { name: "Enable ratings" }));
+    expect(onChange).toHaveBeenLastCalledWith({ rankingEnabled: true });
+  },
+);
+
+it("clears a public table's draft time when its actual keyboard segments are deleted", () => {
+  const onChange = vi.fn();
+  renderWithI18n(
+    <EventDraftTableEditor
+      row={{
+        ...newTableDraft("draft"),
+        startsWall: "2030-06-03T20:30",
+        games: [{ id: 1, name: "Test game", maxPlayMinutes: 60, year: null, imageUrl: null }],
+      }}
+      publicGroup
+      eventStartWall="2030-06-03T20:00"
+      eventEndWall="2030-06-03T23:00"
+      busy={false}
+      onChange={onChange}
+      onRemove={vi.fn()}
+      onGame={vi.fn()}
+      onDemonstrator={vi.fn()}
+    />,
+  );
+  clearDateTime(screen.getByRole("group", { name: /^Table start$/ }));
+  expect(onChange).toHaveBeenLastCalledWith({ startsWall: "" });
+});
+
+it("leaves removal available at the table-game limit and restores the picker once a slot opens", () => {
+  const games = Array.from({ length: 20 }, (_, index) => ({
+    id: index + 1,
+    name: `Board game ${index + 1}`,
+    year: null,
+    imageUrl: null,
+  }));
+  const row = { ...newTableDraft("draft"), games };
+  const onChange = vi.fn(),
+    onGame = vi.fn();
+  const editor = (options = games) => (
+    <EventDraftTableEditor
+      row={{ ...row, games: options }}
+      publicGroup={false}
+      busy={false}
+      onChange={onChange}
+      onRemove={vi.fn()}
+      onGame={onGame}
+      onDemonstrator={vi.fn()}
+    />
+  );
+  const view = renderWithI18n(editor());
+  expect(screen.getByText("Choose a game")).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Choose a game" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Remove game: Board game 20" }));
+  expect(onChange).toHaveBeenLastCalledWith({ games: games.slice(0, 19) });
+  view.rerender(editor(games.slice(0, 19)));
+  fireEvent.click(screen.getByRole("button", { name: "Choose a game" }));
+  expect(onGame).toHaveBeenCalledOnce();
 });

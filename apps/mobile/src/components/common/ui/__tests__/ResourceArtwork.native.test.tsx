@@ -16,6 +16,7 @@ import {
 } from "react-native";
 import { Uniwind } from "uniwind";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { GroupArtwork } from "@/components/groups/GroupArtwork";
 import { ListActivityContext } from "@/lib/listActivity";
 import { ARTWORK_CYCLE_MS } from "@/lib/resourceArtworkMotion";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
@@ -383,5 +384,88 @@ it("ignores a preference that resolves after unmount", async () => {
   await act(() => resolvePreference(false));
   expect(Animated.loop).not.toHaveBeenCalled();
   for (const remove of control.removed) expect(remove).toHaveBeenCalledOnce();
+  expect(control.motionListenersReleased()).toBe(true);
+});
+
+it("fits an uploaded group logo by decoded image dimensions and falls back until a replacement succeeds", async () => {
+  const { navigation } = lifecycle({ reduced: true });
+  const first = "https://artwork.example.test/first.png";
+  const later = "https://artwork.example.test/later.png";
+  const group = { id: "group-with-logo", role: "admin" as const };
+  const tree = (logo: string) => (
+    <NativeTestProviders>
+      <ActiveArtwork navigation={navigation}>
+        <GroupArtwork group={{ ...group, logo }} presentation="cover" />
+      </ActiveArtwork>
+    </NativeTestProviders>
+  );
+  const view = await render(tree(first));
+  const image = () => {
+    const results = screen.container.queryAll(
+      (node) => typeof node.props.onLoad === "function" && typeof node.props.onError === "function",
+    );
+    expect(results).toHaveLength(1);
+    return results[0];
+  };
+  const original = image();
+  const layout = original.parent;
+  if (!layout) throw new Error("Expected GroupArtwork native layout host");
+  const dimensions = { x: 0, y: 0, width: 320, height: 200 };
+  await fireEvent.layout(layout, dimensions);
+  await fireEvent.layout(layout, dimensions);
+  await fireEvent(original, "load", {
+    nativeEvent: { source: { width: 200, height: 100, uri: first } },
+  });
+  expect(original).toHaveStyle({ width: 312, height: 156, borderRadius: 12 });
+  expect(original).toHaveProp("resizeMode", "contain");
+  expect(screen.getByRole("image", { name: "Group admin" })).toBeVisible();
+
+  await fireEvent(original, "error", { nativeEvent: { error: "Could not decode provider logo" } });
+  expect(
+    screen.getByTestId("dicebear-groups-image", { includeHiddenElements: true }),
+  ).toBeOnTheScreen();
+  await view.rerender(tree(later));
+  const replacement = image();
+  expect(replacement).not.toBe(original);
+  await fireEvent(replacement, "load", {
+    nativeEvent: { source: { width: 100, height: 200, uri: later } },
+  });
+  expect(replacement).toHaveStyle({ width: 96, height: 192, borderRadius: 12 });
+  expect(screen.queryByTestId("dicebear-groups-image", { includeHiddenElements: true })).toBeNull();
+});
+
+it("keeps the newer motion setting when the initial device setting request fails late", async () => {
+  const control = lifecycle();
+  let rejectPreference: (failure: Error) => void = () => {};
+  vi.mocked(AccessibilityInfo.isReduceMotionEnabled).mockReturnValueOnce(
+    new Promise<boolean>((_resolve, reject) => {
+      rejectPreference = reject;
+    }),
+  );
+  const view = await render(
+    <ActiveArtwork navigation={control.navigation}>
+      <AnimatedDetailArtwork artwork={createResourceArtwork("groups", "live-preference", "none")}>
+        <Text>Current drawing</Text>
+      </AnimatedDetailArtwork>
+    </ActiveArtwork>,
+  );
+  await measureArtwork();
+  expect(Animated.loop).not.toHaveBeenCalled();
+  await control.motion(false);
+  await waitFor(() => expect(Animated.loop).toHaveBeenCalled());
+  const clock = control.clocks.at(-1);
+  expect(clock?.start).toHaveBeenCalled();
+  const before = clock?.stop.mock.calls.length;
+
+  expect(screen.queryByText("Current drawing")).toBeNull();
+  await act(() => rejectPreference(Error("Initial accessibility setting unavailable")));
+  expect(screen.queryByText("Current drawing")).toBeNull();
+  expect(clock?.stop.mock.calls.length).toBe(before);
+  await view.unmount();
+  const stopped = clock?.stop.mock.calls.length;
+
+  // AppState can deliver an event it had already queued during cleanup.
+  await control.foreground("background");
+  expect(clock?.stop.mock.calls.length).toBe(stopped);
   expect(control.motionListenersReleased()).toBe(true);
 });

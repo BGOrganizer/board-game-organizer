@@ -6,17 +6,18 @@ import type {
 } from "@board-game-organizer/schemas";
 import { groupRecordDetailQuery } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, userEvent, waitFor } from "@testing-library/react-native";
+import { act, render, screen, userEvent, waitFor, within } from "@testing-library/react-native";
 import { createContext, type ReactNode, useContext } from "react";
 import { Keyboard, View } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import GroupScreen from "@/app/group/[groupId]";
+import GroupBanScreen from "@/app/group/ban";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import {
   installNativePopoverMeasurements,
   pressMeasuredPopover,
 } from "@/test/nativePopoverGeometry";
 import { groupRecord, plannedEvent } from "../../../../../web/src/test-fixtures/eventRecords";
-import { GroupDetail } from "../GroupDetail";
 
 const API = "https://group-detail-fixtures.test";
 const navigation = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
@@ -27,6 +28,7 @@ const options = {
   enabled: true,
 };
 const Api = createContext(options);
+const RouteParams = createContext<{ groupId: string; tab?: string } | undefined>(undefined);
 vi.mock("@/lib/useCommunityApi", () => ({ useCommunityApi: () => useContext(Api) }));
 vi.mock("@clerk/expo", () => ({
   useAuth: () => {
@@ -44,7 +46,7 @@ vi.mock("@clerk/expo", () => ({
 vi.mock("expo-router", () => ({
   useRouter: () => navigation,
   useNavigation: () => ({ getState: () => ({ type: "stack" }) }),
-  useLocalSearchParams: () => ({}),
+  useLocalSearchParams: () => useContext(RouteParams) ?? {},
   Stack: {
     Screen: ({ options: config }: { options: { headerRight?: () => ReactNode } }) => (
       <View>{config.headerRight?.()}</View>
@@ -214,13 +216,15 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-async function mount(seed = true, initialTab?: "info" | "members" | "events") {
+async function mount(seed = true, initialTab?: string, bannedMembersRoute = false) {
   if (seed) client.setQueryData(groupRecordDetailQuery(options, group.id).queryKey, group);
   return render(
     <QueryClientProvider client={client}>
       <NativeTestProviders>
         <Api value={options}>
-          <GroupDetail groupId={group.id} initialTab={initialTab} />
+          <RouteParams value={{ groupId: group.id, tab: initialTab }}>
+            {bannedMembersRoute ? <GroupBanScreen /> : <GroupScreen />}
+          </RouteParams>
         </Api>
       </NativeTestProviders>
     </QueryClientProvider>,
@@ -249,6 +253,13 @@ it.each([
     expect(writes).toEqual([]);
   },
 );
+
+it("falls back to the visible details tab for an unknown deep-linked section", async () => {
+  await mount(true, "unknown");
+  expect(screen.getByRole("tab", { name: "Details" })).toBeSelected();
+  expect(screen.getByRole("heading", { name: "Details" })).toBeVisible();
+  expect(writes).toEqual([]);
+});
 
 it("dismisses the native keyboard only for an actual Group destination change, never reselection", async () => {
   const dismiss = vi.spyOn(Keyboard, "dismiss").mockImplementation(() => {});
@@ -449,4 +460,149 @@ it("requests public-group membership without granting accepted access and cancel
   await userEvent.setup().press(screen.getByRole("button", { name: "Confirm" }));
   await waitFor(() => expect(writes).toHaveLength(2));
   expect(writes[1].body).toEqual({ action: "cancel", version: 3 });
+});
+
+it("opens the members owner from a valid group exclusion route", async () => {
+  await mount(true, undefined, true);
+  expect(await screen.findByRole("tab", { name: "Members" })).toBeSelected();
+  expect(screen.getByRole("button", { name: "Group members help" })).toBeEnabled();
+});
+
+it("shows requests only for the current manager and withdraws the affordance on demotion", async () => {
+  group = { ...group, pendingRequestCount: 2 };
+  await mount();
+  const requestsBadge = () =>
+    within(screen.getByRole("tab", { name: /Members/ })).queryByLabelText("Requests to review");
+  expect(requestsBadge()).toBeVisible();
+  group = {
+    ...group,
+    role: "accepted",
+    myMembership: membership("REQUEST", "ACCEPTED"),
+    canEdit: false,
+    canInvite: false,
+  };
+  await act(() => client.setQueryData(groupRecordDetailQuery(options, group.id).queryKey, group));
+  await waitFor(() => expect(requestsBadge()).toBeNull());
+});
+
+it("preserves accepted access until an explicit versioned leave is confirmed", async () => {
+  group = {
+    ...group,
+    role: "accepted",
+    myMembership: membership("REQUEST", "ACCEPTED"),
+    canEdit: false,
+    canInvite: false,
+  };
+  await mount();
+  const user = userEvent.setup();
+  await user.press(screen.getByRole("button", { name: "Leave group" }));
+  expect(
+    screen.getByText(
+      "Active table registrations are removed. Historical results remain unchanged.",
+    ),
+  ).toBeVisible();
+  expect(writes).toEqual([]);
+  await user.press(screen.getByRole("button", { name: "Cancel" }));
+  expect(writes).toEqual([]);
+  await user.press(screen.getByRole("button", { name: "Leave group" }));
+  await user.press(screen.getByRole("button", { name: "Confirm" }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0]).toEqual({
+    method: "PATCH",
+    path: `/api/groups/${group.id}/members/owner`,
+    body: { action: "cancel", version: 3 },
+  });
+  expect(screen.queryByRole("button", { name: "Leave group" })).toBeNull();
+});
+
+it.each(["delete", "decline"] as const)(
+  "blocks stale %s confirmation after an authoritative group authority change",
+  async (action) => {
+    group = {
+      ...group,
+      type: "PUBLIC",
+      ...(action === "decline"
+        ? {
+            role: "invited" as const,
+            myMembership: membership("INVITATION", "PENDING"),
+            canEdit: false,
+            canInvite: false,
+          }
+        : {}),
+    };
+    await mount();
+    const user = userEvent.setup();
+    await user.press(
+      screen.getByRole("button", { name: action === "delete" ? "Delete group" : "Decline" }),
+    );
+    const confirmation = action === "delete" ? "Delete group and events" : "Confirm";
+    expect(screen.getByRole("button", { name: confirmation })).toBeEnabled();
+
+    group = {
+      ...group,
+      version: group.version + 1,
+      role: "none",
+      myMembership: null,
+      canEdit: false,
+      canInvite: false,
+      canViewMembers: false,
+      canViewEvents: false,
+      canViewRankings: false,
+    };
+    await act(() => client.setQueryData(groupRecordDetailQuery(options, group.id).queryKey, group));
+    const stale = screen.queryByRole("button", { name: confirmation });
+    if (stale) await user.press(stale);
+    expect(writes).toEqual([]);
+    expect(navigation.replace).not.toHaveBeenCalled();
+    if (action === "decline") {
+      const cancel = screen.queryByRole("button", { name: "Cancel" });
+      if (cancel) await user.press(cancel);
+    }
+    await waitFor(() => expect(screen.queryByRole("button", { name: confirmation })).toBeNull());
+  },
+);
+
+it("does not load a group or offer management when its Expo link omits the group identifier", async () => {
+  await render(
+    <QueryClientProvider client={client}>
+      <NativeTestProviders>
+        <Api value={options}>
+          <GroupScreen />
+        </Api>
+      </NativeTestProviders>
+    </QueryClientProvider>,
+  );
+  expect(screen.queryByRole("tab")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Delete group" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Edit group" })).toBeNull();
+  expect(reads).toEqual([]);
+  expect(writes).toEqual([]);
+});
+
+it("uses the Italian group notification scope without marking the group as read on entry", async () => {
+  await render(
+    <QueryClientProvider client={client}>
+      <NativeTestProviders locale="it">
+        <Api value={options}>
+          <RouteParams value={{ groupId: group.id }}>
+            <GroupScreen />
+          </RouteParams>
+        </Api>
+      </NativeTestProviders>
+    </QueryClientProvider>,
+  );
+  expect(await screen.findByRole("header", { name: group.name })).toBeVisible();
+  await waitFor(() =>
+    expect(
+      vi.mocked(fetch).mock.calls.filter(([input]) => {
+        const url = new URL(String(input));
+        return (
+          url.pathname === "/api/notifications/changes" &&
+          url.searchParams.get("locale") === "it" &&
+          url.searchParams.get("id") === group.id
+        );
+      }),
+    ).toHaveLength(1),
+  );
+  expect(writes).toEqual([]);
 });

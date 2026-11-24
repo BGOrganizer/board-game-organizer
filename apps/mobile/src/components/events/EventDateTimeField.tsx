@@ -77,10 +77,13 @@ export function EventDateTimeField({
     today = new Date().toISOString().slice(0, 10);
     invalidZone = true;
   }
+  // Existing drafts can have a chosen day while the required time is still empty.
   const wall =
-    mode === "time" && /^\d{2}:\d{2}$/.test(value)
-      ? `${day || today}T${value}`
-      : value || `${day || today}T00:00`;
+    mode === "date" && /^\d{4}-\d{2}-\d{2}T?$/.test(value)
+      ? `${value.slice(0, 10)}T00:00`
+      : mode === "time" && /^\d{2}:\d{2}$/.test(value)
+        ? `${day || today}T${value}`
+        : value || `${day || today}T00:00`;
   const bounded = min && wall < min ? min : max && wall > max ? max : wall;
   const initial = new Date(`${bounded}Z`);
   const commit = (date: Date) => {

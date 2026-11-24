@@ -115,3 +115,25 @@ describe("enrichRelationships", () => {
     expect(enriched[1].profile?.fullName).toBe("Carla");
   });
 });
+
+it("exposes only a validated moderation role from public Clerk metadata", () => {
+  const user = { id: "user_1", firstName: "Alessandro", emailAddresses: [] };
+  expect(toProfile({ ...user, publicMetadata: { bgoRole: "ADMIN" } })).toHaveProperty(
+    "bgoRole",
+    "ADMIN",
+  );
+  expect(toProfile({ ...user, publicMetadata: { bgoRole: "MEMBER" } })).not.toHaveProperty(
+    "bgoRole",
+  );
+  expect(toProfile({ ...user, unsafeMetadata: { bgoRole: "ADMIN" } })).not.toHaveProperty(
+    "bgoRole",
+  );
+});
+
+it("keeps the relationship when Clerk no longer returns its older profile", async () => {
+  clerkClientMock.mockReturnValue({
+    users: { getUserList: vi.fn().mockResolvedValue({ data: [] }) },
+  });
+  const row = { fromUserId: "user_1", toUserId: "user_2", type: "follow" };
+  expect(await enrichRelationships([row], "user_1")).toEqual([{ ...row, profile: null }]);
+});

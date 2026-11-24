@@ -9,11 +9,11 @@ import { useAppStore } from "@board-game-organizer/store";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, render, screen, userEvent, waitFor } from "@testing-library/react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import GroupInviteScreen from "@/app/group/invite";
 import GroupFriendSearchScreen from "@/app/group/search-user";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import { beginOptimisticOperation } from "../../../../../../packages/shared/src/common/optimisticOperation";
 import { groupRecord } from "../../../../../web/src/test-fixtures/eventRecords";
-import { GroupPeoplePicker } from "../GroupPeoplePicker";
 
 const API = "https://group-people-owners-native.test";
 const io = vi.hoisted(() => ({
@@ -43,7 +43,7 @@ vi.mock("expo-constants", () => ({
 }));
 vi.mock("expo-router", () => ({
   useRouter: () => ({ back: io.back }),
-  useLocalSearchParams: () => io.params,
+  useLocalSearchParams: () => ({ ...io.params, groupId: group.id }),
   Stack: {
     Screen: ({ options }: { options: { title: string } }) => {
       io.titles.push(options.title);
@@ -82,7 +82,7 @@ function Fixture({ route = false }: { route?: boolean }) {
   return (
     <QueryClientProvider client={client}>
       <NativeTestProviders>
-        {route ? <GroupFriendSearchScreen /> : <GroupPeoplePicker groupId={group.id} />}
+        {route ? <GroupFriendSearchScreen /> : <GroupInviteScreen />}
       </NativeTestProviders>
     </QueryClientProvider>
   );
@@ -400,5 +400,15 @@ it("keeps leaving an unselected route passive and cancels its still-pending sour
   await act(() => release?.());
   expect(useAppStore.getState().pendingUser).toBeNull();
   expect(io.back).not.toHaveBeenCalled();
+  expect(writes).toEqual([]);
+});
+
+it("opens a valid picker without excluding anyone when the wizard omits optional exclusions", async () => {
+  io.params.exclude = undefined;
+  await mount(true);
+  expect(await screen.findByText("Player alice")).toBeVisible();
+  await choose();
+  expect(useAppStore.getState().pendingUser?.user.id).toBe("alice");
+  expect(io.back).toHaveBeenCalledOnce();
   expect(writes).toEqual([]);
 });

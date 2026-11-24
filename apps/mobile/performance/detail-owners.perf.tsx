@@ -27,15 +27,20 @@ import {
   tableItemTargets,
 } from "@board-game-organizer/shared";
 import { measureRenders } from "@callstack/reassure-measure";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  defaultScheduler,
+  notifyManager,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
 import { act, fireEvent, screen, userEvent, waitFor, within } from "@testing-library/react-native";
 import { NavigationContext } from "expo-router/react-navigation";
 import type { ContextType, ReactNode } from "react";
 import { View } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { EventDetail } from "@/components/events/EventDetail";
-import { EventTable } from "@/components/events/EventTable";
-import { GroupDetail } from "@/components/groups/GroupDetail";
+import EventScreen from "@/app/event/[eventId]";
+import EventTableScreen from "@/app/event/table";
+import GroupScreen from "@/app/group/[groupId]";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import { installNativePopoverMeasurements } from "@/test/nativePopoverGeometry";
 import {
@@ -53,6 +58,7 @@ import {
 import { assertRenderMeasurement } from "./assertRenderMeasurement";
 
 const boundary = vi.hoisted(() => ({
+  params: {} as { eventId?: string; groupId?: string; tableId?: string },
   push: vi.fn(),
   replace: vi.fn(),
   dismissTo: vi.fn(),
@@ -74,7 +80,7 @@ vi.mock("@clerk/expo", () => ({
 vi.mock("expo-router", () => ({
   useRouter: () => boundary,
   useNavigation: () => ({ getState: () => ({ type: "stack" }) }),
-  useLocalSearchParams: () => ({}),
+  useLocalSearchParams: () => boundary.params,
   Stack: {
     Screen: ({ options: config }: { options: { headerRight?: () => ReactNode } }) => (
       <View>{config.headerRight?.()}</View>
@@ -294,8 +300,14 @@ async function select(name: string) {
   expect(button).toBeSelected();
 }
 
-beforeEach(installNativePopoverMeasurements);
+beforeEach(async () => {
+  await installNativePopoverMeasurements();
+  // The real Query observers deliver updates inside the measured React act turn.
+  // A timer racing the next tab gesture otherwise splits the same update arbitrarily.
+  notifyManager.setScheduler(queueMicrotask);
+});
 afterEach(() => {
+  notifyManager.setScheduler(defaultScheduler);
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -350,17 +362,23 @@ it.each(["group", "event", "table"] as const)(
     );
     const ui =
       kind === "group" ? (
-        <GroupDetail groupId={group.id} />
+        <GroupScreen />
       ) : kind === "event" ? (
-        <EventDetail eventId={event.id} />
+        <EventScreen />
       ) : (
-        <EventTable eventId={event.id} tableId={table.id} />
+        <EventTableScreen />
       );
     try {
       const result = await measureRenders(ui, {
         wrapper,
         beforeEach: () => {
           prepare(client);
+          boundary.params =
+            kind === "group"
+              ? { groupId: group.id }
+              : kind === "event"
+                ? { eventId: event.id }
+                : { eventId: event.id, tableId: table.id };
           writes.length = resourceReads.length = 0;
         },
         scenario: async () => {

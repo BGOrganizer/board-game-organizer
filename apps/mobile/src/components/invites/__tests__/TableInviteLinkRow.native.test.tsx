@@ -1,6 +1,6 @@
 import { developmentInviteAppLink, eventRecordKeys } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, userEvent, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, userEvent, waitFor } from "@testing-library/react-native";
 import type { ComponentProps } from "react";
 import { Share, StyleSheet } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -172,7 +172,11 @@ it("keeps the first generation pending and coalesces duplicate presses until its
     finish = resolve;
   });
   await render(<Fixture />);
-  await generate();
+  const trigger = screen.getByRole("button", { name: "Generate invite" });
+  // Two native presses can arrive before the pending mutation disables the row.
+  await act(async () => {
+    await Promise.all([fireEvent.press(trigger), fireEvent.press(trigger)]);
+  });
   await waitFor(() => expect(writes).toHaveLength(1));
   expect(screen.getByRole("button", { name: "Generate invite" })).toBeDisabled();
   expect(screen.queryByTestId("table-invite-link-value")).toBeNull();
@@ -370,5 +374,25 @@ it("guards existing-link sharing during disabled and suspended sessions and remo
   expect(screen.getByRole("button", { name: "Generate invite" })).toBeEnabled();
   expect(screen.queryByTestId("table-invite-link-value")).toBeNull();
   expect(Share.share).toHaveBeenCalledTimes(1);
+  expect(writes).toHaveLength(1);
+});
+
+it("does not surface a native share rejection after the user has switched tables", async () => {
+  let rejectShare: (error: Error) => void = () => {};
+  vi.mocked(Share.share).mockReturnValueOnce(
+    new Promise((_, reject) => {
+      rejectShare = reject;
+    }),
+  );
+  const view = await render(<Fixture />);
+  await generate();
+  expect(await screen.findByTestId("table-invite-link-value")).toHaveTextContent(created.link);
+  expect(Share.share).toHaveBeenCalledExactlyOnceWith({ message: created.link });
+
+  await view.rerender(<Fixture tableId="88888888-8888-4888-8888-888888888888" />);
+  await act(async () => rejectShare(new Error("Previous native share failed")));
+  expect(screen.queryByText("Could not share the invite. Try again.")).toBeNull();
+  expect(screen.queryByTestId("table-invite-link-value")).toBeNull();
+  expect(screen.getByRole("button", { name: "Generate invite" })).toBeEnabled();
   expect(writes).toHaveLength(1);
 });

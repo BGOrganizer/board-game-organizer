@@ -3157,6 +3157,10 @@ msgstr "Excluded until {0}"
 msgid "Exclusion ends"
 msgstr "Exclusion ends"
 
+#: apps/mcp/src/ui/WidgetNavigation.tsx
+msgid "Exit full screen"
+msgstr "Exit full screen"
+
 #: apps/web/src/components/profile/ProfileCollection.tsx
 msgid "Expansions"
 msgstr "Expansions"
@@ -3307,6 +3311,10 @@ msgstr "Friends"
 #: apps/web/src/components/contacts/Contacts.tsx
 msgid "Friendship accepted."
 msgstr "Friendship accepted."
+
+#: apps/mcp/src/ui/WidgetNavigation.tsx
+msgid "Full screen"
+msgstr "Full screen"
 
 #: apps/web/src/components/events/Events.tsx
 #: apps/web/src/components/events/Tables.tsx

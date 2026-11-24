@@ -55,7 +55,7 @@ jobs:
 
       - name: 🔒 CI isolation contract
         if: ${{ !cancelled() }}
-        run: node --test --experimental-test-coverage --test-coverage-include='scripts/release/*format.mjs' --test-coverage-lines=90 --test-coverage-functions=90 --test-coverage-branches=90 .github/scripts/__tests__/*.test.mjs
+        run: node --test --experimental-test-coverage --test-coverage-include='scripts/release/*format.mjs' --test-coverage-lines=98 --test-coverage-functions=98 --test-coverage-branches=98 .github/scripts/__tests__/*.test.mjs
 
   coverage:
     name: Unit tests and coverage (${{ matrix.app }})
@@ -157,8 +157,6 @@ jobs:
 
   render-performance:
     name: React render performance (${{ matrix.app }})
-    # Reassure measurements are paused by explicit operator request; retain the full definition.
-    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
@@ -211,7 +209,7 @@ jobs:
         if: always() && !cancelled()
         uses: actions/upload-artifact@v4
         with:
-          name: reassure-${{ matrix.app }}-main
+          name: reassure-${{ matrix.app }}-main-attempt-${{ github.run_attempt }}
           path: |
             .reassure-pair/${{ matrix.app }}/**
             apps/${{ matrix.app }}/.reassure/current.perf
@@ -281,6 +279,13 @@ jobs:
         uses: ./.github/actions/setup-bun
       - name: 🧪 Site unit tests and coverage
         run: bun run --filter site test:coverage
+      - name: 📤 Upload Site coverage report
+        if: always() && !cancelled()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-site
+          path: apps/site/coverage/**
+          if-no-files-found: warn
       - name: 🏗️ Build Site
         run: bun run --filter site build
 

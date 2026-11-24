@@ -566,3 +566,62 @@ it("toggles the saved venue favorite without changing the event draft", async ()
   await waitFor(() => expect(favoriteWrites).toEqual(["POST", "DELETE"]));
   expect(currentDraft()).toEqual(before);
 });
+
+it("requires a valid public local start time across a daylight-saving gap", async () => {
+  seedGroups();
+  await render(
+    <Fixture
+      initial={draft({
+        groupId: publicGroup.id,
+        timeZone: "Europe/Rome",
+        dates: [{ ...plannedEvent.dates[0], day: "2030-03-31" }],
+        startTime: "02:30",
+        endsWall: "2030-03-31T21:00",
+        cutoffWall: "2030-03-30T18:00",
+      })}
+    />,
+  );
+  await press("Validate current step");
+  await press("Validate current step");
+  const message = "Choose exactly one valid date and time.";
+  expect(screen.getAllByText(message)).toHaveLength(2);
+  await press("Start time");
+  await nativeChoice("2030-03-31T03:30:00Z");
+  expect(currentDraft()).toMatchObject({
+    dates: [expect.objectContaining({ day: "2030-03-31", startTime: "03:30" })],
+  });
+  expect(screen.queryByText(message)).toBeNull();
+});
+
+it("uses private visibility for a legacy local draft without a visibility value", async () => {
+  seedGroups();
+  await render(<Fixture initial={draft({ visibility: undefined })} information />);
+  expect(screen.getByRole("radio", { name: "Private" })).toBeChecked();
+  expect(screen.getByRole("radio", { name: "Public" })).toBeDisabled();
+  expect(reads).toEqual([]);
+});
+
+it("lets a manager repair a missing start time in a retained public event draft", async () => {
+  seedGroups();
+  await render(
+    <Fixture
+      initial={draft({
+        groupId: publicGroup.id,
+        dates: [{ ...plannedEvent.dates[0], startTime: undefined }],
+        startTime: "",
+        endsWall: "2030-06-03T23:00",
+        cutoffWall: "2030-06-02T18:00",
+      })}
+    />,
+  );
+  await press("Validate current step");
+  await press("Validate current step");
+  expect(screen.getAllByText("Choose exactly one valid date and time.")).not.toHaveLength(0);
+  await press("Start time");
+  await nativeChoice("2030-06-03T20:30:00Z");
+  expect(currentDraft()).toMatchObject({
+    dates: [expect.objectContaining({ day: "2030-06-03", startTime: "20:30" })],
+  });
+  await press("Validate current step");
+  expect(screen.queryByText("Choose exactly one valid date and time.")).toBeNull();
+});

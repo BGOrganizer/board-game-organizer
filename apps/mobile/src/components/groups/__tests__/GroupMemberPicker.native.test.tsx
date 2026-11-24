@@ -272,6 +272,8 @@ it("offers the guest input with the member source and only adds a trimmed valid 
   expect(add).toBeDisabled();
   await fireEvent.changeText(guest, "   ");
   expect(add).toBeDisabled();
+  await fireEvent(guest, "submitEditing", { nativeEvent: { text: "   " } });
+  expect(onAdd).not.toHaveBeenCalled();
   await fireEvent.changeText(guest, "  Guest Guide  ");
   await userEvent.setup().press(add);
   expect(onAdd).toHaveBeenCalledExactlyOnceWith("Guest Guide", expect.any(Function));

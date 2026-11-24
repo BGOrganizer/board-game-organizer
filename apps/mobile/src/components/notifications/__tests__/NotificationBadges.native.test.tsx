@@ -1,4 +1,6 @@
-import { cleanup, render, screen } from "@testing-library/react-native";
+import { emptyAttentionSummary, notificationListKey } from "@board-game-organizer/shared";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react-native";
 import { useThemeColor } from "heroui-native/hooks";
 import type { ReactNode } from "react";
 import { type ColorValue, processColor, StyleSheet, View } from "react-native";
@@ -6,6 +8,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { NotificationCountBadge } from "@/components/common/ui/NotificationCountBadge";
 import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnreadDot";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
+import { NotificationNavigationBadge } from "../NotificationNavigationBadge";
 
 function TokenProbe() {
   const [danger, foreground] = useThemeColor(["danger", "danger-foreground"]);
@@ -153,6 +156,55 @@ it("keeps an actual unread marker static, noninteractive and exactly 8dp while a
     expect(screen.queryByRole("image", { name: "Unread updates" })).toBeNull();
     expect(requests).not.toHaveBeenCalled();
   } finally {
+    vi.unstubAllGlobals();
+  }
+});
+
+const navigationOptions = {
+  apiUrl: "https://notification-badge-fixture.test",
+  userId: "owner",
+  enabled: true,
+  getToken: async () => "badge-fixture",
+};
+vi.mock("@/lib/useCommunityApi", () => ({ useCommunityApi: () => navigationOptions }));
+
+it("uses only the Italian cache for the passive navigation dot without initiating or acknowledging an inbox read", async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const request = vi.fn();
+  const cache = (locale: "it" | "en", groups: number) =>
+    client.setQueryData(notificationListKey({ ...navigationOptions, locale }, 3), {
+      pages: [
+        {
+          attention: { ...emptyAttentionSummary(), groups },
+          notifications: [],
+          unreadCount: groups,
+          nextCursor: null,
+        },
+      ],
+      pageParams: [undefined],
+    });
+  vi.stubGlobal("fetch", request);
+  try {
+    cache("en", 3);
+    await render(
+      <QueryClientProvider client={client}>
+        <NativeTestProviders locale="it">
+          <NotificationNavigationBadge section="groups" />
+        </NativeTestProviders>
+      </QueryClientProvider>,
+    );
+    expect(screen.queryByLabelText("Da verificare")).toBeNull();
+    await act(() => {
+      cache("it", 2);
+    });
+    expect(await screen.findByLabelText("Da verificare")).toBeVisible();
+    await act(() => {
+      cache("it", 0);
+    });
+    await waitFor(() => expect(screen.queryByLabelText("Da verificare")).toBeNull());
+    expect(request).not.toHaveBeenCalled();
+  } finally {
+    client.clear();
     vi.unstubAllGlobals();
   }
 });

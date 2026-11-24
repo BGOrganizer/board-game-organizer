@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { scanContactIdentifiers, warmRegisteredContacts } from "../registeredContacts";
+import {
+  pendingRegisteredContacts,
+  scanContactIdentifiers,
+  warmRegisteredContacts,
+} from "../registeredContacts";
 
 const mocks = vi.hoisted(() => ({
   permission: vi.fn(),
@@ -72,18 +76,65 @@ describe("registered contacts startup sync", () => {
     expect(mocks.sync).not.toHaveBeenCalled();
   });
 
-  it("scans pages without sending more than 1000 identifiers", async () => {
+  it("does not read even the first contact page if a previously requested permission returns after logout", async () => {
+    let active = true;
+    mocks.permission.mockImplementationOnce(async () => {
+      active = false;
+      return { granted: true };
+    });
+    expect(
+      await warmRegisteredContacts(
+        "signed-out-after-permission",
+        "https://api.test",
+        async () => "jwt",
+        () => active,
+      ),
+    ).toBeNull();
+    expect(mocks.page).not.toHaveBeenCalled();
+    expect(mocks.sync).not.toHaveBeenCalled();
+  });
+
+  it("scans pages while independently limiting emails and phone numbers to 1000 unique identifiers", async () => {
     let offset = 0;
     mocks.page.mockImplementation(async (_fields: unknown, options: { offset: number }) => {
       offset = options.offset;
       return offset < 1200
         ? Array.from({ length: 200 }, (_, index) => ({
             emails: [{ address: `friend${offset + index}@example.com` }],
+            phones: [{ number: `+1 202 ${5_550_000 + offset + index}` }],
           }))
         : [];
     });
     const identifiers = await scanContactIdentifiers();
     expect(identifiers.emails).toHaveLength(1000);
+    expect(identifiers.phoneNumbers).toHaveLength(1000);
+    expect(identifiers.phoneNumbers.at(0)).toBe("12025550000");
+    expect(identifiers.phoneNumbers.at(-1)).toBe("12025550999");
+    expect(identifiers.phoneNumbers).not.toContain("12025551000");
     expect(mocks.page).toHaveBeenCalledTimes(7);
+  });
+
+  it("clears a failed scan so the same account can retry", async () => {
+    mocks.page.mockRejectedValueOnce(new Error("Address book unavailable"));
+    const scan = () =>
+      warmRegisteredContacts(
+        "retry",
+        "https://api.test",
+        async () => "jwt",
+        () => true,
+      );
+    const failedScan = scan();
+    expect(pendingRegisteredContacts("retry")).toBe(failedScan);
+    await expect(failedScan).rejects.toThrow("Address book unavailable");
+    expect(mocks.sync).not.toHaveBeenCalled();
+    expect(pendingRegisteredContacts("retry")).toBeUndefined();
+    await expect(scan()).resolves.toMatchObject({ registered: { emails: ["friend@example.com"] } });
+    expect(mocks.sync).toHaveBeenCalledExactlyOnceWith(
+      "https://api.test",
+      ["friend@example.com"],
+      [],
+      null,
+      expect.any(Function),
+    );
   });
 });

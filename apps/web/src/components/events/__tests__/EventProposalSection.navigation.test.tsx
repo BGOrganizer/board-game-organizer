@@ -224,3 +224,22 @@ it("retains a rejected inline proposal as an editable local intent and routes to
   expect(destination.searchParams.has("tableId")).toBe(false);
   expect(writes).toHaveLength(1);
 });
+
+it("shows the saved game proposal label when BoardGameGeek metadata is missing", async () => {
+  const payload = { kind: "game", gameId: 23, tableId: table.id } as const;
+  client.setQueryData(
+    eventProposalKeys.page(options, {
+      eventId: event.id,
+      groupId: optionId,
+      tableId: table.id,
+      kind: "game",
+      mode: "mine",
+    }),
+    page([{ ...proposal, label: "From the original proposal", payload }]),
+  );
+  mount("game");
+  const row = within(await screen.findByTestId(`event-proposal-${proposal.id}`));
+  expect(row.getByText("From the original proposal")).toBeVisible();
+  expect(row.queryByRole("button", { name: /Game information/ })).toBeNull();
+  expect(writes).toEqual([]);
+});

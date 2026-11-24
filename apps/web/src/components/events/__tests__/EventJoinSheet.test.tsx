@@ -857,3 +857,60 @@ it("retains observable Event load errors and retry without showing private choic
   expect(close).toHaveBeenCalledOnce();
   expect(posts()).toHaveLength(0);
 });
+
+it.each([
+  { category: "date", voteFlag: "dateVoteRequired", tab: "Dates", label: "2030-06-03 20:00" },
+  { category: "location", voteFlag: "locationVoteRequired", tab: "Locations", label: "Club venue" },
+] as const)(
+  "requires a fresh vote on a changed singleton $category before enrollment",
+  async ({ category, voteFlag, tab, label }) => {
+    event = { ...event, [voteFlag]: true };
+    const view = mount();
+    await screen.findByRole("tab", { name: tab, selected: true });
+    expect(
+      screen.getByText("Review the event and table settings, then vote in the sections shown."),
+    ).toBeVisible();
+    expect(screen.getAllByRole("tab")).toHaveLength(1);
+    expect(screen.getByText("Chess")).toBeVisible();
+    const join = screen.getByRole("button", { name: "Join table" });
+    fireEvent.click(screen.getByRole("button", { name: `${label}: No` }));
+    fireEvent.click(join);
+    expect(
+      await screen.findByText(
+        "Answer every option and choose at least one Yes or If needed in each section.",
+      ),
+    ).toBeVisible();
+    expect(posts()).toHaveLength(0);
+    fireEvent.click(screen.getByRole("button", { name: `${label}: If needed` }));
+    fireEvent.click(join);
+    await waitFor(() => expect(posts()).toHaveLength(1));
+    expect(JSON.parse(String(posts()[0][1].body))).toEqual({
+      version: event.version,
+      gameVotes: {},
+      availability: {
+        version: event.version,
+        dateVotes: category === "date" ? { [optionId]: "IF_NEEDED" } : {},
+        locationVotes: category === "location" ? { [optionId]: "IF_NEEDED" } : {},
+      },
+    });
+    expect(view.close).toHaveBeenCalledOnce();
+    view.unmount();
+    view.client.clear();
+  },
+);
+
+it("opens the missing required date tab when submission starts from a valid game tab", async () => {
+  multipleOptions(4);
+  event = { ...event, dateVoteRequired: true };
+  const view = mount();
+  fireEvent.click(await screen.findByRole("tab", { name: "Games" }));
+  fireEvent.click(screen.getByRole("button", { name: "Chess: Yes" }));
+  fireEvent.click(screen.getByRole("button", { name: "Alternative game: No" }));
+  fireEvent.click(screen.getByRole("button", { name: "Join table" }));
+  expect(await screen.findByRole("tab", { name: "Dates", selected: true })).toBeVisible();
+  expect(screen.getByRole("button", { name: "2030-06-03 20:00: Yes" })).toBeVisible();
+  expect(posts()).toHaveLength(0);
+  expect(view.close).not.toHaveBeenCalled();
+  view.unmount();
+  view.client.clear();
+});

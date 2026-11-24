@@ -13,13 +13,23 @@ import { useAppStore } from "@board-game-organizer/store";
 import type { AndroidNativeProps } from "@react-native-community/datetimepicker";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, userEvent, waitFor } from "@testing-library/react-native";
-import { type ComponentProps, type ReactNode, type Ref, useImperativeHandle } from "react";
+import {
+  type ComponentProps,
+  createContext,
+  type ReactNode,
+  type Ref,
+  useContext,
+  useImperativeHandle,
+} from "react";
 import { View } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import EventProposalScreen from "@/app/event/proposal";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import { beginOptimisticOperation } from "../../../../../../packages/shared/src/common/optimisticOperation";
 import { plannedEvent, plannedTable } from "../../../../../web/src/test-fixtures/eventRecords";
-import { EventProposalEditor } from "../EventProposalEditor";
+import type { EventProposalEditor } from "../EventProposalEditor";
+
+const RouteParams = createContext<Partial<ComponentProps<typeof EventProposalEditor>>>({});
 
 const API = "https://proposal-editor-native.test";
 const boundary = vi.hoisted(() => ({
@@ -27,6 +37,7 @@ const boundary = vi.hoisted(() => ({
   back: vi.fn(),
   replace: vi.fn(),
   canGoBack: true,
+  renderTitle: false,
   picker: { open: vi.fn(), dismiss: vi.fn() },
   easeTo: vi.fn(),
   getToken: vi.fn(),
@@ -56,13 +67,24 @@ vi.mock("expo-router", () => ({
     canGoBack: () => boundary.canGoBack,
   }),
   useNavigation: () => ({ getState: () => ({ type: "stack" }) }),
-  useLocalSearchParams: () => ({}),
+  useLocalSearchParams: () => useContext(RouteParams),
   Stack: {
     Screen: ({
       options: config,
     }: {
-      options: { headerLeft?: (props: { canGoBack: boolean }) => ReactNode };
-    }) => <View>{config.headerLeft?.({ canGoBack: true })}</View>,
+      options: {
+        title?: string;
+        headerLeft?: (props: { canGoBack: boolean }) => ReactNode;
+        headerTitle?: (props: { children: string }) => ReactNode;
+        headerRight?: () => ReactNode;
+      };
+    }) => (
+      <View>
+        {config.headerLeft?.({ canGoBack: true })}
+        {boundary.renderTitle ? config.headerTitle?.({ children: config.title ?? "" }) : null}
+        {boundary.renderTitle ? config.headerRight?.() : null}
+      </View>
+    ),
   },
 }));
 vi.mock("expo-router/react-navigation", async (original) => ({
@@ -125,6 +147,7 @@ beforeEach(() => {
   useAppStore.getState().clearPending();
   boundary.userId = "owner";
   boundary.canGoBack = true;
+  boundary.renderTitle = false;
   boundary.getToken.mockResolvedValue("fixture-proposal-editor-token");
   eventCode = tableCode = writeCode = 200;
   pendingEvent = undefined;
@@ -196,7 +219,8 @@ beforeEach(() => {
           items: [proposedGame, { ...proposedGame, id: 1, name: "Already selected game" }],
           nextCursor: null,
         });
-      if (url.pathname === "/api/locations/favorites") return json({ items: [], nextCursor: null });
+      if (url.pathname === "/api/locations/favorites")
+        return json(url.searchParams.has("keys") ? { keys: [] } : { items: [], nextCursor: null });
       if (url.pathname === "/api/locations/search")
         return json({
           items: [
@@ -222,12 +246,15 @@ afterEach(() => {
 function Fixture({
   kind = "date",
   eventId = event.id,
+  incompleteRoute = false,
   ...props
-}: Partial<ComponentProps<typeof EventProposalEditor>>) {
+}: Partial<ComponentProps<typeof EventProposalEditor>> & { incompleteRoute?: boolean }) {
   return (
     <QueryClientProvider client={client}>
       <NativeTestProviders>
-        <EventProposalEditor eventId={eventId} kind={kind} {...props} />
+        <RouteParams value={incompleteRoute ? {} : { eventId, kind, ...props }}>
+          <EventProposalScreen />
+        </RouteParams>
       </NativeTestProviders>
     </QueryClientProvider>
   );
@@ -578,4 +605,48 @@ it("reconciles same-version server capability revocation and regrant without dis
   await press("Send proposal");
   await waitFor(() => expect(writes).toHaveLength(1));
   expect(writes[0].input).toMatchObject({ eventVersion: 1, payload: proposedDate });
+});
+
+it("shows no actionable proposal UI or authenticated requests when the Expo link has no event or category", async () => {
+  await render(<Fixture incompleteRoute />);
+  expect(screen.queryByRole("button", { name: "Send proposal" })).toBeNull();
+  expect(screen.queryByTestId("game-search-input")).toBeNull();
+  expect(reads).toEqual([]);
+  expect(writes).toEqual([]);
+  expect(boundary.picker.open).not.toHaveBeenCalled();
+});
+
+it("renders its actual native heading and clears inherited header actions for the date proposal", async () => {
+  boundary.renderTitle = true;
+  await render(<Fixture />);
+  expect(await screen.findByRole("header", { name: "Choose date and time" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Back" })).toBeEnabled();
+  expect(await screen.findByRole("button", { name: "Send proposal" })).toBeEnabled();
+  expect(writes).toEqual([]);
+  await press("Back");
+  expect(boundary.back).toHaveBeenCalledOnce();
+  expect(writes).toEqual([]);
+});
+
+it("restores a recovered verified location draft and keeps its correlation on explicit resubmission", async () => {
+  const location = {
+    id: "99999999-9999-4999-8999-999999999999",
+    name: "Recovered verified venue",
+    address: "Via Roma 1, Rome, Italy",
+    longitude: 12.5,
+    latitude: 41.9,
+    timeZone: "Europe/Rome",
+  };
+  const draft = recovery({ kind: "location", location });
+  await render(<Fixture kind="location" draftId={String(draft.mutationId)} />);
+  expect(await screen.findByLabelText("Location name")).toHaveDisplayValue(location.name);
+  expect(reads.some((url) => url.pathname === "/api/locations/search")).toBe(false);
+  expect(writes).toHaveLength(0);
+  await press("Confirm Location");
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0].input).toMatchObject({
+    payload: { kind: "location", location },
+    clientRequestId: "88888888-8888-4888-8888-888888888888",
+  });
+  expect(boundary.back).toHaveBeenCalledOnce();
 });

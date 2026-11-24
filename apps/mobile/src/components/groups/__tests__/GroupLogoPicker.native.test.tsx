@@ -421,3 +421,92 @@ it("ignores a native media-picker result delivered after its owning component ha
   expect(boundary.feedback.onError).not.toHaveBeenCalled();
   expect(busy).toHaveBeenLastCalledWith(false);
 });
+
+it("never opens the camera if its permission resolves after the logo editor is closed", async () => {
+  let resolvePermission!: (value: typeof boundary.permission) => void;
+  boundary.permissions.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        resolvePermission = resolve;
+      }),
+  );
+  const onChange = vi.fn();
+  const view = await render(<Fixture onChange={onChange} />);
+  await act(() => {
+    for (const listener of listeners) listener("background");
+  });
+  expect(boundary.permissions).not.toHaveBeenCalled();
+  await choose("Camera");
+  await waitFor(() => expect(boundary.permissions).toHaveBeenCalledOnce());
+  await view.unmount();
+  await act(() => resolvePermission({ granted: true, canAskAgain: false }));
+  expect(boundary.camera).not.toHaveBeenCalled();
+  expect(onChange).not.toHaveBeenCalled();
+  expect(writes).toHaveLength(0);
+});
+
+it("keeps a non-Error native picker failure local and gives the same explicit recovery", async () => {
+  boundary.library.mockRejectedValueOnce("native-picker-failure");
+  const onChange = vi.fn();
+  await render(<Fixture onChange={onChange} />);
+  await choose();
+  expect(await screen.findByText("Could not upload logo")).toBeVisible();
+  expect(boundary.feedback.onError).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({ message: "Upload failed" }),
+    "upload_group_logo",
+  );
+  expect(onChange).not.toHaveBeenCalled();
+  expect(writes).toHaveLength(0);
+  await choose();
+  await waitFor(() => expect(onChange).toHaveBeenCalledOnce());
+  expect(screen.queryByText("Could not upload logo")).toBeNull();
+});
+
+it("offers settings when foreground refresh discovers permanently revoked camera permission", async () => {
+  await render(<Fixture />);
+  boundary.permission = { granted: false, canAskAgain: false };
+  await foreground();
+  expect(await screen.findByRole("button", { name: "Open settings" })).toBeEnabled();
+  expect(boundary.permissions).toHaveBeenCalledOnce();
+  expect(boundary.requestPermission).not.toHaveBeenCalled();
+  expect(boundary.camera).not.toHaveBeenCalled();
+  expect(writes).toEqual([]);
+});
+
+it("rereads camera permission after cancellation and offers settings if capture access was revoked", async () => {
+  boundary.permission = { granted: true, canAskAgain: true };
+  let closeCapture: (result: PickerResult) => void = () => {};
+  pendingImage = new Promise((resolve) => {
+    closeCapture = resolve;
+  });
+  const change = vi.fn();
+  await render(<Fixture onChange={change} />);
+  await choose("Camera");
+  expect(boundary.camera).toHaveBeenCalledOnce();
+  expect(screen.queryByRole("button", { name: "Open settings" })).toBeNull();
+  boundary.permission = { granted: false, canAskAgain: false };
+  await act(async () => closeCapture({ canceled: true, assets: [] }));
+  expect(await screen.findByRole("button", { name: "Open settings" })).toBeEnabled();
+  expect(boundary.permissions).toHaveBeenCalledTimes(2);
+  expect(change).not.toHaveBeenCalled();
+  expect(writes).toEqual([]);
+});
+
+it("suppresses rejected camera-library callbacks and feedback after the editor closes", async () => {
+  let rejectPicker: (error: Error) => void = () => {};
+  pendingImage = new Promise((_, reject) => {
+    rejectPicker = reject;
+  });
+  const change = vi.fn(),
+    busy = vi.fn();
+  const view = await render(<Fixture onChange={change} onBusyChange={busy} />);
+  await choose();
+  expect(boundary.library).toHaveBeenCalledOnce();
+  expect(busy).toHaveBeenCalledExactlyOnceWith(true);
+  await view.unmount();
+  await act(async () => rejectPicker(new Error("Android picker closed")));
+  expect(change).not.toHaveBeenCalled();
+  expect(boundary.feedback.onError).not.toHaveBeenCalled();
+  expect(busy.mock.calls).toEqual([[true], [false]]);
+  expect(writes).toEqual([]);
+});

@@ -18,6 +18,16 @@ import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const initialMain = "466220e26f672ad8de644e0a2c2ce223f02879df";
+const legacyWebBaselines = new Set([
+  "13c84d3e9b3c17e6e817dd8685a97824336d17aa",
+  "39d488037509a60c5fbeee377999ec29be679add",
+]);
+// These historical fixtures predate the numbered table title, indicator and vote button changes.
+const staleWebScenarios = new Set([
+  "EventTableCard window: twelve cached planning tables",
+  "OptionVoteVoters: compact named ballots",
+  "TabBar and TabTrigger: real HeroUI detail-tab changes",
+]);
 const flags = [
   "--expose-gc",
   "--no-concurrent-sweeping",
@@ -30,6 +40,8 @@ const ensure = (condition, message) => {
 const hash = (value) => createHash("sha256").update(value).digest("hex");
 const fileHash = (file) => hash(readFileSync(file));
 const json = (file) => JSON.parse(readFileSync(file, "utf8"));
+const matchingScenarios = (names) =>
+  `(?:^| )(?:${names.map((name) => RegExp.escape(name.replaceAll(" > ", " "))).join("|")})$`;
 const inside = (parent, file) => {
   const path = relative(parent, file);
   return path === "" || (!path.startsWith("..") && !isAbsolute(path));
@@ -136,7 +148,30 @@ function verifyCheckout(root, expectedRef, execute) {
   return git.stdout.trim();
 }
 
-function prepare(root, expectedRef, app, execute) {
+function webInstrumentationHash(file) {
+  // The existing Expo-pinned TypeScript exposes the source parser; the root TypeScript CLI does not.
+  const typescript = createRequire(
+    resolve(dirname(fileURLToPath(import.meta.url)), "../../apps/mobile/package.json"),
+  )("typescript");
+  const source = readFileSync(file, "utf8");
+  const syntax = typescript.createSourceFile(file, source, typescript.ScriptTarget.Latest);
+  const exported = syntax.statements.find(typescript.isExportAssignment)?.expression;
+  const config =
+    exported && typescript.isCallExpression(exported) ? exported.arguments[0] : undefined;
+  const field = (object, key) =>
+    object && typescript.isObjectLiteralExpression(object)
+      ? object.properties.find(
+          (property) =>
+            typescript.isPropertyAssignment(property) && property.name.getText(syntax) === key,
+        )?.initializer
+      : undefined;
+  const coverage = field(field(config, "test"), "coverage");
+  // The exact performance configuration is hashed separately and disables coverage.
+  if (!coverage || !typescript.isObjectLiteralExpression(coverage)) return hash(source);
+  return hash(`${source.slice(0, coverage.getStart(syntax))}{}${source.slice(coverage.end)}`);
+}
+
+function prepare(root, expectedRef, app, phase, execute) {
   verifyCheckout(root, expectedRef, execute);
   const appRoot = join(root, "apps", app);
   const manifest = json(join(appRoot, "package.json"));
@@ -206,8 +241,23 @@ function prepare(root, expectedRef, app, execute) {
     packages: Object.fromEntries(
       Object.entries(installed).map(([name, value]) => [name, value.version]),
     ),
-    files: Object.fromEntries(files.map((file) => [file, fileHash(join(root, file))])),
+    files: Object.fromEntries(
+      files.map((file) => [
+        file,
+        file === "apps/web/vitest.config.ts"
+          ? webInstrumentationHash(join(root, file))
+          : fileHash(join(root, file)),
+      ]),
+    ),
   };
+  const budgetFile = join(appRoot, "performance/renderCommitBudgets.ts");
+  const { renderCommitBudgets } = require(budgetFile);
+  const approved = Object.keys(renderCommitBudgets);
+  const scenarioNames =
+    phase === "baseline" && app === "web" && legacyWebBaselines.has(expectedRef)
+      ? approved.filter((name) => !staleWebScenarios.has(name))
+      : approved;
+  ensure(scenarioNames.length > 0, "Missing approved render scenarios");
   return {
     root,
     appRoot,
@@ -216,7 +266,8 @@ function prepare(root, expectedRef, app, execute) {
     instrumentation,
     instrumentationSha256: hash(JSON.stringify(instrumentation)),
     lockfileSha256: fileHash(join(root, "bun.lock")),
-    budgetSha256: fileHash(join(appRoot, "performance/renderCommitBudgets.ts")),
+    budgetSha256: fileHash(budgetFile),
+    scenarioNames,
     vitest: join(installed.vitest.directory, "vitest.mjs"),
     config: `performance/vitest.config.${extension}`,
   };
@@ -244,6 +295,7 @@ export function runRenderPair(argv, execute = command) {
         options[phase === "current" ? "candidate-root" : "baseline-root"],
         options[phase === "current" ? "current-ref" : "baseline-ref"],
         options.app,
+        phase,
         execute,
       );
       ensure(
@@ -280,6 +332,7 @@ export function runRenderPair(argv, execute = command) {
       runner,
       startedAt: new Date().toISOString(),
       sourceChecks: { before: false, after: false },
+      ...(phase === "baseline" && { scenarios: entry.scenarioNames }),
     };
     proof[phase] = phaseProof;
     let attempted = false;
@@ -298,7 +351,16 @@ export function runRenderPair(argv, execute = command) {
       attempted = true;
       const result = execute(
         process.execPath,
-        [...flags, entry.vitest, "run", "--config", entry.config],
+        [
+          ...flags,
+          entry.vitest,
+          "run",
+          "--config",
+          entry.config,
+          ...(phase === "baseline"
+            ? ["--testNamePattern", matchingScenarios(entry.scenarioNames)]
+            : []),
+        ],
         { cwd: entry.appRoot, logFile: join(output, `${phase}.log`) },
       );
       results[phase] = result;

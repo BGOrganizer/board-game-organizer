@@ -335,7 +335,7 @@ first game's vote sheet after consent and verifies the actor's named vote and th
 Names containing punctuation are escaped literally. Web verifies actual authorized API option
 counts, captures the real versioned request and checks singleton maps remain empty.
 
-See [current consent contract](../../../docs/groups-events-refactor.md#events-and-tables).
+See [current consent contract](../../../docs/groups-events-tables.md#events-and-tables).
 Syntax, VM callbacks, bundles and disposable-Mongo tests do not replace authenticated browser/native
 execution. No provisioning or Production mutation is authorized by adding these scenarios.
 
@@ -371,8 +371,8 @@ through `ZZ Page 43`. Initial contacts and notification permissions are denied.
 | 13-event-draft | Primary owns 12's pending organization | Event filters/search, contextual creation/help, actual calendar/time and bounded table rejection/correction, game and persisted ratings switch; pending-org publication rejected; draft saved, read-only table/help/roster/privacy, editor header navigation, table removal and reset cancel/confirm. Saved detail and parent list prove draft has zero tables/participants. |
 | 04-dark-mode | Primary authenticated; runner enabled night mode | Authenticated cold launch, explicit logout without clearing app state, welcome/sign-in remain usable. Ends signed out. |
 
-Domain behavior remains defined in [Groups/Events/Tables](../../../docs/groups-events-refactor.md)
-and [operational gates](../../../docs/organizations-events-operations.md), not this test plan.
+Domain behavior remains defined in [Groups/Events/Tables](../../../docs/groups-events-tables.md)
+and [operational gates](../../../docs/deployment-operations.md), not this test plan.
 
 ## Synchronization and selectors
 

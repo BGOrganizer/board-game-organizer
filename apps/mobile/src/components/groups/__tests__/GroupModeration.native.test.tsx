@@ -347,3 +347,26 @@ it.each([
     else expect(screen.queryByText(/^\d+ Events?$/)).toBeNull();
   },
 );
+
+it("loads the next authorized review page when the moderator scrolls to the end", async () => {
+  listFixture.cursors.set("/api/groups", "scroll-review");
+  listFixture.nextGroups = [
+    listGroup("Scrolled review candidate", {
+      id: listId(2),
+      type: "PUBLIC",
+      reviewStatus: "PENDING",
+    }),
+  ];
+  await render(<Fixture />);
+  expect(await screen.findByText(name)).toBeVisible();
+  const list = await measureCurrentQueue();
+  await scrollListEnd(list);
+  expect(await screen.findByText("Scrolled review candidate")).toBeVisible();
+  expect(screen.getByText(name)).toBeVisible();
+  const requests = listFixture.reads.filter(
+    (url) => url.searchParams.get("cursor") === "scroll-review",
+  );
+  expect(requests).toHaveLength(1);
+  expect(requests[0].searchParams.get("scope")).toBe("moderation");
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+});

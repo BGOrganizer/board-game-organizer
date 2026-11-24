@@ -86,6 +86,8 @@ let client: QueryClient;
 let serverEvent: PlannedEventResponse;
 let serverRows: EventProposalResponse[];
 let reviewStatus: number;
+let proposalsUnavailable: boolean;
+const receiptReads: string[] = [];
 let pendingReview: Promise<Response> | undefined, pendingSubmit: Promise<Response> | undefined;
 const reviews: ReviewEventProposalInput[] = [],
   submissions: SubmitEventProposalInput[] = [];
@@ -146,6 +148,8 @@ beforeEach(() => {
   serverEvent = manager;
   serverRows = [proposal];
   reviewStatus = 200;
+  proposalsUnavailable = false;
+  receiptReads.length = 0;
   pendingReview = pendingSubmit = undefined;
   client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -174,8 +178,13 @@ beforeEach(() => {
         submissions.push(submission);
         return pendingSubmit ?? submitReceipt(submission);
       }
-      if (url.pathname === `/api/events/${manager.id}/proposals`)
-        return Response.json(page(url.searchParams.get("mode") === "mine" ? "mine" : "review"));
+      if (url.pathname === `/api/events/${manager.id}/proposals`) {
+        const nonce = url.searchParams.get("clientRequestId");
+        if (nonce) receiptReads.push(nonce);
+        return proposalsUnavailable
+          ? Response.json({ error: "Proposal receipt unavailable" }, { status: 503 })
+          : Response.json(page(url.searchParams.get("mode") === "mine" ? "mine" : "review"));
+      }
       if (url.pathname === `/api/events/${manager.id}`) return Response.json(serverEvent);
       throw new Error(`Unexpected proposal section request: ${url.pathname}`);
     }),
@@ -412,4 +421,25 @@ it("resets the inline date draft on a fresh event revision and keeps cached mana
   expect(screen.getByRole("button", { name: /^Review proposal:/ })).toBeDisabled();
   expect(reviews).toHaveLength(0);
   expect(submissions).toHaveLength(0);
+});
+
+it("keeps an interrupted proposal in verification when its correlated receipt and list are unavailable", async () => {
+  serverRows = [];
+  mount(participant);
+  expect(await screen.findByText("No proposals")).toBeVisible();
+  pendingSubmit = Promise.resolve(
+    Response.json({ error: "Submission interrupted" }, { status: 503 }),
+  );
+  proposalsUnavailable = true;
+  enterDateTime(screen.getByRole("group", { name: "Date and time" }), "2030-06-05T21:00");
+  fireEvent.click(screen.getByRole("button", { name: "Add date" }));
+  expect(await screen.findByText("Checking saved changes")).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Review unsent proposal" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Add date" })).toBeNull();
+  expect(screen.getByText("Could not load proposals")).toBeVisible();
+  expect(screen.queryByText("No proposals")).toBeNull();
+  expect(submissions).toHaveLength(1);
+  expect(receiptReads).toEqual([submissions[0].clientRequestId]);
+  expect(reviews).toEqual([]);
+  expect(boundary.push).not.toHaveBeenCalled();
 });

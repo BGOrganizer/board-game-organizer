@@ -23,11 +23,20 @@ vi.mock("next/navigation", () => ({
 }));
 
 import Event from "../(tabs)/events/[eventId]/page";
+import OldEventResults from "../(tabs)/events/[eventId]/results/page";
+import OldEditTable from "../(tabs)/events/[eventId]/tables/[tableId]/edit/page";
 import Events from "../(tabs)/events/page";
 import Group from "../(tabs)/groups/[groupId]/page";
+import OldGroupOrganizations from "../(tabs)/groups/organizations/page";
 import Groups from "../(tabs)/groups/page";
 import Search from "../(tabs)/groups/search/page";
+import OldMatch from "../(tabs)/matches/[matchId]/page";
 import OldMatches from "../(tabs)/matches/page";
+import OldEditOrganization from "../(tabs)/organizations/[organizationId]/edit/page";
+import OldOrganizationEvents from "../(tabs)/organizations/[organizationId]/events/page";
+import OldOrganizationInvite from "../(tabs)/organizations/[organizationId]/invite/page";
+import OldOrganization from "../(tabs)/organizations/[organizationId]/page";
+import OldNewOrganization from "../(tabs)/organizations/new/page";
 import OldOrganizations from "../(tabs)/organizations/page";
 import Tables from "../(tabs)/tables/page";
 
@@ -67,4 +76,23 @@ it("awaits framework params for unified detail routes", async () => {
 it("legacy navigation cannot resurrect old editors or models", () => {
   expect(() => OldMatches()).toThrow("redirect:/tables");
   expect(() => OldOrganizations()).toThrow("redirect:/groups");
+});
+
+it.each([
+  [OldEditTable, "/events"],
+  [OldGroupOrganizations, "/events"],
+  [OldMatch, "/tables"],
+  [OldOrganization, "/groups"],
+  [OldEditOrganization, "/groups"],
+  [OldOrganizationEvents, "/groups"],
+  [OldOrganizationInvite, "/groups"],
+  [OldNewOrganization, "/groups"],
+] as const)("keeps a retired entry point on its replacement route %s", (page, destination) => {
+  expect(page).toThrow(`redirect:${destination}`);
+});
+
+it("redirects old Event results links to their encoded Event detail", async () => {
+  await expect(
+    OldEventResults({ params: Promise.resolve({ eventId: "friday / games" }) }),
+  ).rejects.toThrow("redirect:/events/friday%20%2F%20games");
 });

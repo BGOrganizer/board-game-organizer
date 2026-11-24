@@ -1,9 +1,9 @@
-# Groups and events: operational gates
+# Deployment and operations
 
-The [unified domain](groups-events-refactor.md) governs current behavior. These procedures cover
-provider/environment isolation, moderation, diagnostics and delivery. Legacy Inngest writers are
-unregistered; confirmation is manual. This guide does not authorize provider operations or database resets.
-Use the [verification requirements](implementation-progress.md) to assess source, CI and runtime evidence.
+The [unified domain](groups-events-tables.md) governs current behavior. These procedures cover
+provider/environment isolation, moderation, diagnostics and delivery. This guide does not authorize
+provider operations or database resets.
+Use the [verification requirements](verification-and-acceptance.md) to assess source, CI and runtime evidence.
 
 ## Database and moderation
 
@@ -62,12 +62,10 @@ only the diagnostic fields or sanitized response body. New logging requires the 
 Preview; an installed APK pointing to an older immutable origin does not switch to a new deployment.
 These logs do not relax any consent, membership, transaction, duplicate or overlap guard.
 
-## Retired deadline workers
+## Event deadlines
 
-Legacy automatic cutoff closure, Match creation, sleeper recovery and deadline outbox execution are
-retired and must not be registered or restored. `/api/inngest` retains SDK verification but no legacy
-writers are registered. Current Events require explicit manager confirmation and exact server cutoff guards.
-Historical records remain intact; documentation cleanup does not authorize migration or deletion.
+The API enforces registration cutoffs on each relevant request. Event confirmation requires an
+explicit manager action. `/api/inngest` verifies provider requests and registers no domain functions.
 
 ## Infisical and deployment isolation
 
@@ -135,23 +133,18 @@ reason to skip checks. Fork PRs do not enter secret-consuming lanes.
 Common quality gates feed two independent lanes:
 
 Coverage uses the same workspace Vitest configurations locally and in Branch, PR and Main
-jobs, with a 90% minimum for lines, functions, branches and statements. A quality-only branch
-push runs `test:coverage` as well; routing-only pushes for an open PR still avoid duplicate jobs.
+jobs. Each app and runtime package must meet 98% for lines, functions, branches and statements.
+The required `PR ready` check includes those coverage jobs and the Site coverage step. A quality-only
+branch push runs `test:coverage` as well; routing-only pushes for an open PR avoid duplicate jobs.
 The API command combines unit tests and isolated MongoDB integration in one report and requires
 Docker. Repository unit tests exercise the real classes with the MongoDB boundary mocked;
 the replica-set tests verify real query and transaction behavior.
-Native CLI/flow syntax checks remain required. Reassure measurements are paused by explicit
-operator request: complete web/mobile job definitions are retained but disabled, and active
-quality, publication, readiness and watchdog dependencies exclude those jobs. Ordinary tests of
-the comparator/helper remain active. All five workspaces still enforce 90% coverage across the
-same runtime source ownership; real MongoDB integration, lint, typecheck, builds, native tooling,
-release verification and cleanup gates remain active. A skipped or interrupted benchmark is not
-performance acceptance evidence.
-
-The retained [render benchmark policy](render-performance.md#paired-statistical-ci-checks) defines
-same-runner sequential approved-baseline/current measurements, provenance and failure artifacts
-for explicit resumption. Only the documented initial no-harness main may bootstrap without old
-samples; later missing/corrupt baselines fail, and no historical result is fabricated.
+Native CLI and flow syntax checks remain required. Web and Mobile Reassure measurements run on
+Branch, Preview and Main and publish their own reports. The ordinary Web suite tests the
+comparator and paired-run helper. The [render benchmark policy](render-performance.md#paired-statistical-ci-checks)
+defines sequential same-runner measurements, approved baseline scenarios, provenance checks and
+failure artifacts. The documented initial Main can bootstrap a new report. Later baseline
+comparisons require valid samples for every approved historical scenario.
 These secret-free checks do not execute Playwright or Maestro journeys, provision users or capture
 device traces. Test matrices do not cancel their remaining active suites on failure.
 
@@ -319,9 +312,9 @@ There is no cross-PR API alias: each published OTA manifest carries that PR's ve
 
 ## Main delivery and manual environment selection
 
-By explicit operator request, Main delivery has no browser/native E2E gates or their Preview APK,
-API/web deployments, Clerk fixtures or application CI database/cleanup. Biome/typecheck/CI-script
-checks, five workspace coverage suites, an independent replica-set API integration check and API/web verification
+Main delivery uses source checks and targeted production smoke checks. Browser/native E2E and the
+isolated Preview environment, APK, Clerk fixtures and database belong to separate acceptance.
+Biome/typecheck/CI-script checks, six workspace coverage suites, an independent replica-set API integration check and API/web verification
 builds run in parallel on every merge. Codecov signing verification and both unit/integration uploads
 are blocking. Only the latest verified merge prepares the version/changelog/tag. APK, production
 API/web deployment, read-only smoke, private release staging, verified APK upload and final release
@@ -354,10 +347,8 @@ original workflow-triggering merge SHA, not every PR since the preceding version
 push without such an association omits the PR link. Notification metadata comes from verified
 publication receipts, and notes come from the pinned release commit rather than the full release body.
 
-The removed `mobile-e2e.yml` is not a remaining manual GitHub gate. Maestro/Playwright suites and
-retained disabled PR hooks still exist for explicitly owned local acceptance. Losing automatic E2E
-means that green coverage, builds and smoke **do not attest** native startup, keyboard, permissions,
-authenticated UI or full user journeys. A failed prepared release can leave a tag/draft; resume
+Local Maestro/Playwright suites cover native startup, keyboard, permissions, authenticated UI and
+full user journeys separately from coverage, builds and smoke checks. A failed prepared release can leave a tag/draft; resume
 only the verified state described below. Other orphans require explicit recovery, never silent
 tag deletion or a claim of successful publication.
 
@@ -368,7 +359,7 @@ Release preparation verifies the existing `RELEASE_PAT` has repository-admin per
 it both for the Git remote and semantic-release's `GITHUB_TOKEN`. Authentication retries must retain
 that release identity; the privileged token stays scoped to the validated preparation steps.
 A rerun can resume only the current direct release-bump child of its original validated merge:
-all three manifests may change only version, Expo config only its version, and the changelog must
+the API, Web, Mobile and MCP manifests may change only version, Expo config only its version, and the changelog must
 prepend exactly the commit's release notes. The stable version must increase and its remote tag
 must resolve to that child. Other files, unrelated/stale commits, missing/moved tags or inconsistent
 versions fail closed or skip superseded delivery; they never trigger automatic tag deletion.
@@ -384,8 +375,7 @@ published history. Never remove tags or restore versions as an incidental docume
 Preview/test and Production both use environment-scoped `CLERK_SECRET_KEY` and matching
 publishable keys. Never mix instances: their tokens are not interchangeable.
 
-The standalone manual mobile-build and BGG import workflows have been removed. Mobile delivery
-uses the PR/main pipelines. Remote catalog imports remain available through
+Mobile delivery uses the PR/Main pipelines. Remote catalog imports run through
 [the import CLI](../apps/api/scripts/import-boardgames.mjs) and the direct database importer.
 Operators must verify the intended API/database and Clerk environment before forwarding credentials.
 
@@ -422,7 +412,11 @@ reuses stale mobile inputs, skips quality/cleanup gates or changes E2E enablemen
 - `expo-image-picker` changes native permissions. A JavaScript export is insufficient: create a fresh native build and exercise camera/library denial, retry, Settings-return refresh, replacement and cancelled picking in Maestro.
 - Run the current Group/Event/Table acceptance flows on both clients; verify failure/empty/privacy/cutoff paths, not only successful forms. Never silently skip missing authenticated E2E configuration.
 - [The managed HeroUI Native patch](../patches/heroui-native@1.0.9.patch) gives the default animated popover wrapper absolute-fill bounds in both source and distributed modules so visible help remains measurable and accessible. Preserve mounting, positioning, touch pass-through and animations; source checks do not replace native acceptance.
-- By explicit operator request, PR Maestro and Playwright remain retained but disabled through `BGO_PR_E2E_ENABLED: 'false'`. Their suites and report validation remain intact; Main E2E gates and the manual mobile-E2E workflow are removed by explicit operator request. `PR ready` permits only these policy-matching intentional skips; other common/Internal gates and cleanup must succeed. Development publication is independent of Internal/E2E/CI cleanup. When fixtures are created, cleanup waits for fixture mirroring and CI API consumers even if E2E tests are skipped. A green gate does not establish web/native E2E acceptance.
+- `BGO_PR_E2E_ENABLED: 'false'` disables PR Maestro and Playwright while retaining their suites and report
+  validation. `PR ready` permits these policy skips and requires the shared/Internal gates and cleanup.
+  Development publication is independent of Internal acceptance. When fixtures exist, cleanup waits
+  for fixture mirroring and CI API consumers. A green `PR ready` establishes source and pipeline
+  checks. See [Verification requirements](verification-and-acceptance.md) for browser and device evidence.
 - When re-enabled, PR Maestro attempts all 13 ordered flows after an earlier flow failure when native preparation succeeded and the run is not cancelled. Each failed step remains failed; final report verification still runs and rejects failed, skipped or missing reports. Shared-session failures may cascade into later flows, so inspect their actual traces before treating each failure as an independent defect.
 - Maestro uses the rendering-enabled Android 34 `google_apis;x86_64` image for Expo Location's Google Play Services provider, selected explicitly even if a cached AOSP or ATD image is present. [ATD images disable hardware rendering](https://developer.android.com/studio/test/managed-devices#use-atds) and remove GUI services; a headless emulator window must not imply a non-rendering Android guest. Keep actual screenshots/video and animated portal assertions; do not substitute longer waits or disable animations to hide missing UI.
 - GitHub native acceptance requires Linux KVM: trigger the job-local device rule with `udevadm trigger --name-match=kvm --settle` before checking read/write permissions and running `emulator -accel-check`. The ordinary trigger is asynchronous; immediate permission checks race rule application. Missing devices or denied permissions fail explicitly with device/runner diagnostics. Keep `-accel on`, never software-CPU fallback. Windows WHPX and shell simulations are not Linux KVM acceptance; verify the real runner before claiming native success.

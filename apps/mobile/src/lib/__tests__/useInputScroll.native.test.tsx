@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
-import { type NativeMethods, PixelRatio, Text, View } from "react-native";
+import { DeviceEventEmitter, type NativeMethods, PixelRatio, Text, View } from "react-native";
 import { afterEach, expect, it, vi } from "vitest";
 import {
   FormInteractionScope,
@@ -51,17 +51,26 @@ async function fixture() {
   };
   if (!form) throw new Error("Expected actual mounted form context");
   const cancel = vi.spyOn(form, "cancelErrorFocus");
+  const nextFrame = async () => {
+    const batch = frames.splice(0);
+    await act(() => {
+      for (const callback of batch) callback(0);
+    });
+  };
   const flush = async () => {
     // Commit React state after each native frame, preserving the hook's required
     // extra-range layout before its following frame performs the actual scroll.
-    while (frames.length) {
-      const batch = frames.splice(0);
-      await act(() => {
-        for (const callback of batch) callback(0);
-      });
-    }
+    while (frames.length) await nextFrame();
   };
-  return { current, scrollTo, cancel, flush, viewportMeasure, unmount: () => view.unmount() };
+  return {
+    current,
+    scrollTo,
+    cancel,
+    flush,
+    nextFrame,
+    viewportMeasure,
+    unmount: () => view.unmount(),
+  };
 }
 afterEach(() => vi.restoreAllMocks());
 const field = (top: number, width = 200, height = 44): InputScrollTarget => ({
@@ -240,4 +249,34 @@ it("enriches only rows intersecting the active viewport and unregisters after fi
   });
   expect(visible).toHaveBeenCalledOnce();
   await unmount();
+});
+
+it("remeasures the focused input when the native keyboard changes the available viewport", async () => {
+  const f = await fixture();
+  const fieldAndLabel = field(360);
+  await act(() => f.current().owner.reveal(fieldAndLabel, fieldAndLabel));
+  await f.flush();
+  expect(f.scrollTo).toHaveBeenLastCalledWith({ y: 244, animated: false });
+
+  f.scrollTo.mockClear();
+  f.viewportMeasure.mockImplementation((callback) => callback(0, 100, 320, 60));
+  await act(() => DeviceEventEmitter.emit("keyboardDidShow", { endCoordinates: { height: 120 } }));
+  await f.flush();
+  expect(f.scrollTo).toHaveBeenCalledExactlyOnceWith({ y: 260, animated: false });
+  expect(f.current().minHeight).toBe(320);
+  await act(() => f.current().owner.blur(fieldAndLabel));
+  expect(f.current().minHeight).toBe(60);
+});
+
+it("cancels a measured scroll when the user blurs before the next native frame", async () => {
+  const f = await fixture(),
+    target = field(500);
+  await act(() => f.current().owner.reveal(target));
+  await f.nextFrame();
+  expect(f.current().minHeight).toBe(636);
+  expect(f.scrollTo).not.toHaveBeenCalled();
+  await act(() => f.current().owner.blur(target));
+  await f.flush();
+  expect(f.current().minHeight).toBe(300);
+  expect(f.scrollTo).not.toHaveBeenCalled();
 });

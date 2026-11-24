@@ -581,3 +581,25 @@ it("rejects self-use even in the contextual authority recheck", async () => {
   m.invites.findByToken.mockResolvedValueOnce(invite);
   await expect(service().claim(viewer, { token, consent: true })).rejects.toThrow("OWN_INVITE");
 });
+
+it("preserves reopened singleton votes and verified BGG metadata in the recipient review", async () => {
+  event.dateVoteRequired = true;
+  event.locationVoteRequired = true;
+  table.gameVoteRequired = true;
+  const suggestedPlayers = {
+    totalVotes: 7,
+    fetchedAt: "2026-11-01T10:00:00.000Z",
+    rows: [
+      { players: 2, best: 7, recommended: 0, notRecommended: 0, sampleCount: 7, orMore: false },
+    ],
+  };
+  const metadata = { categories: ["Strategy"], averageWeight: 2.8, suggestedPlayers };
+  m.games.findByIds.mockResolvedValue([{ id: 1, name: "Game", ...metadata }]);
+  expect(await service().review(viewer, token)).toMatchObject({
+    event: { dateVoteRequired: true, locationVoteRequired: true },
+    table: { gameVoteRequired: true, gamesDetail: [{ id: 1, ...metadata }] },
+    requiresAvailability: true,
+  });
+  expect(m.invites.claim).not.toHaveBeenCalled();
+  expect(m.eventActions.join).not.toHaveBeenCalled();
+});

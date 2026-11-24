@@ -1,11 +1,15 @@
 import type { InviteClaimResponse, InviteReviewResponse } from "@board-game-organizer/schemas";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, userEvent, waitFor } from "@testing-library/react-native";
-import type { ComponentProps } from "react";
+import { act, fireEvent, render, screen, userEvent, waitFor } from "@testing-library/react-native";
+import { type ComponentProps, createContext, useContext } from "react";
 import { Text } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import InviteScreen from "@/app/invite/[token]";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import { InviteClaimScreen } from "../InviteClaimScreen";
+
+const RouteParams = createContext<ComponentProps<typeof InviteClaimScreen>>({});
+
 import { inviteToken, tableClaimReceipt, tableInviteReview } from "./inviteFixtures";
 
 const API = "https://claim-native-fixtures.test";
@@ -35,6 +39,7 @@ vi.mock("@/lib/useCommunityApi", () => ({
 }));
 vi.mock("expo-router", () => ({
   useNavigation: () => ({ getState: () => ({ type: "stack" }) }),
+  useLocalSearchParams: () => useContext(RouteParams),
   Redirect: ({ href }: { href: unknown }) => (
     <Text testID="router-redirect">{JSON.stringify(href)}</Text>
   ),
@@ -108,7 +113,9 @@ function Fixture({ token = inviteToken }: ComponentProps<typeof InviteClaimScree
   return (
     <QueryClientProvider client={client}>
       <NativeTestProviders>
-        <InviteClaimScreen token={token} />
+        <RouteParams value={{ token }}>
+          <InviteScreen />
+        </RouteParams>
       </NativeTestProviders>
     </QueryClientProvider>
   );
@@ -259,13 +266,18 @@ it("coalesces repeated friendship claims while the real receipt is pending", asy
     finish = resolve;
   });
   await render(<Fixture />);
-  await press("Claim invite");
+  const consent = await screen.findByRole("button", { name: "Claim invite" });
+  // Both native taps can be delivered before React commits a disabled button.
+  await act(async () => {
+    await Promise.all([fireEvent.press(consent), fireEvent.press(consent)]);
+  });
   await waitFor(() => expect(writes).toHaveLength(1));
   expect(screen.getByRole("button", { name: "Claim invite" })).toBeDisabled();
   await press("Claim invite");
   expect(writes).toHaveLength(1);
   await act(() => finish(json(receipt)));
   expect(await screen.findByTestId("router-redirect")).toHaveTextContent('"/contacts"');
+  expect(writes).toEqual([{ body: { token: inviteToken }, authorization: "Bearer fixture-owner" }]);
 });
 
 it("retains friendship review after a rejected claim for an idempotent explicit retry without consuming-token rereads", async () => {
@@ -370,5 +382,37 @@ it("keeps HTTP 500 review failures distinct from unavailable tokens and enables 
   expect(screen.getByRole("button", { name: "Accept invitation" })).toBeEnabled();
   expect(screen.queryByText("Could not load this invitation.")).toBeNull();
   expect(reads).toHaveLength(2);
+  expect(writes).toEqual([]);
+});
+
+it("keeps friendship consent disabled while an explicit review retry is still pending", async () => {
+  await render(<Fixture />);
+  await waitFor(() => expect(screen.getByRole("button", { name: "Claim invite" })).toBeEnabled());
+  readCode = 503;
+  await act(() =>
+    client.invalidateQueries({
+      queryKey: ["invites", API, "owner", "review", inviteToken],
+      exact: true,
+    }),
+  );
+  expect(await screen.findByText("Could not claim this invite. Try again.")).toBeVisible();
+
+  let finish: (value: Response) => void = () => {};
+  pendingRead = new Promise<Response>((resolve) => {
+    finish = resolve;
+  });
+  boundary.getToken.mockResolvedValueOnce("renewed-review-token");
+  await press("Try again");
+  expect(screen.getByRole("button", { name: "Claim invite" })).toBeDisabled();
+  await press("Claim invite");
+  expect(writes).toEqual([]);
+  await waitFor(() => expect(reads).toHaveLength(3));
+  expect(reads.at(-1)).toMatchObject({ authorization: "Bearer renewed-review-token" });
+  expect(reads.at(-1)?.url.pathname).toBe(`/api/invites/${inviteToken}`);
+  expect(screen.queryByTestId("router-redirect")).toBeNull();
+
+  await act(() => finish(json(review)));
+  await waitFor(() => expect(screen.getByRole("button", { name: "Claim invite" })).toBeEnabled());
+  expect(screen.queryByText("Could not claim this invite. Try again.")).toBeNull();
   expect(writes).toEqual([]);
 });

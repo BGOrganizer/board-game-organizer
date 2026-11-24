@@ -70,7 +70,7 @@ function setup(type: "PRIVATE" | "PUBLIC" = "PRIVATE") {
         clerkId,
         name: clerkId === "owner" ? "Creator Player" : `${clerkId} Player`,
         email: `${clerkId}@example.test`,
-        username: `${clerkId}-handle`,
+        username: `${clerkId}-handle` as string | null,
         avatarUrl: null,
         presence: { online: false, lastActiveAt: at },
       },
@@ -503,4 +503,196 @@ it("keeps member pagination owner-aware, filters the owner and never supplies so
     status: 403,
     code: "GROUP_MEMBER_REQUIRED",
   });
+});
+
+it.each([
+  { actor: "owner", target: "owner", action: "cancel", code: "GROUP_ADMIN_CANNOT_LEAVE" },
+  { actor: "owner", action: "promote", status: "PENDING", code: "MEMBERSHIP_CHANGED" },
+  { actor: "owner", action: "demote", status: "ACCEPTED", code: "MEMBERSHIP_CHANGED" },
+  { actor: "owner", action: "accept", status: "PENDING", code: "INVITATION_RECIPIENT_REQUIRED" },
+  { actor: "guest", action: "decline", kind: "REQUEST", code: "INVITATION_RECIPIENT_REQUIRED" },
+  { actor: "guest", action: "accept", status: "LEFT", code: "MEMBERSHIP_CHANGED" },
+  { actor: "guest", action: "approve", kind: "REQUEST", code: "GROUP_ADMIN_REQUIRED" },
+  { actor: "owner", action: "reject", status: "PENDING", code: "GROUP_ADMIN_REQUIRED" },
+  {
+    actor: "owner",
+    action: "approve",
+    kind: "REQUEST",
+    status: "LEFT",
+    code: "MEMBERSHIP_CHANGED",
+  },
+  { actor: "guest", action: "cancel", status: "PENDING", code: "MEMBERSHIP_ACTION_FORBIDDEN" },
+  { actor: "other", action: "cancel", status: "ACCEPTED", code: "MEMBERSHIP_ACTION_FORBIDDEN" },
+  { actor: "other", action: "remove", status: "ACCEPTED", code: "GROUP_MANAGER_PROTECTED" },
+  { actor: "owner", action: "remove", status: "LEFT", code: "MEMBERSHIP_CHANGED" },
+] as const)("rejects invalid membership $action by $actor with $code", async (testCase) => {
+  const f = setup();
+  const target = ("target" in testCase ? testCase.target : undefined) ?? "guest";
+  const kind = "kind" in testCase ? testCase.kind : "INVITATION";
+  const status = "status" in testCase ? testCase.status : "PENDING";
+  const role = testCase.code === "GROUP_MANAGER_PROTECTED" ? "MODERATOR" : "MEMBER";
+  if (role === "MODERATOR") f.memberships.set("other", member("other", { role }));
+  const original = member(target, { kind, status, role });
+  f.memberships.set(target, original);
+
+  await expect(
+    f.service.membershipAction(testCase.actor, id, target, {
+      action: testCase.action,
+      version: original.version,
+    }),
+  ).rejects.toMatchObject({ code: testCase.code });
+  expect(f.memberships.get(target)).toBe(original);
+  expect(f.groups.saveMembership).not.toHaveBeenCalled();
+  expect(f.notifications.notifyMany).not.toHaveBeenCalled();
+  expect(f.notifications.acknowledgeItems).not.toHaveBeenCalled();
+  expect(f.departure).not.toHaveBeenCalled();
+});
+
+it("lets the requester withdraw a pending public request and leaves invitation attention untouched", async () => {
+  const f = setup("PUBLIC");
+  const pending = await f.service.request("guest", id);
+  const withdrawn = await f.service.membershipAction("guest", id, "guest", {
+    action: "cancel",
+    version: pending.version,
+  });
+  expect(withdrawn).toMatchObject({
+    id: pending.id,
+    status: "LEFT",
+    version: pending.version + 1,
+  });
+  expect(f.departure).toHaveBeenCalledExactlyOnceWith(id, "guest", "LEFT");
+  expect(f.notifications.acknowledgeItems).not.toHaveBeenCalled();
+});
+
+it("blocks enrollment while a public group awaits its first approval", async () => {
+  const f = setup("PUBLIC");
+  const group = f.state.group;
+  if (!group) throw new Error("Missing public group fixture");
+  const { approved: _approved, ...unapproved } = group;
+  f.state.group = unapproved;
+
+  await expect(f.service.invitationCandidates("owner", id, { limit: 5 })).rejects.toMatchObject({
+    status: 409,
+    code: "GROUP_NOT_APPROVED",
+  });
+  await expect(f.service.invite("owner", id, "guest")).rejects.toMatchObject({
+    status: 409,
+    code: "GROUP_NOT_APPROVED",
+  });
+  await expect(f.service.request("guest", id)).rejects.toMatchObject({
+    status: 404,
+    code: "GROUP_NOT_FOUND",
+  });
+  expect(f.groups.invitationCandidates).not.toHaveBeenCalled();
+  expect(f.groups.saveMembership).not.toHaveBeenCalled();
+  expect(f.notifications.notifyMany).not.toHaveBeenCalled();
+  expect(await f.service.moderationDetail("reviewer", id)).toMatchObject({ proposal: proposed });
+});
+
+it("requires moderation authority to list proposals and rejects stale group edits", async () => {
+  const f = setup("PUBLIC");
+  provider.getUser.mockResolvedValueOnce({ publicMetadata: { bgoRole: "MEMBER" } });
+  await expect(f.service.list("reviewer", "moderation", { limit: 2 })).rejects.toMatchObject({
+    status: 403,
+    code: "MODERATOR_REQUIRED",
+  });
+  expect(f.groups.list).not.toHaveBeenCalled();
+  const page = await f.service.list("reviewer", "moderation", { limit: 2 });
+  expect(page.items).toEqual([expect.objectContaining({ id, proposal: proposed })]);
+  await expect(
+    f.service.save("owner", { name: proposed.name, version: 2 }, id),
+  ).rejects.toMatchObject({ status: 409, code: "GROUP_CHANGED" });
+  expect(f.groups.save).not.toHaveBeenCalled();
+});
+
+it("rejects self-enrollment by a public group's creator", async () => {
+  const f = setup("PUBLIC");
+  await expect(f.service.request("owner", id)).rejects.toMatchObject({
+    status: 409,
+    code: "ALREADY_GROUP_MEMBER",
+  });
+  expect(f.groups.saveMembership).not.toHaveBeenCalled();
+});
+
+it("refuses bans for absent users or past deadlines and preserves revoked bans", async () => {
+  const f = setup();
+  await expect(
+    f.service.ban("owner", id, { userId: "missing", until: null }),
+  ).rejects.toMatchObject({
+    status: 404,
+    code: "USER_NOT_FOUND",
+  });
+  await expect(f.service.ban("owner", id, { userId: "guest", until: at })).rejects.toMatchObject({
+    status: 400,
+    code: "BAN_EXPIRY_MUST_BE_FUTURE",
+  });
+  await expect(f.service.revoke("owner", id, "guest")).rejects.toMatchObject({
+    status: 404,
+    code: "BAN_NOT_FOUND",
+  });
+  expect(f.groups.saveBan).not.toHaveBeenCalled();
+  const ban = await f.service.ban("owner", id, { userId: "guest", until: null });
+  const revoked = await f.service.revoke("owner", id, "guest");
+  expect(revoked).toMatchObject({ id: ban.id, revokedAt: at });
+  await expect(f.service.revoke("owner", id, "guest")).rejects.toMatchObject({
+    status: 404,
+    code: "BAN_NOT_FOUND",
+  });
+  expect(f.groups.saveBan).toHaveBeenCalledTimes(2);
+  expect(f.departure).toHaveBeenCalledExactlyOnceWith(id, "guest", "BAN");
+});
+
+it("keeps the accepted membership row visible during a delayed profile mirror", async () => {
+  const f = setup();
+  f.memberships.set("guest", member("guest"));
+  f.profiles.delete("guest");
+  const page = await f.service.members("owner", id, "accepted", { limit: 5 });
+  expect(page.items).toContainEqual(
+    expect.objectContaining({
+      userId: "guest",
+      membership: member("guest"),
+      name: null,
+      username: null,
+      avatarUrl: null,
+    }),
+  );
+});
+
+it("continues to read legacy accepted memberships as members while rejecting a no-op demotion", async () => {
+  const f = setup();
+  const row = member("guest", { role: undefined });
+  f.memberships.set("guest", row);
+  await expect(
+    f.service.membershipAction("owner", id, "guest", {
+      action: "demote",
+      version: row.version,
+    }),
+  ).rejects.toMatchObject({ status: 409, code: "MEMBERSHIP_CHANGED" });
+  expect(f.groups.saveMembership).not.toHaveBeenCalled();
+  expect(f.memberships.get("guest")).toBe(row);
+});
+
+it("uses the captured route filter and keeps sparse usernames nullable in invitation candidates", async () => {
+  const f = setup();
+  const page = { limit: 1, query: "Player" };
+  const guest = f.profiles.get("guest")!;
+  f.groups.invitationCandidates.mockResolvedValueOnce([
+    { ...guest, username: null },
+    f.profiles.get("member")!,
+  ]);
+  expect(await f.service.invitationCandidates("owner", id, page)).toEqual({
+    items: [
+      {
+        id: "guest",
+        name: guest.name,
+        username: null,
+        email: guest.email,
+        avatarUrl: null,
+        presence: guest.presence,
+        isFriend: true,
+      },
+    ],
+    nextCursor: "guest",
+  });
+  expect(f.groups.invitationCandidates).toHaveBeenCalledExactlyOnceWith(id, "owner", page);
 });

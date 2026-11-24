@@ -22,6 +22,10 @@ test("both pipelines run all coverage workspaces without cancelling matrix sibli
     assert.equal(workflow.on.pull_request?.paths, undefined);
   }
   assert.match(pr.jobs["unit-tests"].if, /mode == 'branch'.*mode == 'pr'/);
+  assert.equal(
+    find(pr.jobs["unit-tests"], "📤 Upload coverage report").if,
+    "always() && !cancelled()",
+  );
   assert.equal(main.jobs.coverage.if, undefined);
   for (const app of ["mobile", "web", "api", "schemas", "shared", "mcp"]) {
     const directory = ["schemas", "shared"].includes(app) ? `packages/${app}` : `apps/${app}`;
@@ -38,10 +42,9 @@ test("both pipelines run all coverage workspaces without cancelling matrix sibli
   assert.match(read("apps/api/vitest.config.ts"), /vitest\.integration-project\.config\.mts/);
 });
 
-test("operator-paused Reassure definitions retain their full secret-free suites without blocking active CI", () => {
+test("eligible branch, preview and main runs execute the full secret-free Reassure suites", () => {
   for (const workflow of [pr, main]) {
     const job = workflow.jobs["render-performance"];
-    assert.equal(job.if, `\${{ false }}`);
     assert.deepEqual(job.strategy.matrix.app, ["web", "mobile"]);
     assert.equal(job.strategy["fail-fast"], false);
     assert.deepEqual(job.permissions, { contents: "read" });
@@ -69,6 +72,7 @@ test("operator-paused Reassure definitions retain their full secret-free suites 
     );
     const report = find(job, "📤 Preserve actual render measurements");
     assert.equal(report.if, "always() && !cancelled()");
+    assert.match(report.with.name, /-attempt-\$\{\{ github\.run_attempt \}\}$/);
     assert.match(report.with.path, /\.reassure\/current\.perf/);
     assert.match(report.with.path, /\.reassure-pair/);
     assert.equal(report.with["include-hidden-files"], true);
@@ -83,9 +87,12 @@ test("operator-paused Reassure definitions retain their full secret-free suites 
     `\${{ github.event.before }}`,
   );
   assert.deepEqual(pr.jobs["render-performance"].needs, ["context"]);
-  assert.equal(pr.jobs["render-performance"].if, `\${{ false }}`);
+  assert.equal(
+    pr.jobs["render-performance"].if,
+    "needs.context.outputs.mode == 'branch' || needs.context.outputs.mode == 'pr'",
+  );
   assert.equal(main.jobs["render-performance"].needs, undefined);
-  assert.equal(main.jobs["render-performance"].if, `\${{ false }}`);
+  assert.equal(main.jobs["render-performance"].if, undefined);
   for (const gate of ["native-tooling"]) {
     for (const id of ["ready", "draft-release", "deploy-preview-api", "deploy-development-api"])
       assert(pr.jobs[id].needs.includes(gate), `${id}: ${gate}`);
@@ -96,14 +103,14 @@ test("operator-paused Reassure definitions retain their full secret-free suites 
   for (const workflow of [pr, main]) {
     for (const [id, job] of Object.entries(workflow.jobs)) {
       const needs = Array.isArray(job.needs) ? job.needs : job.needs ? [job.needs] : [];
-      assert(!needs.includes("render-performance"), `${id} must not wait on the paused suite`);
+      assert(!needs.includes("render-performance"), `${id}: Reassure runs independently`);
     }
     assert.doesNotMatch(JSON.stringify(workflow), /needs\.render-performance\.result/);
   }
   const statuses = Object.fromEntries(["context", ...qualityJobs].map((name) => [name, "success"]));
-  for (const paused of [undefined, "skipped", "failure", "cancelled"])
+  for (const result of [undefined, "success", "skipped", "failure", "cancelled"])
     assert.doesNotThrow(() =>
-      verifyCiGate("branch", { ...statuses, "render-performance": paused }),
+      verifyCiGate("branch", { ...statuses, "render-performance": result }),
     );
   for (const gate of ["native-tooling"]) {
     for (const result of [undefined, "skipped", "failure", "cancelled"])
@@ -150,7 +157,7 @@ test("native tooling uses the existing pinned CLIs without emulator, device or p
   assert.equal(main.jobs["native-tooling"].if, undefined);
 });
 
-test("tooling contracts remain active after lint failure while Reassure and web/native E2E stay explicitly disabled", () => {
+test("tooling contracts run after lint failures and PR E2E follows its explicit opt-in", () => {
   for (const [job, name] of [
     [pr.jobs.lint, "🔒 Check CI isolation and MapTiler build configuration"],
     [main.jobs.quality, "🔒 CI isolation contract"],

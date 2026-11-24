@@ -4,9 +4,12 @@ import "./mainListFixture";
 import { communityActivitiesQuery } from "@board-game-organizer/shared";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { expect, it } from "vitest";
+import CommunityScreen from "@/app/(tabs)/community";
+import EventsScreen from "@/app/(tabs)/events";
+import GroupsScreen from "@/app/(tabs)/groups";
+import TablesScreen from "@/app/(tabs)/tables";
+import SearchGroupsScreen from "@/app/group/search";
 import { CommunityActivities } from "../../../community/CommunityActivities";
-import { Events } from "../../../events/Events";
-import { Groups } from "../../../groups/Groups";
 
 import {
   listFixture,
@@ -24,7 +27,7 @@ import {
 it("retains all three real Group list owners including the discovery draft, with only the selected owner exposed", async () => {
   await render(
     <MainListFixture>
-      <Groups />
+      <GroupsScreen />
     </MainListFixture>,
   );
   await screen.findByText("Private list group");
@@ -72,7 +75,7 @@ it("retains all three real Group list owners including the discovery draft, with
 it("evicts a visited discovery owner on account and API changes without reusing its old search draft", async () => {
   const view = await render(
     <MainListFixture>
-      <Groups initialSection="search" />
+      <SearchGroupsScreen />
     </MainListFixture>,
   );
   const originalFilter = screen.getByTestId("list-search-input");
@@ -81,7 +84,7 @@ it("evicts a visited discovery owner on account and API changes without reusing 
   const originalList = screen.getByTestId("groups-scroll");
   await view.rerender(
     <MainListFixture userId="other-owner">
-      <Groups initialSection="search" />
+      <SearchGroupsScreen />
     </MainListFixture>,
   );
   const otherFilter = screen.getByTestId("list-search-input");
@@ -95,7 +98,7 @@ it("evicts a visited discovery owner on account and API changes without reusing 
   expect(otherList).not.toBe(originalList);
   await view.rerender(
     <MainListFixture userId="other-owner" apiUrl="https://other-main-list-fixtures.test">
-      <Groups initialSection="search" />
+      <SearchGroupsScreen />
     </MainListFixture>,
   );
   expect(screen.getByTestId("list-search-input")).not.toBe(otherFilter);
@@ -107,7 +110,7 @@ it("evicts a visited discovery owner on account and API changes without reusing 
 it("retains the actual terminated Event owner and its independent draft through every main Event tab", async () => {
   await render(
     <MainListFixture>
-      <Events />
+      <EventsScreen />
     </MainListFixture>,
   );
   await screen.findByText("Scheduled list event");
@@ -199,4 +202,49 @@ it("keeps canonical access denial observable and rejects paging even if a previo
     listFixture.reads.filter((url) => url.pathname === "/api/community/activities"),
   ).toHaveLength(before);
   expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+});
+
+it.each([
+  { section: "available", tab: "available", name: "Available list event" },
+  { section: "terminated", tab: "terminated", name: "Terminated list event" },
+  { section: "unrecognized", tab: "mine", name: "Scheduled list event" },
+])(
+  "opens the event route section $section using the authorized list",
+  async ({ section, tab, name }) => {
+    await render(
+      <MainListFixture section={section}>
+        <EventsScreen />
+      </MainListFixture>,
+    );
+    expect(await screen.findByText(name)).toBeVisible();
+    expect(screen.getByTestId(`top-tab-${tab}`)).toBeSelected();
+    expect(
+      listFixture.reads.some(
+        (url) => url.pathname === "/api/events" && url.searchParams.get("section") === tab,
+      ),
+    ).toBe(true);
+  },
+);
+
+it("opens the actual History tab route using game titles and the current owner's table history", async () => {
+  await render(
+    <MainListFixture>
+      <TablesScreen />
+    </MainListFixture>,
+  );
+  expect(
+    await screen.findByRole("button", { name: "Open table: History list table" }),
+  ).toBeVisible();
+  expect(listFixture.reads.some((url) => url.pathname === "/api/tables")).toBe(true);
+});
+
+it("opens the actual Community tab on the network activity feed", async () => {
+  await render(
+    <MainListFixture>
+      <CommunityScreen />
+    </MainListFixture>,
+  );
+  expect(await screen.findByText("First activity table")).toBeVisible();
+  expect(screen.getByTestId("top-tab-activity")).toBeSelected();
+  expect(listFixture.reads.some((url) => url.pathname === "/api/community/activities")).toBe(true);
 });

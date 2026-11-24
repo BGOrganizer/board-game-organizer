@@ -490,3 +490,28 @@ it("explains uneditable, unverified and last-Table deletion while retaining expl
   fireEvent.click(screen.getByRole("button", { name: "Delete event" }));
   expect(await screen.findByRole("dialog", { name: "Delete event?" })).toBeTruthy();
 });
+
+it("returns to its Group events tab only after an authorized confirmation of grouped Event deletion", async () => {
+  const fixture = setup();
+  const grouped = { ...fixture.event, groupId: optionId, groupType: "PRIVATE" as const };
+  fixture.client.setQueryData(eventRecordKeys.detail(fixture.options, eventId), grouped);
+  const requests = vi.fn(async (input: string, init?: RequestInit) => {
+    expect(new URL(input).pathname).toBe(`/api/events/${eventId}`);
+    expect(init?.method).toBe("DELETE");
+    expect(JSON.parse(String(init?.body))).toEqual({ version: grouped.version });
+    return Response.json({ id: eventId, groupId: optionId });
+  });
+  vi.stubGlobal("fetch", requests);
+  renderWithI18n(fixture.wrapper({ children: <EventDeleteAction event={grouped} /> }));
+  fireEvent.click(screen.getByRole("button", { name: "Delete event" }));
+  expect(mocks.replace).not.toHaveBeenCalled();
+  expect(requests).not.toHaveBeenCalled();
+  const confirmation = await screen.findByRole("dialog", { name: "Delete event?" });
+  fireEvent.click(within(confirmation).getByRole("button", { name: "Delete event" }));
+  expect(mocks.replace).toHaveBeenCalledExactlyOnceWith(`/groups/${optionId}?tab=events`);
+  await waitFor(() => expect(requests).toHaveBeenCalledOnce());
+  await waitFor(() => expect(fixture.client.isMutating()).toBe(0));
+  expect(
+    fixture.client.getQueryData(eventRecordKeys.detail(fixture.options, eventId)),
+  ).toBeUndefined();
+});

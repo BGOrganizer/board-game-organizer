@@ -20,6 +20,7 @@ import { record, type ToolOutput, toolOutput } from "./protocol";
 import { RankingResults } from "./RankingResults";
 import { RecordDetailResults } from "./RecordDetailResults";
 import { isRecordResultOperation, RecordResults, readRecordDetail } from "./RecordResults";
+import { RecordSelection } from "./RecordSelection";
 import { TableFinalResults } from "./TableFinalResults";
 import { WidgetNavigation } from "./WidgetNavigation";
 
@@ -63,6 +64,8 @@ function WidgetResponse() {
   );
   const [response, setResponse] = useState<Response>();
   const [failed, setFailed] = useState(false);
+  const [displayMode, setDisplayMode] = useState<McpUiHostContext["displayMode"]>();
+  const [displayModes, setDisplayModes] = useState<McpUiHostContext["availableDisplayModes"]>();
   const viewer = useRef<string>(undefined);
 
   useEffect(() => {
@@ -80,6 +83,14 @@ function WidgetResponse() {
         document.documentElement.dataset.theme = context.theme;
         document.documentElement.classList.toggle("dark", context.theme === "dark");
         document.documentElement.classList.toggle("light", context.theme === "light");
+      }
+      if (context?.displayMode) setDisplayMode(context.displayMode);
+      if (context?.availableDisplayModes) setDisplayModes(context.availableDisplayModes);
+      if (context?.safeAreaInsets) {
+        for (const side of ["top", "right", "bottom", "left"] as const) {
+          const inset = context.safeAreaInsets[side];
+          document.documentElement.style.setProperty(`--mcp-inset-${side}`, `${inset}px`);
+        }
       }
     }
 
@@ -132,6 +143,9 @@ function WidgetResponse() {
       app={app}
       output={output}
       input={input}
+      displayMode={displayMode}
+      displayModes={displayModes}
+      onDisplayModeChange={setDisplayMode}
       render={(next, nextInput, detailTab) => (
         <WidgetFrame app={app} output={next} input={nextInput} detailTab={detailTab} />
       )}
@@ -153,6 +167,11 @@ function WidgetFrame({
   input: unknown;
   detailTab?: string;
 }) {
+  if (output.operation === "show_bgo_records") {
+    return (
+      <RecordSelection app={app} view={output.widgetView} viewerUserId={output.viewerUserId} />
+    );
+  }
   if (["get_event", "get_group", "get_table"].includes(output.operation)) {
     const recordDetail = readRecordDetail(output.operation, output.data);
     if (recordDetail)

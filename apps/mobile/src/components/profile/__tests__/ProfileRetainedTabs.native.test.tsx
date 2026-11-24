@@ -627,3 +627,71 @@ it("removes the owner's Collection affordance on BGG-account denial while preser
   );
   expect(boundary.signOut).not.toHaveBeenCalled();
 });
+
+it.each([
+  { username: "recent-player", label: "recent-player" },
+  { username: null, label: "Unknown" },
+])(
+  "shows a safe $label identity and no fabricated win rate for an incomplete profile",
+  async ({ username, label }) => {
+    const subject = "new-profile";
+    profiles.set(subject, {
+      ...record(subject),
+      name: "",
+      username,
+      player: { gamesPlayed: 0, gamesWon: 0, winRate: null },
+      collection: null,
+    });
+    seed("owner", API, subject);
+    await render(<Fixture subject={subject} />);
+    expect(await screen.findByText(label)).toBeVisible();
+    expect(screen.queryByTestId("top-tab-collection")).toBeNull();
+    await select("player");
+    expect(screen.getByText("Win percentage")).toBeVisible();
+    expect(screen.getByText("—")).toBeVisible();
+    expect(screen.queryByText("0%")).toBeNull();
+  },
+);
+
+it("keeps a foreign published collection usable when the viewer's own BGG comparison is denied", async () => {
+  const subject = "published-owner";
+  seed("owner", API, subject);
+  boundary.accountStatus.set("owner", 403);
+  await render(<Fixture subject={subject} />);
+  await act(async () => {
+    await client.refetchQueries({ queryKey: bggAccountQuery(options()).queryKey, exact: true });
+  });
+  await select("collection");
+  expect(await screen.findByText("Chess collection")).toBeVisible();
+  expect(screen.queryByText("private-bgg-owner")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Sign out of your account" })).toBeNull();
+  const collectionReads = vi
+    .mocked(fetch)
+    .mock.calls.map(([value]) => new URL(String(value)))
+    .filter((url) => url.pathname === "/api/bgg/collection");
+  expect(collectionReads).not.toHaveLength(0);
+  expect(
+    collectionReads.every((url) => url.searchParams.get("snapshot") === `snapshot-${subject}`),
+  ).toBe(true);
+});
+
+it("shows sign-out failure and permits a fresh explicit login boundary request", async () => {
+  const user = userEvent.setup();
+  seed();
+  boundary.signOut.mockRejectedValueOnce(new Error("Local Clerk session could not be ended"));
+  await render(<Fixture />);
+  await user.press(screen.getByRole("button", { name: "Sign out of your account" }));
+  await user.press(screen.getByRole("button", { name: "Sign out" }));
+  const failure = "Could not sign out. Try again.";
+  expect(await screen.findByText(failure)).toBeVisible();
+  expect(boundary.replace).not.toHaveBeenCalled();
+  expect(boundary.cacheSignOut).toHaveBeenCalledOnce();
+  expect(boundary.signOut).toHaveBeenCalledOnce();
+
+  await user.press(screen.getByRole("button", { name: "Sign out of your account" }));
+  await user.press(screen.getByRole("button", { name: "Sign out" }));
+  await waitFor(() => expect(boundary.replace).toHaveBeenCalledExactlyOnceWith("/"));
+  expect(boundary.cacheSignOut).toHaveBeenCalledTimes(2);
+  expect(boundary.signOut).toHaveBeenCalledTimes(2);
+  expect(screen.queryByText(failure)).toBeNull();
+});

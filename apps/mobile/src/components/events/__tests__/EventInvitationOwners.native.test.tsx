@@ -25,10 +25,10 @@ import {
 } from "@testing-library/react-native";
 import { View } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import EventInvitationScreen from "@/app/event/invite";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import { beginOptimisticOperation } from "../../../../../../packages/shared/src/common/optimisticOperation";
 import { plannedEvent, plannedTable } from "../../../../../web/src/test-fixtures/eventRecords";
-import { EventInvitationPicker } from "../EventInvitationPicker";
 import { EventTableInvitationActions } from "../EventTableInvitationActions";
 
 const API = "https://invitation-owners-native.test";
@@ -52,6 +52,7 @@ vi.mock("expo-constants", () => ({
 }));
 vi.mock("expo-router", () => ({
   useRouter: () => ({ back: io.back }),
+  useLocalSearchParams: () => (incompleteRoute ? {} : { eventId: event.id, tableId: table.id }),
   Stack: { Screen: () => null },
 }));
 const options = {
@@ -62,6 +63,7 @@ const options = {
 };
 const otherId = "55555555-5555-4555-8555-555555555555";
 const otherTableId = "66666666-6666-4666-8666-666666666666";
+let incompleteRoute: boolean;
 let client: QueryClient;
 let event: PlannedEventResponse;
 let table: PlannedTableResponse;
@@ -99,7 +101,7 @@ function Fixture({ picker = false, sibling = false }: { picker?: boolean; siblin
     <QueryClientProvider client={client}>
       <NativeTestProviders>
         {picker ? (
-          <EventInvitationPicker eventId={event.id} tableId={table.id} />
+          <EventInvitationScreen />
         ) : (
           <>
             <View testID="current-invitation">
@@ -122,6 +124,7 @@ function card(id = "current-invitation") {
 async function pressCard(label: string, id?: string) {
   await userEvent.setup().press(card(id).getByRole("button", { name: label }));
 }
+let candidateUsername: string | null;
 async function http(input: RequestInfo | URL, init?: RequestInit) {
   const url = new URL(
     typeof input === "string" ? input : input instanceof URL ? input.href : input.url,
@@ -153,7 +156,7 @@ async function http(input: RequestInfo | URL, init?: RequestInit) {
           {
             id: "guest",
             name: "Guest Player",
-            username: "guest",
+            username: candidateUsername,
             avatarUrl: null,
             email: null,
             invitationBlockReason: null,
@@ -234,6 +237,8 @@ async function http(input: RequestInfo | URL, init?: RequestInit) {
   throw new Error("Unexpected invitation endpoint");
 }
 beforeEach(() => {
+  incompleteRoute = false;
+  candidateUsername = "guest";
   io.back.mockClear();
   io.token.mockClear();
   registration = {
@@ -648,4 +653,87 @@ it("keeps uncached event restoration distinct from invitation denial before show
   await act(() => gate.resolve());
   expect(await screen.findByText("@guest")).toBeVisible();
   expect(writes).toEqual([]);
+});
+
+it("explicitly closes an unsent guest draft and resets both inputs without creating a table entry", async () => {
+  await render(<Fixture picker />);
+  const user = userEvent.setup();
+  await user.press(await screen.findByRole("button", { name: "Add a guest" }));
+  await fireEvent.changeText(await screen.findByLabelText("Username"), "Temporary guest");
+  await fireEvent.changeText(screen.getByLabelText("Email"), "temporary@example.test");
+  await user.press(screen.getByRole("button", { name: "Close" }));
+  expect(screen.queryByLabelText("Username")).toBeNull();
+  expect(io.back).not.toHaveBeenCalled();
+  expect(writes).toHaveLength(0);
+
+  await user.press(screen.getByRole("button", { name: "Add a guest" }));
+  expect(await screen.findByLabelText("Username")).toHaveDisplayValue("");
+  expect(screen.getByLabelText("Email")).toHaveDisplayValue("");
+});
+
+it("keeps guest name and optional email after refusal and fences duplicate submit and dismiss while saving", async () => {
+  writeStatus = 422;
+  const { promise, resolve } = deferred();
+  pauseWrite = promise;
+  await render(<Fixture picker />);
+  const user = userEvent.setup();
+  await user.press(await screen.findByRole("button", { name: "Add a guest" }));
+  const name = await screen.findByLabelText("Username");
+  const email = screen.getByLabelText("Email");
+  await fireEvent.changeText(name, " Guest Volunteer ");
+  await fireEvent.changeText(email, " volunteer@example.test ");
+  await user.press(screen.getByRole("button", { name: "Add" }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0]).toMatchObject({
+    method: "POST",
+    path: `/api/events/${event.id}/tables/${table.id}/guests`,
+    body: { name: "Guest Volunteer", email: "volunteer@example.test" },
+  });
+  const close = screen.getByRole("button", { name: "Close" });
+  expect(close).toBeDisabled();
+  await user.press(close);
+  await fireEvent(email, "submitEditing", { nativeEvent: { text: "volunteer@example.test" } });
+  expect(io.back).not.toHaveBeenCalled();
+  expect(writes).toHaveLength(1);
+  await act(() => resolve());
+  expect(await screen.findByText("Could not add guest. Try again.")).toBeOnTheScreen();
+  expect(name).toHaveDisplayValue(" Guest Volunteer ");
+  expect(email).toHaveDisplayValue(" volunteer@example.test ");
+  expect(io.back).not.toHaveBeenCalled();
+  expect(screen.getByRole("button", { name: "Add" })).toBeEnabled();
+
+  writeStatus = 200;
+  await user.press(screen.getByRole("button", { name: "Add" }));
+  await waitFor(() => expect(io.back).toHaveBeenCalledOnce());
+  expect(writes).toHaveLength(2);
+  expect(writes[1].body).toMatchObject({
+    name: "Guest Volunteer",
+    email: "volunteer@example.test",
+  });
+  expect(screen.queryByLabelText("Username")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Select user: Guest Volunteer" })).toBeNull();
+});
+
+it("does not expose invitation or guest writes from an Expo link missing its event and table", async () => {
+  incompleteRoute = true;
+  await render(<Fixture picker />);
+  expect(screen.queryByRole("button", { name: "Add a guest" })).toBeNull();
+  expect(screen.queryByTestId("generate-table-invite-link")).toBeNull();
+  expect(screen.queryByText("@guest")).toBeNull();
+  expect(reads).toEqual([]);
+  expect(writes).toEqual([]);
+});
+
+it("invites a registered candidate with no public username without claiming their seat or inventing a handle", async () => {
+  candidateUsername = null;
+  await render(<Fixture picker />);
+  expect(await screen.findByText("Guest Player")).toBeVisible();
+  expect(screen.queryByText("@guest")).toBeNull();
+  const controls = screen.getAllByRole("button", { name: "Select user: Guest Player" });
+  await userEvent.setup().press(controls[0]);
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0].body).toEqual({ userId: "guest" });
+  expect(writes[0].path).toBe(`/api/events/${event.id}/tables/${table.id}/invitations`);
+  expect(io.back).toHaveBeenCalledOnce();
+  expect(writes.some(({ path }) => path.startsWith("/api/table-registrations/"))).toBe(false);
 });

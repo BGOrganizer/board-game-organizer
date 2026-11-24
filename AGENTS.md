@@ -27,6 +27,9 @@ Core rules:
 - Use `import type` for type-only imports.
 - Read applicable existing domain/operations documents before changing that area; link them rather
   than duplicating their specifications. This file and README describe current behavior, not a roadmap.
+- After adding, changing or removing a feature, update `README.md`, `AGENTS.md` and the affected
+  guides under `docs/` in the same change. Keep the README focused on current capabilities, update
+  the applicable agent instructions and references, and put detailed behavior in its domain guide.
 
 ### Task execution and subagents
 
@@ -42,10 +45,11 @@ Core rules:
 
 ## 2. Product and required references
 
-This Bun/Turborepo TypeScript monorepo has web and native mobile clients backed by one API.
+This Bun/Turborepo TypeScript monorepo has web, native mobile and MCP clients backed by one API,
+plus a public informational site.
 Board Game Organizer supports **Groups / Events / Tables**, social contacts, game collections,
 profiles, notifications and game results.
-The [unified contract](docs/groups-events-refactor.md) governs roles, consent, planning modes,
+The [unified contract](docs/groups-events-tables.md) governs roles, consent, planning modes,
 votes, explicit manager confirmation, immutable results and list eligibility.
 Legacy writers stay retired; historical database records remain intact and excluded from unified readers.
 Never restore automatic organizer seats, server Event drafts or automatic deadline confirmation.
@@ -57,15 +61,18 @@ Read the relevant guide before changing its area, including when shared changes 
 | --- | --- |
 | API routes, repositories and server authorization | [apps/api/AGENTS.md](apps/api/AGENTS.md) |
 | Web components, routing and browser integration | [apps/web/AGENTS.md](apps/web/AGENTS.md) |
+| Public site, localization and links | [apps/site/README.md](apps/site/README.md) |
+| MCP tools, OAuth and embedded HeroUI views | [MCP Apps](docs/mcp-apps.md) |
 | Native components, routing, permissions and builds | [apps/mobile/AGENTS.md](apps/mobile/AGENTS.md) |
 | Shared hooks, queries, mutations, cache and startup | [State and cache](docs/state-and-cache.md) |
 | Localization and catalogs | [Development localization](docs/development.md#localization) |
 | Profiles and BGG collection visibility | [Profiles](docs/profiles.md) |
 | Social activities and source visibility | [Community](docs/community.md) |
+| Notification kind, copy, icon and destination | [Notifications](docs/notifications.md) |
 | Skills for the affected task | [Agent skills](docs/agent-skills.md) |
-| Provider isolation, CI, cleanup and releases | [Operational gates](docs/organizations-events-operations.md) |
+| Provider isolation, CI, cleanup and releases | [Operational gates](docs/deployment-operations.md) |
 | Artwork and exports | [Branding](docs/branding.md) |
-| Runtime acceptance and verification limits | [Verification requirements](docs/implementation-progress.md) |
+| Runtime acceptance and verification limits | [Verification requirements](docs/verification-and-acceptance.md) |
 
 Subdirectory instructions specialize the root rules without duplicating them. Explicit operator scope
 and repository invariants override generic skill examples. Historical notes never grant permission
@@ -74,6 +81,7 @@ for new provider operations or establish production/device acceptance.
 ## 3. Workspace and commands
 
 `apps/api`, `apps/web` and `apps/mobile` own application entry points and platform adapters.
+`apps/mcp` owns tool transport and embedded UI, and `apps/site` owns the public website.
 `packages/shared` owns pure domain logic and reusable hooks; `schemas` owns models/DTOs;
 `query` owns Query setup; `store` owns local UI/drafts. Configuration packages remain small.
 Current versions come from manifests and `bun.lock`, not copied version lists.
@@ -100,7 +108,9 @@ Run from the repository root. Bun installs dependencies; Node.js remains the app
 | One test file | `bun run --filter web test src/components/events/__tests__/useTableSeatOrder.test.tsx` |
 | MongoDB integration | `bun run --filter api test:integration` |
 | Web E2E | `bun run --filter web test:e2e` |
-| API/web builds | `bun run build` |
+| MCP widget build / iframe E2E | `bun run --filter @board-game-organizer/mcp build` / `bun run --filter @board-game-organizer/mcp test:e2e` |
+| Public site coverage / E2E | `bun run --filter site test:coverage` / `bun run --filter site test:e2e` |
+| Workspace builds | `bun run build` |
 | Extract / compile translations | `bun run i18n:extract` / `bun run i18n:compile` |
 
 There is no root test script. `bun run build` does not build native binaries.
@@ -220,14 +230,14 @@ Report unavailable kernel limits separately from the application limits actually
   consent and acknowledge those decisions. Container entry, time, focus, scrolling or votes never read notices.
   Source acknowledgments reconcile related indicators immediately, preserving later/unshown information.
 - Read [State, cache and startup](docs/state-and-cache.md) for workers, polling exceptions,
-  persistence eligibility and mutation behavior; [Notification attention](docs/groups-events-refactor.md#notification-attention)
+  persistence eligibility and mutation behavior; [Notification attention](docs/groups-events-tables.md#notification-attention)
   owns dots, Alerts and partial-read semantics.
 
 ## 7. Verification
 
-Vitest covers web, native React components, API, shared logic and schemas. Include all first-party
+Vitest covers Web, native React components, API, MCP, Site, schemas and shared runtime packages. Include all first-party
 application and package runtime sources in coverage, including web and mobile components and
-uncovered files. Require **at least 90% lines, functions, branches and statements across the entire project**.
+uncovered files. Require **at least 98% lines, functions, branches and statements in every application and runtime package**.
 Keep isolated unit tests distinct from component integrations using real hooks, Query and cache.
 Testing Library events run in the test renderer; they are not browser/device E2E journeys.
 Coverage may combine both layers; Playwright/Maestro acceptance and Reassure measurements stay explicit.
@@ -238,7 +248,7 @@ not application runtime sources; keep any such exclusions explicit and justified
 
 Before committing and pushing, run only new or modified test files locally, after scoped lint and
 typechecking. Select the files explicitly with the workspace's test command. Run unchanged test
-files and complete workspace coverage in CI on the pushed revision. The 90% coverage gate is
+files and complete workspace coverage in CI on the pushed revision. The 98% coverage gate is
 verified by CI against that exact revision, including required API integration coverage.
 
 API integration tests use Testcontainers with MongoDB configured as a single-node replica set so
@@ -259,7 +269,7 @@ which also covers the configuration shared by linked worktrees.
 
 The API's `test:coverage` combines its unit and integration projects into one source-wide report;
 Docker is required. Its ordinary `test` command selects the unit project only. Do not treat either
-partial API report as the complete 90% gate or replace real repository tests with mock-only coverage.
+partial API report as the complete 98% gate or replace real repository tests with mock-only coverage.
 
 Component tests use the actual application component implementations: React Testing Library for
 web and React Native Testing Library for mobile. Use Vitest for both. Mocks belong at explicit
@@ -278,7 +288,8 @@ Every component needs meaningful render/update scenarios with Reassure assertion
 rerender-count contracts calibrated from repeated observed samples. Record durations and sample
 counts; apply timing regression limits only against a stable, host-matched baseline. A passing
 finite-duration assertion alone does not establish a performance budget. Coverage-instrumented
-runs are not performance measurements. See [React benchmarks](docs/render-performance.md).
+runs verify component reachability separately. Branch, Preview and Main publish paired Web and
+Mobile measurements. See [React benchmarks](docs/render-performance.md).
 
 For native responsiveness investigations, capture a bounded Perfetto trace around a focused
 Maestro flow, then analyze it using the **project-pinned** `bun run perfetto` tool. Verify the
@@ -295,7 +306,7 @@ Every product feature requires both:
 - Maestro coverage for mobile in `apps/mobile/.maestro/flows`.
 
 New and changed feature behavior must cover every required acceptance path across unit, API, and E2E
-suites. Add per-file 90% line, function, branch, and statement thresholds for deterministic logic
+suites. Add per-file 98% line, function, branch, and statement thresholds for new deterministic logic
 measured by Vitest. Because Playwright and Maestro do not expose statement metrics, exercise every
 user-visible success, empty, failure, and action path on both clients.
 
@@ -358,14 +369,14 @@ Infisical environments and attest the deployed database before directing traffic
 checks against the selected API/Web pair. Main switches only the three canonical DNS hosts for
 API, Web and Site, after verifying the selected deployments, HTTPS for each destination and the
 current Main commit. Keep MCP on the canonical API host. See the
-[Production DNS switch](docs/organizations-events-operations.md#production-dns-switch).
-Use the [manual hosting scaffold](docs/organizations-events-operations.md#scaffold-hosting-projects)
+[Production DNS switch](docs/deployment-operations.md#production-dns-switch).
+Use the [manual hosting scaffold](docs/deployment-operations.md#scaffold-hosting-projects)
 to create missing projects in the selected team. Scope tokens through the environment's Infisical
 sync and keep existing projects, domain assignments and live credentials under their owner. See
-[Vercel preflight and Netlify fallback](docs/organizations-events-operations.md#vercel-preflight-and-netlify-fallback).
+[Vercel preflight and Netlify fallback](docs/deployment-operations.md#vercel-preflight-and-netlify-fallback).
 
 Every job using local GitHub actions must checkout first. CI/workflow files and
-[operational gates](docs/organizations-events-operations.md) govern actual routing, required checks,
+[operational gates](docs/deployment-operations.md) govern actual routing, required checks,
 APK provenance, isolated fixture cleanup and publication. Never bypass protection, reuse unverified
 artifacts or treat default-branch controllers as activated by a feature-branch edit.
 

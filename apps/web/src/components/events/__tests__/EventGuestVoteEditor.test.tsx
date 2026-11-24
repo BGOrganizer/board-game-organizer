@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { plannedEvent, plannedTable } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
@@ -81,4 +81,58 @@ it("stages choices across tabs and keeps the draft after a failed submission", a
     ],
   };
   expect(changes).toEqual([batch, batch]);
+});
+
+it("allows a vote for an option without catalog metadata and prevents closing the sheet while saving", async () => {
+  const table = { ...plannedTable, canManage: true, gameVoteRequired: true, gamesDetail: [] };
+  const votes = {
+    guestName: "Guest Alice",
+    dateVotes: {},
+    locationVotes: {},
+    gameVotes: { "1": "YES" },
+  };
+  let finish: (response: Response) => void = () => {
+    throw new Error("Expected pending vote write");
+  };
+  const pending = new Promise<Response>((resolve) => {
+    finish = resolve;
+  });
+  const writes: unknown[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string, init?: RequestInit) => {
+      const path = new URL(input).pathname;
+      if (path === `/api/events/${table.eventId}`)
+        return Response.json({ ...plannedEvent, canManage: true });
+      if (path.endsWith("/guests/guest-entry")) return Response.json(votes);
+      if (path.endsWith("/guests/guest-entry/votes") && init?.method === "POST") {
+        writes.push(JSON.parse(String(init.body)));
+        return pending;
+      }
+      throw new Error(`Unexpected guest vote request: ${path}`);
+    }),
+  );
+  const close = vi.fn();
+  renderWithI18n(
+    <EventGuestVoteEditor
+      name="Guest Alice"
+      registrationId="guest-entry"
+      table={table}
+      onClose={close}
+    />,
+  );
+  const dialog = await screen.findByRole("dialog", { name: "Edit guest votes" });
+  const sheet = within(dialog);
+  fireEvent.click(await sheet.findByRole("button", { name: "Unknown game: If needed" }));
+  fireEvent.click(sheet.getByRole("button", { name: "Vote" }));
+  await waitFor(() =>
+    expect(writes).toEqual([
+      { votes: [{ kind: "game", tableId: table.id, gameId: 1, vote: "IF_NEEDED" }] },
+    ]),
+  );
+  expect(sheet.getByRole("button", { name: "Close" })).toBeDisabled();
+  fireEvent.keyDown(dialog, { key: "Escape" });
+  expect(close).not.toHaveBeenCalled();
+  await act(() => finish(Response.json({ ...votes, gameVotes: { "1": "IF_NEEDED" } })));
+  await waitFor(() => expect(close).toHaveBeenCalledOnce());
 });

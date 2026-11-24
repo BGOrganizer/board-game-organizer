@@ -206,3 +206,24 @@ it("requires a fresh snapshot after the event revision advances, preserving the 
     screen.queryByText("The roster changed. Review a fresh snapshot before saving."),
   ).toBeNull();
 });
+
+it("keeps an authorized seat movable when the account profile no longer supplies a public identity", async () => {
+  const first = snapshot.registrations[0];
+  snapshot.registrations[0] = { ...first, name: null, username: null, avatarUrl: null };
+  mount();
+  fireEvent.click(screen.getByRole("button", { name: "Edit roster" }));
+  expect(await screen.findByText("Username unavailable")).toBeVisible();
+  expect(screen.queryByText(first.userId)).toBeNull();
+  const move = screen.getByTestId(`seat-order-down-${first.id}`);
+  expect(move).toBeEnabled();
+  fireEvent.click(move);
+  fireEvent.click(screen.getByRole("button", { name: "Save seat order" }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0].input.registrations).toContainEqual({
+    id: first.id,
+    locked: false,
+    seatIndex: 1,
+    version: first.version,
+  });
+  expect(JSON.stringify(writes[0].input)).not.toContain(first.userId);
+});

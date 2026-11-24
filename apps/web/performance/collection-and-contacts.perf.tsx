@@ -4,6 +4,7 @@ import type {
   NotificationAttentionSnapshot,
   NotificationAttentionTarget,
 } from "@board-game-organizer/schemas";
+import { notificationAttentionQuerySchema } from "@board-game-organizer/schemas";
 import {
   bggCollectionQuery,
   type ContactUser,
@@ -18,7 +19,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { afterAll, afterEach, expect, test, vi } from "vitest";
-import { Contacts } from "@/components/contacts/Contacts";
+import ContactsPage from "@/app/(tabs)/contacts/page";
 import { ProfileCollection } from "@/components/profile/ProfileCollection";
 import { installBrowserIntersections } from "@/test-fixtures/browserIntersections";
 import { renderWithI18n } from "@/test-utils";
@@ -29,6 +30,9 @@ const sdk = vi.hoisted(() => {
   process.env.NEXT_PUBLIC_API_URL = "https://collection-contacts-render.test";
   return { previousApiUrl, getToken: vi.fn(async () => "cached-render-token") };
 });
+vi.mock("next/headers", () => ({
+  headers: async () => new Headers({ "accept-language": "en-US" }),
+}));
 vi.mock("@clerk/nextjs", () => ({
   useAuth: () => ({ userId: "viewer", isLoaded: true, isSignedIn: true, getToken: sdk.getToken }),
 }));
@@ -148,6 +152,9 @@ const attention: NotificationAttentionSnapshot = {
 const attentionKey = notificationAttentionQuery(options, attentionTargets).queryKey;
 let activeClient: QueryClient | undefined;
 const presenceWrites: string[] = [];
+const attentionReads: NotificationAttentionTarget[][] = [];
+let coldConnections = false;
+let releaseFriends: (() => void) | undefined;
 const forbiddenRequests: string[] = [];
 function currentClient() {
   if (!activeClient) throw new Error("Expected the current measured Query owner");
@@ -158,7 +165,7 @@ function renderCached(element: ReactElement) {
     defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { retry: false } },
   });
   activeClient = client;
-  presenceWrites.length = forbiddenRequests.length = 0;
+  presenceWrites.length = forbiddenRequests.length = attentionReads.length = 0;
   installBrowserIntersections();
   client.setQueryData(collectionKey(), collectionPages);
   client.setQueryData(collectionKey("games"), gamesPages);
@@ -171,7 +178,7 @@ function renderCached(element: ReactElement) {
     "sent",
     "blocked",
   ];
-  for (const kind of kinds)
+  for (const kind of kinds.filter((kind) => !coldConnections || kind !== "friends"))
     client.setQueryData(
       relationshipListKey(API, "viewer", kind),
       kind === "friends"
@@ -196,6 +203,33 @@ function renderCached(element: ReactElement) {
         presenceWrites.push(url.pathname);
         return Response.json({ success: true, lastActiveAt: "2030-06-12T10:00:00.000Z" });
       }
+      if (
+        coldConnections &&
+        url.pathname === "/api/notifications/attention" &&
+        (init?.method ?? "GET") === "GET"
+      ) {
+        const { targets, navigation } = notificationAttentionQuerySchema.parse(
+          Object.fromEntries(url.searchParams),
+        );
+        expect(navigation).toBe("history");
+        const matchingTargets = attention.targets.filter(({ target }) =>
+          targets.some(({ kind, id }) => target.kind === kind && target.id === id),
+        );
+        expect(targets.length).toBeGreaterThan(0);
+        expect(matchingTargets).toHaveLength(targets.length);
+        attentionReads.push(targets);
+        return Response.json({ ...attention, targets: matchingTargets });
+      }
+      if (
+        coldConnections &&
+        url.pathname === "/api/relationships" &&
+        (init?.method ?? "GET") === "GET" &&
+        url.searchParams.get("type") === "friends"
+      ) {
+        return new Promise<Response>((resolve) => {
+          releaseFriends = () => resolve(Response.json(friendPages.pages[0]));
+        });
+      }
       forbiddenRequests.push(`${init?.method ?? "GET"} ${url.pathname}`);
       throw new Error(`Unexpected I/O during cached measurement: ${forbiddenRequests.at(-1)}`);
     }),
@@ -214,6 +248,8 @@ configure({
 });
 afterEach(() => {
   cleanupCached();
+  coldConnections = false;
+  releaseFriends = undefined;
   vi.unstubAllGlobals();
 });
 afterAll(() => {
@@ -271,7 +307,7 @@ test(collectionScenario, async () => {
 const contactsScenario =
   "Contacts: cached top-tab reentry and authoritative friend update preserve pending decisions";
 test(contactsScenario, async () => {
-  const result = await measureRenders(<Contacts />, {
+  const result = await measureRenders(await ContactsPage(), {
     scenario: async () => {
       const client = currentClient();
       expect(await screen.findByText("Cached friend 1")).toBeVisible();
@@ -317,4 +353,32 @@ test(contactsScenario, async () => {
     },
   });
   assertRenderMeasurement(result, contactsScenario);
+});
+
+const coldConnectionsScenario =
+  "Contacts: replace a missing first-page skeleton with the authorized friend rows";
+test(coldConnectionsScenario, async () => {
+  coldConnections = true;
+  const result = await measureRenders(await ContactsPage(), {
+    beforeEach: () => {
+      releaseFriends = undefined;
+    },
+    scenario: async () => {
+      expect(screen.getAllByTestId("contact-skeleton-row")).toHaveLength(2);
+      expect(screen.queryByText("No connections yet")).toBeNull();
+      await waitFor(() => expect(releaseFriends).toBeDefined());
+      await act(async () => releaseFriends?.());
+      expect(await screen.findByText("Cached friend 1")).toBeVisible();
+      expect(screen.queryByTestId("contact-skeleton-row")).toBeNull();
+      expect(screen.queryByText("Other account private friend")).toBeNull();
+      expect(
+        currentClient().getQueryData(relationshipListKey(API, "different-owner", "friends")),
+      ).toBe(foreignFriends);
+      await waitFor(() => expect(currentClient().isFetching()).toBe(0));
+      expect(presenceWrites).toHaveLength(1);
+      expect(attentionReads.length).toBeGreaterThan(0);
+      expect(forbiddenRequests).toEqual([]);
+    },
+  });
+  assertRenderMeasurement(result, coldConnectionsScenario);
 });

@@ -81,3 +81,10 @@ describe("list search and cursor pagination", () => {
       expect(query(value)).toBeNull();
   });
 });
+
+it("returns the filtered list and no next cursor when a historical caller omits the limit", () => {
+  expect(pageNamedList(rows, validQuery("query=catan"), role)).toEqual({
+    items: rows.slice(0, 2),
+    nextCursor: null,
+  });
+});

@@ -90,6 +90,8 @@ const candidate = {
 };
 let client: QueryClient;
 let eventStatus: number;
+let proposalStatus: number;
+let pendingTable: Promise<Response> | undefined;
 let pendingEvent: Promise<Response> | undefined;
 const reads: URL[] = [],
   writes: SubmitEventProposalInput[] = [];
@@ -99,6 +101,8 @@ beforeEach(() => {
   vi.stubEnv("NEXT_PUBLIC_MAPTILER_API_KEY", "public-fixture-map-key");
   reads.length = writes.length = 0;
   eventStatus = 200;
+  proposalStatus = 201;
+  pendingTable = undefined;
   pendingEvent = undefined;
   installBrowserIntersections();
   client = new QueryClient({
@@ -113,6 +117,8 @@ beforeEach(() => {
       if (init?.method === "POST" && url.pathname === `/api/events/${event.id}/proposals`) {
         const input = submitEventProposalSchema.parse(JSON.parse(String(init.body)));
         writes.push(input);
+        if (proposalStatus !== 201)
+          return Response.json({ error: "Rejected fixture proposal" }, { status: proposalStatus });
         const response: EventProposalResponse = {
           id: "55555555-5555-4555-8555-555555555555",
           eventId: event.id,
@@ -139,7 +145,7 @@ beforeEach(() => {
           })
         );
       if (url.pathname === `/api/events/${event.id}/tables/${table.id}`)
-        return Response.json(table);
+        return pendingTable ?? Response.json(table);
       if (url.pathname.endsWith("/bgg/account"))
         return Response.json({ active: null, pending: null });
       if (url.pathname.endsWith("/bgg/picker"))
@@ -327,3 +333,56 @@ it.each(["game", "location"])(
     expect(writes).toHaveLength(0);
   },
 );
+
+it("does not expose a Game proposal until its specific Table read succeeds after a transient failure", async () => {
+  let answer: (response: Response) => void = () => {
+    throw new Error("Expected a pending Table read");
+  };
+  pendingTable = new Promise((resolve) => {
+    answer = resolve;
+  });
+  mount("game", { seed: false });
+  await waitFor(() =>
+    expect(reads.some((url) => url.pathname.endsWith(`/tables/${table.id}`))).toBe(true),
+  );
+  expect(screen.queryByText(deniedMessage)).toBeNull();
+  expect(screen.queryByRole("searchbox", { name: "Search board games" })).toBeNull();
+  await act(() => answer(Response.json({ error: "Temporary failure" }, { status: 503 })));
+  expect(await screen.findByText(deniedMessage)).toBeVisible();
+  pendingTable = undefined;
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  expect(await screen.findByRole("searchbox", { name: "Search board games" })).toBeVisible();
+  expect(writes).toEqual([]);
+  expect(reads.filter((url) => url.pathname.endsWith(`/tables/${table.id}`))).toHaveLength(2);
+});
+
+it("prepopulates only a genuinely rejected location draft and retries its original authorized option", async () => {
+  proposalStatus = 400;
+  const original = mount("location");
+  const search = await screen.findByRole("searchbox", { name: "Search address/place" });
+  fireEvent.change(search, { target: { value: "New verified road" } });
+  fireEvent.click(await screen.findByRole("button", { name: candidate.address }));
+  fireEvent.change(screen.getByRole("textbox", { name: "Location name" }), {
+    target: { value: candidate.name },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Confirm Location" }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  await waitFor(() => expect(client.isMutating()).toBe(0));
+  const failed = client
+    .getMutationCache()
+    .getAll()
+    .find(
+      (entry) => entry.state.status === "error" && entry.options.mutationKey?.includes("propose"),
+    );
+  if (!failed) throw new Error("Expected a rejected proposal retaining its draft");
+  original.unmount();
+  proposalStatus = 201;
+  mount("location", { draftId: String(failed.mutationId) });
+  expect(await screen.findByRole("textbox", { name: "Location name" })).toHaveValue(candidate.name);
+  expect(screen.getByRole("searchbox", { name: "Search address/place" })).toHaveValue("");
+  expect(writes).toHaveLength(1);
+  fireEvent.click(screen.getByRole("button", { name: "Confirm Location" }));
+  await waitFor(() => expect(writes).toHaveLength(2));
+  expect(writes[1]).toEqual(writes[0]);
+  expect(boundary.back).toHaveBeenCalledTimes(2);
+});

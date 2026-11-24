@@ -177,3 +177,56 @@ it("shows overlapping decorative avatars and opens the corresponding read-only v
   expect(screen.queryByLabelText("Votes: Azul")).toBeNull();
   expect(screen.queryByText("@albar", hidden)).toBeNull();
 });
+
+it("cancels the real ballot dialog without changing the retained vote or revealing named votes", async () => {
+  const choose = vi.fn();
+  const user = userEvent.setup();
+  await render(
+    <EventVoteButtons label="Azul" busy={false} value="YES" voters={voters} onChange={choose} />,
+    {
+      wrapper: NativeTestProviders,
+    },
+  );
+  const trigger = screen.getByRole("button", { name: "Azul: Yes" });
+  await user.press(trigger);
+  const dialog = within(await screen.findByTestId("confirmation-dialog"));
+  await user.press(dialog.getByRole("button", { name: "Cancel" }));
+  await waitFor(() => expect(screen.queryByTestId("confirmation-dialog")).toBeNull());
+  expect(screen.getByRole("button", { name: "Azul: Yes" })).toBe(trigger);
+  expect(trigger).not.toHaveProp("accessibilityState", expect.objectContaining({ expanded: true }));
+  expect(screen.queryByText("@albar", hidden)).toBeNull();
+  expect(choose).not.toHaveBeenCalled();
+});
+
+it("keeps guest ballots and missing usernames legible when opening an existing vote category", async () => {
+  await render(
+    <OptionVoteVoters
+      label="Games night"
+      voters={{
+        YES: [
+          {
+            userId: "guest-one",
+            guestName: "guest-one",
+            name: null,
+            username: null,
+            avatarUrl: null,
+          },
+          { userId: "unknown-one", name: null, username: null, avatarUrl: null },
+        ],
+        IF_NEEDED: [],
+        NO: [],
+      }}
+    />,
+    { wrapper: NativeTestProviders },
+  );
+  const summary = screen.getByLabelText("Votes: Games night");
+  expect(within(summary).getAllByRole("button")).toHaveLength(1);
+  await userEvent
+    .setup()
+    .press(within(summary).getByRole("button", { name: "Games night: Show votes — Yes" }));
+  expect(await screen.findByText("@guest-one", hidden)).toBeOnTheScreen();
+  expect(screen.getByText("Username unavailable", hidden)).toBeOnTheScreen();
+  expect(screen.getByRole("tab", { name: "Yes", ...hidden })).toBeSelected();
+  await fireEvent.press(screen.getByRole("button", { name: "Close", ...hidden }));
+  expect(screen.queryByText("@guest-one", hidden)).toBeNull();
+});

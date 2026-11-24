@@ -13,7 +13,7 @@ node --test .github/scripts/__tests__/semantic-release.test.mjs
 
 This calls the installed generator/analyzer with fixtures, rather than running the release CLI.
 For pinned preparation, retries and private staging, follow the
-[Main delivery contract](../../docs/organizations-events-operations.md#main-delivery-and-manual-environment-selection).
+[Main delivery contract](../../docs/deployment-operations.md#main-delivery-and-manual-environment-selection).
 
 ## Synchronize product versions
 
@@ -23,10 +23,10 @@ For pinned preparation, retries and private staging, follow the
 node scripts/release/bump-versions.mjs 1.2.3
 ```
 
-It updates `version` in all three app `package.json` files and the Expo version in
+It updates `version` in the API, Web, Mobile and MCP `package.json` files and the Expo version in
 `apps/mobile/app.config.js`. It accepts a semantic version, including prerelease/build suffixes.
 It does not commit, tag, publish or build a native binary. Use it only for an intended version
-change and inspect the four-file diff. Routine release execution belongs to the existing pipeline.
+change and inspect the five-file diff. Site deployment is independent of the product version.
 
 ## Render PR notes
 
@@ -83,4 +83,4 @@ commit entries, links and HTML entities remain intact. Invalid metadata, oversiz
 and Telegram API rejection fail the notification; provider responses and credentials are not logged.
 
 CI invokes this helper through the [Telegram composite action](../../.github/actions/telegram-notify/action.yml).
-See [operational gates](../../docs/organizations-events-operations.md) for publication and environment scope.
+See [operational gates](../../docs/deployment-operations.md) for publication and environment scope.

@@ -5,8 +5,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { afterAll, afterEach, expect, test, vi } from "vitest";
+import ProposalPage from "@/app/(tabs)/events/[eventId]/proposals/new/page";
 import { EventJoinSheet } from "@/components/events/EventJoinSheet";
-import { EventProposalEditor } from "@/components/events/EventProposalEditor";
+import { enterDateTime, readDateTime } from "@/test-fixtures/dateTime";
 import { optionId, plannedEvent, plannedTable, seat } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { assertRenderMeasurement } from "./assertRenderMeasurement";
@@ -259,15 +260,18 @@ const proposalScenario =
 test(proposalScenario, async () => {
   measurementKind = "proposal";
   const result = await measureRenders(
-    <EventProposalEditor eventId={plannedEvent.id} kind="date" />,
+    await ProposalPage({
+      params: Promise.resolve({ eventId: plannedEvent.id }),
+      searchParams: Promise.resolve({ kind: "date" }),
+    }),
     {
       scenario: async () => {
-        const input = await screen.findByLabelText("Choose date and time");
+        const input = await screen.findByRole("group", { name: "Choose date and time" });
         fireEvent.click(screen.getByRole("button", { name: "Send proposal" }));
         expect(screen.getByRole("alert")).toHaveTextContent("Choose a valid date and time.");
-        fireEvent.change(input, { target: { value: "2030-06-04T19:15" } });
+        enterDateTime(input, "2030-06-04T19:15");
         expect(screen.queryByRole("alert")).toBeNull();
-        expect(input).toHaveValue("2030-06-04T19:15");
+        expect(readDateTime(input)).toBe("2030-06-04T19:15");
         const revoked: PlannedEventResponse = { ...proposingEvent, canProposeDates: false };
         await act(async () =>
           currentClient().setQueryData(eventRecordKeys.detail(options, plannedEvent.id), revoked),
@@ -276,14 +280,14 @@ test(proposalScenario, async () => {
           "Proposals require an enabled category and your own seated participation in a private planning event.",
         );
         expect(screen.queryByRole("button", { name: "Send proposal" })).toBeNull();
-        expect(screen.queryByLabelText("Choose date and time")).toBeNull();
+        expect(screen.queryByRole("group", { name: "Choose date and time" })).toBeNull();
         const fresh: PlannedEventResponse = { ...proposingEvent, version: 2 };
         await act(async () =>
           currentClient().setQueryData(eventRecordKeys.detail(options, plannedEvent.id), fresh),
         );
-        expect(await screen.findByLabelText("Choose date and time")).toHaveValue(
-          "2030-06-04T19:15",
-        );
+        expect(
+          readDateTime(await screen.findByRole("group", { name: "Choose date and time" })),
+        ).toBe("2030-06-04T19:15");
         expect(screen.getByRole("button", { name: "Send proposal" })).toBeEnabled();
         expect(screen.queryByRole("alert")).toBeNull();
         expect(

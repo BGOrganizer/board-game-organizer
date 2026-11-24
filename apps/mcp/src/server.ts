@@ -17,13 +17,19 @@ export interface McpTool {
   readOnly: boolean;
   destructive?: boolean;
   sensitive?: boolean;
+  presentation?: "widget" | "selection";
+}
+
+export interface McpPresentation {
+  summary: { count: number; hasMore: boolean };
+  view: unknown;
 }
 
 interface ServerOptions {
   tools: readonly McpTool[];
   scopes: (tool: McpTool) => string[];
   getChallenge: (tool: McpTool) => string | undefined;
-  run: (tool: McpTool, args: unknown, signal: AbortSignal) => Promise<Response>;
+  run: (tool: McpTool, args: unknown, signal: AbortSignal) => Promise<Response | McpPresentation>;
   readWidget: () => Promise<string>;
   resourceDomains: string[];
   viewerUserId?: string;
@@ -38,7 +44,7 @@ export async function handleMcp(request: Request, options: ServerOptions): Promi
     {
       capabilities: { tools: {}, resources: {} },
       instructions:
-        "Use Board Game Organizer to organize board game sessions, read the user's records and update them at their request. Open the group form with prepare_group_creation. Confirm writes with the user, especially invitations, removals and result publication. The API enforces BGO access rights.",
+        "Use Board Game Organizer to organize board game sessions and read or update the user's records. Use the data tools for factual questions and text-only clients. When the user wants interactive cards for groups, events or tables, use show_bgo_records. For a shortlist, read and filter the relevant records first, then use show_bgo_records once with their IDs in the intended order. Use the direct widget for table history and individual details. Open the group form with prepare_group_creation. Confirm writes with the user, especially invitations, removals and result publication. The API enforces BGO access rights.",
     },
   );
   const tools = new Map(options.tools.map((tool) => [tool.name, tool]));
@@ -58,7 +64,11 @@ export async function handleMcp(request: Request, options: ServerOptions): Promi
         securitySchemes,
         _meta: {
           securitySchemes,
-          ui: tool.sensitive ? { visibility: ["app"] } : { resourceUri: widgetUri },
+          ...(tool.sensitive
+            ? { ui: { visibility: ["app"] } }
+            : tool.presentation
+              ? { ui: { resourceUri: widgetUri } }
+              : {}),
         },
       };
     }),
@@ -72,6 +82,8 @@ export async function handleMcp(request: Request, options: ServerOptions): Promi
           ...resource,
           text: await options.readWidget(),
           _meta: {
+            "openai/widgetDescription":
+              "Displays authorized Board Game Organizer records with interactive HeroUI cards, detail tabs and actions. Keep any accompanying summary brief.",
             ui: {
               csp: { resourceDomains: options.resourceDomains },
               prefersBorder: true,
@@ -95,6 +107,18 @@ export async function handleMcp(request: Request, options: ServerOptions): Promi
 
     try {
       const result = await options.run(tool, params.arguments ?? {}, signal);
+      if (!(result instanceof Response)) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "Board Game Organizer prepared the requested view.",
+            },
+          ],
+          structuredContent: { operation: tool.name, data: result.summary },
+          _meta: { viewerUserId: options.viewerUserId, widgetView: result.view },
+        };
+      }
       const data: unknown = result.status === 204 ? null : await result.json();
       if (!result.ok) {
         const error =

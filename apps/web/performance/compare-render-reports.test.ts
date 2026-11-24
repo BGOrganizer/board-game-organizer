@@ -35,6 +35,7 @@ const row = (name = "Measured scenario", duration = 10) => ({
 type Measurement = ReturnType<typeof row> & { outlierDurations?: number[]; issues?: unknown };
 type FixtureOptions = {
   baseline?: Measurement[];
+  baselineScenarios?: string[];
   current?: Measurement[];
   budgets?: Record<string, number>;
   bootstrap?: boolean;
@@ -48,6 +49,7 @@ afterEach(() => {
 });
 function fixture({
   baseline = [row()],
+  baselineScenarios = baseline.map(({ name }) => name),
   current = [row()],
   budgets = { "Measured scenario": 1 },
   bootstrap = false,
@@ -92,7 +94,10 @@ function fixture({
     app: "web",
     baseline: bootstrap
       ? { commitHash: initialMain, hasHarness: false }
-      : phase(baseRef, paths.baseline, "2026-11-18T10:00:00.000Z", "2026-11-18T10:01:00.000Z"),
+      : {
+          ...phase(baseRef, paths.baseline, "2026-11-18T10:00:00.000Z", "2026-11-18T10:01:00.000Z"),
+          scenarios: baselineScenarios,
+        },
     current: phase(headRef, paths.current, "2026-11-18T10:01:00.000Z", "2026-11-18T10:02:00.000Z"),
   };
   const args = [
@@ -162,6 +167,27 @@ it("fails a significant slowdown while retaining the actual official statistical
   });
   expect(f.report().gate.passed).toBe(false);
 });
+it("reports significant differences within the measured timing noise without failing the duration gate", () => {
+  const f = fixture({ baseline: [row(undefined, 1)], current: [row(undefined, 1.15)] });
+  expect(f.run().status).toBe(0);
+  expect(f.report().significant[0].durationDiff).toBeCloseTo(0.15);
+  expect(f.report().gate).toMatchObject({ passed: true, minimumDurationIncreaseMs: 0.2 });
+});
+it("reports phase drift below the relative floor while rejecting a larger timed regression", () => {
+  const comparable = fixture({ baseline: [row(undefined, 100)], current: [row(undefined, 112)] });
+  expect(comparable.run().status).toBe(0);
+  expect(comparable.report().significant[0].relativeDurationDiff).toBeCloseTo(0.12);
+  expect(comparable.report().gate).toMatchObject({
+    passed: true,
+    minimumDurationIncreaseMs: 0.2,
+    minimumRelativeDurationIncrease: 0.15,
+  });
+  const regressed = fixture({ baseline: [row(undefined, 100)], current: [row(undefined, 116)] });
+  expect(regressed.run().status).toBe(1);
+  expect(regressed.report().gate.reasons).toEqual([
+    "Significant duration regression: Measured scenario",
+  ]);
+});
 it("records a significant improvement without reporting a regression", () => {
   const f = fixture({ current: [row(undefined, 5)] });
   expect(f.run().status).toBe(0);
@@ -197,6 +223,10 @@ it("fails a missing future baseline rather than silently accepting a bootstrap",
   const result = f.run();
   expect(result.status).toBe(1);
   expect(result.stderr).toContain("Missing baseline outside");
+});
+it("rejects a baseline missing an approved scenario", () => {
+  const f = fixture({ baselineScenarios: ["Measured scenario", "Missing scenario"] });
+  expect(f.run().stderr).toContain("Baseline measurement inventory does not match");
 });
 it("keeps raw commit ceilings strict even when a mean could hide an extra commit", () => {
   const value = row();

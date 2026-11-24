@@ -9,6 +9,8 @@ import { NativeTestProviders } from "@/test/NativeTestProviders";
 
 const contactsBoundary = vi.hoisted(() => ({
   userId: "owner",
+  authLoaded: true,
+  signedIn: true,
   focused: true,
   token: "fixture-session-token" as string | null,
   parameter: undefined as string | undefined,
@@ -31,10 +33,14 @@ export { contactsBoundary };
 
 vi.mock("@clerk/expo", () => ({
   useAuth: () => ({
-    userId: contactsBoundary.userId,
-    sessionId: `session-${contactsBoundary.userId}`,
-    isLoaded: true,
-    isSignedIn: true,
+    userId:
+      contactsBoundary.authLoaded && contactsBoundary.signedIn ? contactsBoundary.userId : null,
+    sessionId:
+      contactsBoundary.authLoaded && contactsBoundary.signedIn
+        ? `session-${contactsBoundary.userId}`
+        : null,
+    isLoaded: contactsBoundary.authLoaded,
+    isSignedIn: contactsBoundary.signedIn,
     getToken: contactsBoundary.getToken,
   }),
 }));
@@ -85,7 +91,10 @@ export const contactsFixture = {
   nextRelationships: new Map<string, RelationshipRow[]>(),
   cursors: new Map<string, string>(),
   suggestions: [] as ContactUser[],
+  nextSuggestions: [] as ContactUser[],
+  suggestionsCursor: null as string | null,
   suggestionsStatus: 200,
+  nextSuggestionsStatus: 200,
   searchStatus: 200,
   searchUsers: [] as ContactUser[],
   searchEmpty: false,
@@ -160,6 +169,7 @@ const attention = (targets: unknown[]) => ({
 beforeEach(() => {
   vi.clearAllMocks();
   contactsBoundary.userId = "owner";
+  contactsBoundary.authLoaded = contactsBoundary.signedIn = true;
   contactsBoundary.focused = true;
   contactsBoundary.parameter = undefined;
   contactsBoundary.token = "fixture-session-token";
@@ -208,8 +218,9 @@ beforeEach(() => {
   contactsFixture.relationshipStatus.clear();
   contactsFixture.nextRelationships.clear();
   contactsFixture.cursors.clear();
-  contactsFixture.suggestions = [];
-  contactsFixture.suggestionsStatus = 200;
+  contactsFixture.suggestions = contactsFixture.nextSuggestions = [];
+  contactsFixture.suggestionsCursor = null;
+  contactsFixture.suggestionsStatus = contactsFixture.nextSuggestionsStatus = 200;
   contactsFixture.searchUsers = [];
   contactsFixture.searchStatus = 200;
   contactsFixture.searchEmpty = false;
@@ -224,6 +235,7 @@ beforeEach(() => {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.signal?.aborted) throw new DOMException("Request cancelled", "AbortError");
       const url = new URL(
         typeof input === "string" ? input : input instanceof URL ? input.href : input.url,
       );
@@ -307,15 +319,22 @@ beforeEach(() => {
           status,
         );
       }
-      if (url.pathname === "/api/users/suggestions")
+      if (url.pathname === "/api/users/suggestions") {
+        const next = url.searchParams.has("cursor");
+        const status = next
+          ? contactsFixture.nextSuggestionsStatus
+          : contactsFixture.suggestionsStatus;
         return fixtureJson(
-          {
-            users: contactsFixture.suggestions,
-            hasContacts: contactsFixture.registeredEmails.length > 0,
-            nextCursor: null,
-          },
-          contactsFixture.suggestionsStatus,
+          status === 200
+            ? {
+                users: next ? contactsFixture.nextSuggestions : contactsFixture.suggestions,
+                hasContacts: contactsFixture.registeredEmails.length > 0,
+                nextCursor: next ? null : contactsFixture.suggestionsCursor,
+              }
+            : { error: "Fixture suggestion unavailable" },
+          status,
         );
+      }
       if (url.pathname === "/api/users/search")
         return fixtureJson(
           {
@@ -374,9 +393,9 @@ export async function contactTab(tab: string) {
 export async function contactPress(name: string) {
   await userEvent.setup().press(screen.getByRole("button", { name }));
 }
-export async function foregroundContacts() {
+export async function changeContactsAppState(state: AppStateStatus) {
   await act(async () => {
-    for (const listener of listeners) listener("active");
+    for (const listener of listeners) listener(state);
   });
 }
 export function socialWrites() {

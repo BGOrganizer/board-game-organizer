@@ -1,7 +1,15 @@
 import type { PlannedEventResponse, PlannedTableResponse } from "@board-game-organizer/schemas";
 import { CommunityApiError, eventRecordKeys } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, userEvent, waitFor, within } from "@testing-library/react-native";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  userEvent,
+  waitFor,
+  within,
+} from "@testing-library/react-native";
 import type { ComponentProps } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
@@ -315,11 +323,13 @@ it("coalesces deletion consent while its actual backend request is pending", asy
   });
   await render(<Fixture />);
   await press("Delete event");
-  await userEvent.setup().press(
-    within(screen.getByTestId("confirmation-dialog")).getByRole("button", {
-      name: "Delete event",
-    }),
-  );
+  const consent = within(screen.getByTestId("confirmation-dialog")).getByRole("button", {
+    name: "Delete event",
+  });
+  // Deliver both presses before the native host commits the dialog's removal.
+  await act(async () => {
+    await Promise.all([fireEvent.press(consent), fireEvent.press(consent)]);
+  });
   await waitFor(() => expect(writes).toHaveLength(1));
   expect(screen.queryByTestId("confirmation-dialog")).toBeNull();
   await act(() => finish(json({ id: event.id })));

@@ -22,14 +22,30 @@ The widget reuses BGO's Web card and popover views for events, tables, groups an
 reuses the responsive leaderboard, finished-table OpenSkill results, BGG game rows and metadata,
 location rows, the invite link card, notification cards, profile summaries and the people and
 activity rows. The group creation form uses the existing BGO fields and
-pickers with verified venues and staged logo uploads. Tools return structured information to the
-chatbot, including operations that use a compact action receipt instead of a domain view. MCP clients without
-widget support can still use the tools and their structured responses.
+pickers with verified venues and staged logo uploads.
+
+Use data tools to answer factual questions and combine BGO records. The `list_events`,
+`list_event_tables`, `list_groups` and `discover_groups` tools return structured data. Use
+`show_bgo_records` when a user wants interactive cards:
+
+- `mode: "browse"` takes a `list` with `source` set to one of those four operations, plus its
+  usual `query` and, for event tables, `params.eventId`. The widget pages through the same list.
+- `mode: "selection"` takes up to eight `records` with `kind` and `id`. A table reference also
+  needs `eventId`. The server reloads every record through the corresponding authorized BGO
+  reader and the widget displays the cards together in the requested order.
+
+The render tool returns a count and pagination indicator to the model. The authorized view data
+travels in MCP UI metadata. Table history, individual record details, rankings, notifications and
+interactive actions such as the group form have direct widget views. Other operations return their
+structured data or action receipts. MCP clients with text-only support can call the underlying
+operations for every feature. [MCP Apps UI resources](https://modelcontextprotocol.io/extensions/apps) ·
+[OpenAI UI tool patterns](https://developers.openai.com/plugins/build/chatgpt-ui#separate-data-processing-from-ui-rendering).
 
 BGO resource links in the widget open the corresponding detail or list within the chat. The Back
 action returns to the previous widget view and preserves its loaded results and selected tab.
 Group, Event and Table details share the Web identity cards and tab interfaces. The widget
 requests fullscreen when the host offers it and loads each authorized tab on demand through MCP.
+Supported hosts also expose a control to expand the current widget or return it to the chat.
 External links, such
 as BoardGameGeek, still use the host's link-opening flow.
 
@@ -38,18 +54,19 @@ as BoardGameGeek, still use the host's link-opening flow.
 1. Set `MCP_RESOURCE_URL` to the exact public endpoint for the environment, for example
    `https://api.board-game-organizer.com/mcp`. Set `MCP_CLERK_ISSUER` to the matching Clerk instance's
    HTTPS Frontend API origin, without a trailing slash. Sync the settings through Infisical as
-   described in the [operational gates](organizations-events-operations.md). Both settings are
+   described in the [operational gates](deployment-operations.md). Both settings are
    required to enable MCP. Development and Production use their own Clerk instances and API data.
    Production keeps `https://api.board-game-organizer.com/mcp` as its public endpoint and OAuth
    audience when the active API provider changes. See the
-   [Production DNS switch](organizations-events-operations.md#production-dns-switch).
+   [Production DNS switch](deployment-operations.md#production-dns-switch).
 2. In the matching Clerk instance, register the full URL under MCP servers and verify Include
    Audience is on. Configure the OAuth application for the MCP client to issue JWT access tokens
    with that resource audience. Configure the client with its host's redirect URIs, OAuth 2.1 authorization
    code flow and PKCE. For ChatGPT onboarding, configure Clerk's support for the client's OAuth
    metadata document when supported by the target instance. Use the exact `/mcp` resource URL and
    configure the custom scopes `bgo:read` and `bgo:write` in the OAuth settings. Advertise both
-   scopes and allow them for the intended client. A client that omits the scope parameter takes
+   scopes and allow them for the intended client. For ChatGPT's registered client, also enable the
+   standard `openid` scope so its sign-in request can complete. A client that omits the scope parameter takes
    the configured default scopes. See the
    [Clerk MCP guide](https://clerk.com/docs/nextjs/guides/ai/mcp/build-mcp-server) and
    [OpenAI OAuth guide](https://developers.openai.com/plugins/build/auth).

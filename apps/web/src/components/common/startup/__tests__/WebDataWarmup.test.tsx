@@ -184,3 +184,22 @@ it("does not let a hung priority read starve background APIs beyond the five-sec
   await vi.advanceTimersByTimeAsync(5000);
   await vi.waitFor(() => expect(client.getQueryData(notificationListKey(o, 20))).toBeDefined());
 });
+
+it("waits for Clerk to restore the session then warms the notification cache in Italian", async () => {
+  vi.useFakeTimers();
+  state.isLoaded = false;
+  state.locale = "it-IT";
+  const fetch = vi.fn(async (input: string | URL | Request) => response(input));
+  vi.stubGlobal("fetch", fetch);
+  const { client, tree } = setup();
+  const screen = render(tree());
+  await vi.advanceTimersByTimeAsync(5000);
+  expect(fetch).not.toHaveBeenCalled();
+  state.isLoaded = true;
+  screen.rerender(tree());
+  await vi.advanceTimersByTimeAsync(1);
+  await vi.waitFor(() =>
+    expect(client.getQueryData(notificationListKey({ ...o, locale: "it" }, 20))).toBeDefined(),
+  );
+  expect(client.getQueryData(notificationListKey(o, 20))).toBeUndefined();
+});

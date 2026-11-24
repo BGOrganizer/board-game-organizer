@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import manifest from "../../package.json" with { type: "json" };
-import { handleMcp } from "../server";
+import { handleMcp, type McpPresentation } from "../server";
 
 function request(method: string, params?: object) {
   return new Request("http://localhost:4000/mcp", {
@@ -15,6 +15,7 @@ const tools = [
     description: "List items",
     inputSchema: { type: "object" as const },
     readOnly: true,
+    presentation: "widget" as const,
   },
   {
     name: "add_item",
@@ -24,6 +25,12 @@ const tools = [
     destructive: true,
     sensitive: true,
   },
+  {
+    name: "find_item",
+    description: "Find an item",
+    inputSchema: { type: "object" as const },
+    readOnly: true,
+  },
 ];
 function setup(viewerUserId?: string) {
   const options = {
@@ -31,7 +38,7 @@ function setup(viewerUserId?: string) {
     viewerUserId,
     scopes: (tool: { readOnly: boolean }) => [tool.readOnly ? "bgo:read" : "bgo:write"],
     getChallenge: vi.fn<() => string | undefined>(),
-    run: vi.fn<() => Promise<Response>>(),
+    run: vi.fn<() => Promise<Response | McpPresentation>>(),
     readWidget: vi.fn(async () => "<main>Board Game Organizer</main>"),
     resourceDomains: ["https://images.example.test"],
   };
@@ -75,7 +82,9 @@ describe("Board Game Organizer MCP protocol", () => {
           ui: { visibility: ["app"] },
         },
       },
+      { name: "find_item", _meta: { securitySchemes: [{ type: "oauth2", scopes: ["bgo:read"] }] } },
     ]);
+    expect(listing.result.tools.at(-1)._meta.ui).toBeUndefined();
   });
 
   it("loads only the approved widget resource and serves its CSP metadata", async () => {
@@ -154,6 +163,19 @@ describe("Board Game Organizer MCP protocol", () => {
     const { result } = await send("tools/call", { name: "list_items" });
     expect(result.structuredContent).toEqual({ operation: "list_items", data: { records: [] } });
     expect(result._meta).toEqual({ viewerUserId: "user_bgo" });
+  });
+
+  it("returns a render receipt to the model and the authorized records only to the widget", async () => {
+    const { run, send } = setup("user_bgo");
+    const view = { mode: "selection", rows: [{ kind: "group", data: { name: "Friday Club" } }] };
+    run.mockResolvedValue({ summary: { count: 1, hasMore: false }, view });
+    const { result } = await send("tools/call", { name: "list_items" });
+    expect(result.structuredContent).toEqual({
+      operation: "list_items",
+      data: { count: 1, hasMore: false },
+    });
+    expect(JSON.stringify(result.content)).not.toContain("Friday Club");
+    expect(result._meta).toEqual({ viewerUserId: "user_bgo", widgetView: view });
   });
 
   it("handles failed requests without forwarding exceptions to the host", async () => {

@@ -256,3 +256,43 @@ it("shows a winning guest by name with the physical score, without a rating cont
   expect(guestRow?.querySelectorAll("button")).toHaveLength(0);
   expect(screen.queryByText(guest.participantId)).toBeNull();
 });
+
+it("reveals historical results in fixed batches and handles a legacy empty roster", () => {
+  const frozenIds = ids.slice(0, 10);
+  const snapshot = {
+    ...table,
+    eventStatus: "TERMINATED" as const,
+    confirmed: { ...table.confirmed, playerIds: frozenIds },
+    results: {
+      lowerWins: false,
+      finalizedAt: table.createdAt,
+      tieBreaks: [],
+      entries: frozenIds.map((userId, index) => ({ userId, score: "10", rank: index + 1 })),
+    },
+    resultProfiles: frozenIds.map((userId) => ({
+      userId,
+      name: userId,
+      username: userId,
+      email: null,
+      avatarUrl: null,
+    })),
+  };
+  const { rerender } = renderWithI18n(<EventTableResults table={snapshot} />);
+  expect(screen.getByText("@p07")).toBeVisible();
+  expect(screen.queryByText("@p08")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+  expect(screen.getByText("@p09")).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+  rerender(
+    <EventTableResults
+      table={{
+        ...snapshot,
+        confirmed: { ...snapshot.confirmed, playerIds: [] },
+        resultProfiles: [],
+        results: { ...snapshot.results, entries: [] },
+      }}
+    />,
+  );
+  expect(screen.getByText("No players found")).toBeVisible();
+  expect(screen.queryByText("@p09")).toBeNull();
+});

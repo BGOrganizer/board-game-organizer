@@ -1,9 +1,12 @@
-import { act, render } from "@testing-library/react-native";
-import { Text } from "react-native";
+import { act, render, screen, userEvent } from "@testing-library/react-native";
+import { Button } from "heroui-native/button";
+import { type NativeMethods, Text } from "react-native";
 import { afterEach, expect, it, vi } from "vitest";
 import { useAppRestartGuard } from "@/lib/appRestartGuard";
-import type { InputScrollTarget } from "@/lib/inputScrollContext";
+import { InputScrollContext, type InputScrollTarget } from "@/lib/inputScrollContext";
+import { NativeTestProviders } from "@/test/NativeTestProviders";
 import { FormInteractionScope, useFormInteraction } from "../FormInteractionScope";
+import { InputField } from "../InputField";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -162,4 +165,53 @@ it("rejects obsolete deferred tickets and callbacks after unmount", async () => 
   await h.flush();
   expect(ticket.isCurrent()).toBe(false);
   expect(field.reveal).not.toHaveBeenCalled();
+});
+
+it("reveals the actual invalid selector field without opening the picker or submitting", async () => {
+  const host = await vi.importActual<{
+    default: { prototype: Pick<NativeMethods, "measureInWindow"> };
+  }>("react-native/Libraries/Components/View/ViewNativeComponent");
+  vi.spyOn(host.default.prototype, "measureInWindow").mockImplementation((callback) => {
+    callback(0, 350, 180, 64);
+  });
+  const frames: Parameters<typeof requestAnimationFrame>[0][] = [];
+  vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((callback) => {
+    frames.push(callback);
+    return frames.length;
+  });
+  const owner = { reveal: vi.fn(), blur: vi.fn(), inSheet: false };
+  const open = vi.fn();
+  function Submit() {
+    const form = useFormInteraction();
+    return (
+      <Button onPress={() => form?.requestFirstError()}>
+        <Button.Label>Validate draft</Button.Label>
+      </Button>
+    );
+  }
+  await render(
+    <FormInteractionScope>
+      <InputScrollContext value={owner}>
+        <InputField invalid>
+          <Button onPress={open}>
+            <Button.Label>Choose event venue</Button.Label>
+          </Button>
+        </InputField>
+      </InputScrollContext>
+      <Submit />
+    </FormInteractionScope>,
+    { wrapper: NativeTestProviders },
+  );
+  await userEvent.setup().press(screen.getByRole("button", { name: "Validate draft" }));
+  await act(async () => {
+    while (frames.length) frames.shift()?.(0);
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+  expect(owner.reveal).toHaveBeenCalledOnce();
+  const [target, anchor] = owner.reveal.mock.calls[0];
+  expect(target.measureInWindow).toBeTypeOf("function");
+  expect(anchor).toBe(target);
+  expect(open).not.toHaveBeenCalled();
+  expect(screen.getByRole("button", { name: "Choose event venue" })).toBeEnabled();
 });

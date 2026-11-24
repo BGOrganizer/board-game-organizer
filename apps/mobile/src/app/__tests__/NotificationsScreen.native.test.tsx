@@ -139,10 +139,10 @@ afterEach(async () => {
   await act(() => client.clear());
   vi.unstubAllGlobals();
 });
-function Fixture() {
+function Fixture({ locale = "en" }: { locale?: "en" | "it" } = {}) {
   return (
     <QueryClientProvider client={client}>
-      <NativeTestProviders>
+      <NativeTestProviders locale={locale}>
         <NotificationsScreen />
       </NativeTestProviders>
     </QueryClientProvider>
@@ -470,4 +470,52 @@ it("closes explicit deletion consent before HTTP settles and suppresses native p
   expect(await screen.findByText("Connection 3")).toBeVisible();
   expect(reads.at(-1)?.searchParams.get("cursor")).toBe(notice(2).id);
   expect(writes).toHaveLength(1);
+});
+
+it("marks only the explicit notice as read without opening its destination", async () => {
+  const news = notice(1);
+  const older = notice(2, { readAt: "2030-06-01T10:05:00.000Z" });
+  rows = [news, older];
+  await render(<Fixture locale="it" />);
+  expect(await screen.findByText(news.title)).toBeVisible();
+  expect(reads[0].searchParams.get("locale")).toBe("it");
+  const mark = screen.getByRole("button", { name: "Segna come letta" });
+  await userEvent.setup().press(mark);
+  await waitFor(() =>
+    expect(writes).toEqual([
+      { owner: "owner", method: "PATCH", path: `/api/notifications/${news.id}` },
+    ]),
+  );
+  expect(boundary.push).not.toHaveBeenCalled();
+  await waitFor(() =>
+    expect(screen.queryByRole("button", { name: "Segna come letta" })).toBeNull(),
+  );
+  expect(screen.getByText(older.title)).toBeVisible();
+});
+
+it("loads the next inbox page from its actual native scroll edge and excludes duplicate calls while pending", async () => {
+  rows = [notice(1), notice(2)];
+  nextCursor = notice(2).id;
+  await render(<Fixture />);
+  await screen.findByText("Connection 1");
+  let list = inboxRow();
+  while (list.parent && typeof list.props.onScroll !== "function") list = list.parent;
+  let finish!: (response: Response) => void;
+  pending = new Promise((resolve) => {
+    finish = resolve;
+  });
+  const cursors = () => reads.flatMap((url) => url.searchParams.get("cursor") ?? []);
+  await scrollNativeListToEnd(list);
+  await waitFor(() => expect(cursors()).toEqual([notice(2).id]));
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+  expect(screen.getByText("Connection 1")).toBeVisible();
+  await scrollNativeListToEnd(list, 1400);
+  expect(cursors()).toEqual([notice(2).id]);
+  await act(() => {
+    pending = undefined;
+    finish(Response.json({ notifications: [notice(3)], unreadCount: 3, nextCursor: null }));
+  });
+  expect(await screen.findByText("Connection 3")).toBeVisible();
+  expect(cursors()).toEqual([notice(2).id]);
+  expect(writes).toHaveLength(0);
 });

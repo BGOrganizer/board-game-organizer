@@ -31,9 +31,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { EventDetail } from "@/components/events/EventDetail";
-import { EventTable } from "@/components/events/EventTable";
-import { GroupDetail } from "@/components/groups/GroupDetail";
+import EventPage from "@/app/(tabs)/events/[eventId]/page";
+import TablePage from "@/app/(tabs)/events/[eventId]/tables/[tableId]/page";
+import GroupBanPage from "@/app/(tabs)/groups/[groupId]/ban/page";
+import GroupPage from "@/app/(tabs)/groups/[groupId]/page";
 import { groupRecord, plannedEvent, plannedTable, seat } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { assertRenderMeasurement } from "./assertRenderMeasurement";
@@ -316,19 +317,20 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 async function selectTab(name: string) {
-  fireEvent.click(screen.getByRole("tab", { name }));
-  expect(screen.getByRole("tab", { name, selected: true })).toBeVisible();
+  const accessibleName = new RegExp(`^${name}(?:\\s*Needs attention)?$`);
+  fireEvent.click(screen.getByRole("tab", { name: accessibleName }));
+  expect(screen.getByRole("tab", { name: accessibleName, selected: true })).toBeVisible();
 }
 
 const cases: {
   name: string;
-  element: ReactElement;
+  resolveRoute: () => Promise<ReactElement>;
   scenario: () => Promise<void>;
   unread?: boolean;
 }[] = [
   {
     name: "GroupDetail: cached Members and Events entry and reentry keeps the common header",
-    element: <GroupDetail groupId={group.id} />,
+    resolveRoute: () => GroupPage({ params: Promise.resolve({ groupId: group.id }) }),
     scenario: async () => {
       const header = screen.getByRole("heading", { name: group.name });
       await selectTab("Members");
@@ -346,7 +348,7 @@ const cases: {
   },
   {
     name: "GroupDetail: reentry displays fresh canonical member and group snapshots",
-    element: <GroupDetail groupId={group.id} />,
+    resolveRoute: () => GroupPage({ params: Promise.resolve({ groupId: group.id }) }),
     scenario: async () => {
       const header = screen.getByRole("heading", { name: group.name });
       await selectTab("Members");
@@ -380,7 +382,11 @@ const cases: {
   },
   {
     name: "EventDetail: cached Participants and Tables entry and reentry keeps the event header",
-    element: <EventDetail eventId={event.id} fromGroup={group.id} />,
+    resolveRoute: () =>
+      EventPage({
+        params: Promise.resolve({ eventId: event.id }),
+        searchParams: Promise.resolve({ fromGroup: group.id }),
+      }),
     scenario: async () => {
       const header = screen.getByRole("heading", { name: event.name });
       await selectTab("Participants");
@@ -398,7 +404,11 @@ const cases: {
   },
   {
     name: "EventDetail: table reentry displays the new authoritative event name and numbered table title",
-    element: <EventDetail eventId={event.id} fromGroup={group.id} />,
+    resolveRoute: () =>
+      EventPage({
+        params: Promise.resolve({ eventId: event.id }),
+        searchParams: Promise.resolve({ fromGroup: group.id }),
+      }),
     scenario: async () => {
       const header = screen.getByRole("heading", { name: event.name });
       await selectTab("Tables");
@@ -444,7 +454,10 @@ const cases: {
   },
   {
     name: "EventTable: cached Participants reentry retains the hidden actual seats and common header",
-    element: <EventTable eventId={event.id} tableId={table.id} />,
+    resolveRoute: () =>
+      TablePage({
+        params: Promise.resolve({ eventId: event.id, tableId: table.id }),
+      }),
     scenario: async () => {
       const header = screen.getByRole("heading", { name: "Table #1" });
       expect(
@@ -464,7 +477,10 @@ const cases: {
   },
   {
     name: "EventTable: hidden roster remains reactive to authoritative player and table updates",
-    element: <EventTable eventId={event.id} tableId={table.id} />,
+    resolveRoute: () =>
+      TablePage({
+        params: Promise.resolve({ eventId: event.id, tableId: table.id }),
+      }),
     scenario: async () => {
       const header = screen.getByRole("heading", { name: "Table #1" });
       await selectTab("Participants");
@@ -486,10 +502,11 @@ const cases: {
         });
         currentClient().setQueryData(recordTableQuery(options, event.id, table.id).queryKey, {
           ...table,
-          name: "Updated first table",
+          name: "Ignored legacy title",
+          order: 1,
         });
       });
-      expect(await screen.findByRole("heading", { name: "Updated first table" })).toBe(header);
+      expect(await screen.findByRole("heading", { name: "Table #2" })).toBe(header);
       await selectTab("Participants");
       expect(await screen.findByText("@fresh-seat-player")).toBe(person);
       expect(person).toBeVisible();
@@ -500,13 +517,15 @@ const cases: {
 
   {
     name: "GroupDetail: unread Members and Events survive cached first entry and repeated switching",
-    element: <GroupDetail groupId={group.id} />,
+    resolveRoute: () => GroupPage({ params: Promise.resolve({ groupId: group.id }) }),
     unread: true,
     scenario: async () => {
       const header = screen.getByRole("heading", { name: group.name });
       for (const label of ["Members", "Events"])
         expect(
-          within(screen.getByRole("tab", { name: label })).getByRole("img", {
+          within(
+            screen.getByRole("tab", { name: new RegExp(`^${label}(?:\\s*Needs attention)?$`) }),
+          ).getByRole("img", {
             name: "Needs attention",
           }),
         ).toBeVisible();
@@ -525,7 +544,9 @@ const cases: {
         expect(within(row).getByRole("img", { name: "Unread updates" })).toBeVisible();
         for (const label of ["Members", "Events"])
           expect(
-            within(screen.getByRole("tab", { name: label })).getByRole("img", {
+            within(
+              screen.getByRole("tab", { name: new RegExp(`^${label}(?:\\s*Needs attention)?$`) }),
+            ).getByRole("img", {
               name: "Needs attention",
             }),
           ).toBeVisible();
@@ -543,7 +564,7 @@ const cases: {
   },
   {
     name: "GroupDetail: fresh scoped notice moves the member dot without resetting cached people or events",
-    element: <GroupDetail groupId={group.id} />,
+    resolveRoute: () => GroupPage({ params: Promise.resolve({ groupId: group.id }) }),
     unread: true,
     scenario: async () => {
       const peopleSnapshot = currentClient().getQueryData(acceptedKey);
@@ -572,7 +593,9 @@ const cases: {
       expect(within(changedSecond).getByRole("img", { name: "Unread updates" })).toBeVisible();
       for (const label of ["Members", "Events"])
         expect(
-          within(screen.getByRole("tab", { name: label })).getByRole("img", {
+          within(
+            screen.getByRole("tab", { name: new RegExp(`^${label}(?:\\s*Needs attention)?$`) }),
+          ).getByRole("img", {
             name: "Needs attention",
           }),
         ).toBeVisible();
@@ -602,10 +625,10 @@ const cases: {
     },
   },
 ];
-for (const { name, element, scenario, unread = false } of cases) {
+for (const { name, resolveRoute, scenario, unread = false } of cases) {
   test(name, async () => {
     unreadScenario = unread;
-    const result = await measureRenders(element, {
+    const result = await measureRenders(await resolveRoute(), {
       scenario: async () => {
         await scenario();
         expect(fetch).not.toHaveBeenCalled();
@@ -619,3 +642,21 @@ for (const { name, element, scenario, unread = false } of cases) {
     assertRenderMeasurement(result, name);
   });
 }
+
+const banRouteScenario = "Group ban route: open the authorized member roster directly";
+test(banRouteScenario, async () => {
+  unreadScenario = false;
+  const result = await measureRenders(
+    await GroupBanPage({ params: Promise.resolve({ groupId: group.id }) }),
+    {
+      scenario: async () => {
+        expect(screen.getByRole("tab", { name: "Members", selected: true })).toBeVisible();
+        expect(await screen.findByText("@member-1")).toBeVisible();
+        await selectTab("Details");
+        expect(screen.getByRole("heading", { name: group.name })).toBeVisible();
+        expect(fetch).not.toHaveBeenCalled();
+      },
+    },
+  );
+  assertRenderMeasurement(result, banRouteScenario);
+});

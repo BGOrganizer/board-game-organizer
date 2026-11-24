@@ -194,3 +194,43 @@ it("retries the recent five-item preview without confusing failure with empty an
   fireEvent.click(screen.getByRole("button", { name: "View all activities" }));
   expect(boundary.push).toHaveBeenCalledExactlyOnceWith("/profiles/subject/activities");
 });
+
+it("shows progress while an older activity page loads and keeps existing links usable", async () => {
+  page.nextCursor = cursor;
+  mount();
+  await screen.findByRole("link", { name: "Current table" });
+  let finish: (response: Response) => void = () => {
+    throw new Error("Expected pending activity cursor");
+  };
+  pending = new Promise<Response>((resolve) => {
+    finish = resolve;
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+  await waitFor(() => expect(screen.queryByRole("button", { name: "Load more" })).toBeNull());
+  expect(screen.getByRole("link", { name: "Current table" })).toBeVisible();
+  expect(screen.queryByText("No activities yet")).toBeNull();
+  pending = undefined;
+  await act(() => finish(json({ items: [], nextCursor: null })));
+  await waitFor(() => expect(client.isFetching()).toBe(0));
+  expect(screen.getByRole("link", { name: "Current table" })).toBeVisible();
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(reads.map((url) => url.searchParams.get("cursor"))).toEqual([null, cursor]);
+});
+
+it("withdraws formerly visible recent activity links after access is revoked without claiming the list is empty", async () => {
+  mount(true);
+  expect(await screen.findByRole("link", { name: "Current table" })).toBeVisible();
+  status = 403;
+  await act(() =>
+    client.invalidateQueries({
+      queryKey: profileActivitiesQuery(options, "subject", undefined, 5).queryKey,
+      exact: true,
+    }),
+  );
+  const recent = within(screen.getByRole("region", { name: "Recent activities" }));
+  expect(await recent.findByText("Could not load activities")).toBeVisible();
+  expect(recent.queryByRole("link", { name: "Current table" })).toBeNull();
+  expect(recent.queryByText("No activities yet")).toBeNull();
+  expect(recent.getByRole("button", { name: "Try again" })).toBeVisible();
+  expect(boundary.push).not.toHaveBeenCalled();
+});

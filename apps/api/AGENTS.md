@@ -12,7 +12,7 @@ Read service and repository authorization as well as route-level checks.
 
 Admin CI/import routes require their existing server-secret authentication and target guards.
 `/api/inngest` verifies provider execution requests through the SDK, not ordinary user authorization. See
-[operational gates](../../docs/organizations-events-operations.md) before worker/deployment changes.
+[operational gates](../../docs/deployment-operations.md) before worker/deployment changes.
 Most application routes expose `OPTIONS` through centralized `lib/cors.ts`; preserve CORS handling.
 
 ## Authentication and users
@@ -74,7 +74,7 @@ The alias suffix alone is not ownership proof: fixed public GitHub endpoints mus
 or merged same-repository PR targeting `main`, plus its managed public `development-pr-N` prerelease
 with matching current head and API origin. Creation caches this proof for 300 seconds; browser
 redirects require fresh proof and fail closed with 503/Retry-After when unavailable or ineligible.
-Preserve the alias retention/withdrawal invariant in the [operational gates](../../docs/organizations-events-operations.md).
+Preserve the alias retention/withdrawal invariant in the [operational gates](../../docs/deployment-operations.md).
 Claim UI is hosted by the API at `/invite/[token]`, uses Clerk modal sign-in, and claims with a
 Bearer token. Successful claim connects both users.
 
@@ -93,7 +93,7 @@ Run Biome from the API workspace (`bun run --cwd apps/api biome check <path-rela
 so file checks use the same configuration as the API lint job. Unit tests live near their library;
 replica-set integration tests live in `test/integration`.
 `test` selects the unit project. `test:coverage` runs unit and integration projects together so
-the 90% API gate measures repositories against real MongoDB as well as route/service unit paths;
+the 98% API gate measures repositories against real MongoDB as well as route/service unit paths;
 it requires Docker. `test:integration` remains available for a focused replica-set run.
 
 <!-- BEGIN:nextjs-agent-rules -->

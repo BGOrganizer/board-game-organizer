@@ -214,3 +214,32 @@ it("uses the user's native horizontal offset while rejecting a stale hidden-pane
     { x: 0, y: 0, animated: false },
   ]);
 });
+
+function RenderedLabelTabs() {
+  const [selected, setSelected] = useState("other");
+  return (
+    <Tabs value={selected} onValueChange={setSelected}>
+      <TabBar>
+        <TabTrigger value="members" icon={UsersRound} style={{ marginLeft: 3 }}>
+          {({ isSelected }) => (
+            <Tabs.Label>{isSelected ? "Members selected" : "Members available"}</Tabs.Label>
+          )}
+        </TabTrigger>
+        <TabTrigger value="other" icon={CalendarDays}>
+          <Tabs.Label>Other</Tabs.Label>
+        </TabTrigger>
+      </TabBar>
+    </Tabs>
+  );
+}
+
+it("passes selection to the custom HeroUI label and retains the native trigger layout", async () => {
+  await render(<RenderedLabelTabs />, { wrapper: NativeTestProviders });
+  const members = screen.getByRole("tab", { name: "Members available" });
+  expect(members).toHaveStyle({ marginLeft: 3, minHeight: 44 });
+  await userEvent.setup().press(members);
+  const selected = screen.getByRole("tab", { name: "Members selected" });
+  expect(selected).toBeSelected();
+  expect(selected).toHaveStyle({ marginLeft: 3, minHeight: 44 });
+  expect(screen.getByRole("tab", { name: "Other" })).not.toBeSelected();
+});

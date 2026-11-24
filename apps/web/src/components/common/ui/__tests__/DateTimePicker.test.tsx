@@ -214,3 +214,16 @@ it("uses HeroUI TimeField for a date fixed by its event and preserves time bound
     within(screen.getByRole("group", { name: "Start time" })).getAllByRole("spinbutton")[0],
   ).toHaveAttribute("data-placeholder", "true");
 });
+
+it("clears the whole unconfirmed value when the time is emptied inside the calendar", async () => {
+  const confirmed = vi.fn();
+  renderWithI18n(<ControlledDateTime onConfirm={confirmed} />);
+  openPicker("Appointment");
+  const dialog = await screen.findByRole("dialog", { name: "Choose date and time" });
+  clearDateTime(within(dialog).getByRole("group", { name: "Time" }));
+  expect(screen.getByRole("status", { hidden: true })).toBeEmptyDOMElement();
+  const done = within(dialog).getByRole("button", { name: "Done" });
+  expect(done).toBeDisabled();
+  fireEvent.click(done);
+  expect(confirmed).not.toHaveBeenCalled();
+});

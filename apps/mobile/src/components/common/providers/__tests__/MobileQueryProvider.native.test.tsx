@@ -261,6 +261,10 @@ it("flushes persistence on a native background transition and releases its subsc
   await ready();
   const writes = vi.mocked(storage.set).mock.calls.length;
   await act(() => {
+    for (const callback of callbacks) callback("active");
+  });
+  expect(vi.mocked(storage.set).mock.calls.length).toBe(writes);
+  await act(() => {
     for (const callback of callbacks) callback("background");
   });
   expect(vi.mocked(storage.set).mock.calls.length).toBeGreaterThan(writes);
@@ -349,4 +353,47 @@ it("releases the total splash deadline and preserves a newer network receipt whe
   expect(values.get("queries")).not.toContain("Earlier disk receipt");
   expect(cache.restoring).toBe(false);
   expect(boundary.capture).not.toHaveBeenCalled();
+});
+
+it("ignores a late encrypted-storage failure once a different owner is ready", async () => {
+  let rejectStale: (error: Error) => void = () => {};
+  boundary.open.mockReturnValueOnce(
+    new Promise<CacheStorage>((_resolve, reject) => {
+      rejectStale = reject;
+    }),
+  );
+  const view = await render(<Fixture />);
+  await waitFor(() => expect(boundary.open).toHaveBeenCalledOnce());
+  const replacement = { ...initialAuth, userId: "new-owner", sessionId: "new-session" };
+  await view.rerender(<Fixture auth={replacement} />);
+  await ready();
+  await act(async () => {
+    rejectStale(new Error("Retired native account storage failed"));
+  });
+  expect(screen.getByText("Cache lifecycle ready")).toBeOnTheScreen();
+  expect(
+    screen.queryByText("Local storage is unavailable. Data will be refreshed online."),
+  ).toBeNull();
+  expect(boundary.capture).not.toHaveBeenCalled();
+  expect(boundary.open).toHaveBeenLastCalledWith(
+    { apiUrl: API, userId: "new-owner" },
+    expect.any(Function),
+  );
+  expect(client.getQueryData(key("owner"))).toBeUndefined();
+});
+
+it("keeps one redacted warning when encrypted storage fails across two consecutive sessions", async () => {
+  boundary.open.mockRejectedValue(new Error("Private device details"));
+  const view = await render(<Fixture />);
+  await ready();
+  const warning = "Local storage is unavailable. Data will be refreshed online.";
+  expect(screen.getByText(warning)).toBeOnTheScreen();
+  await view.rerender(<Fixture auth={{ ...initialAuth, sessionId: "refreshed-session" }} />);
+  await waitFor(() => expect(boundary.open).toHaveBeenCalledTimes(2));
+  await ready();
+  expect(screen.getAllByText(warning)).toHaveLength(1);
+  expect(boundary.capture).toHaveBeenCalledExactlyOnceWith(
+    new Error("Mobile query storage unavailable"),
+    { tags: { operation: "cache.persistence" } },
+  );
 });

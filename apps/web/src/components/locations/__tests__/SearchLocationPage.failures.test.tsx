@@ -5,7 +5,12 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { renderWithI18n } from "@/test-utils";
 import { SearchLocationPage } from "../SearchLocationPage";
 
-const sdk = vi.hoisted(() => ({ fail: false, remove: vi.fn(), flyTo: vi.fn() }));
+const sdk = vi.hoisted(() => ({
+  fail: false,
+  remove: vi.fn(),
+  flyTo: vi.fn(),
+  setStyle: vi.fn(),
+}));
 // MapLibre/WebGL and browser location APIs are external to this component's form behavior.
 vi.mock("@maptiler/sdk", () => ({
   config: { apiKey: "" },
@@ -16,7 +21,7 @@ vi.mock("@maptiler/sdk", () => ({
     }
     remove = sdk.remove;
     flyTo = sdk.flyTo;
-    setStyle() {}
+    setStyle = sdk.setStyle;
   },
   Marker: class {
     setLngLat() {
@@ -262,3 +267,88 @@ it("pages an open favorite selector only while more data is available and no loa
   await waitFor(() => expect(screen.queryByRole("listbox")).toBeNull());
   expect(screen.queryByRole("button", { name: "Load more favorite locations" })).toBeNull();
 });
+
+it("updates the map stylesheet when the active appearance changes without replacing a selected location", async () => {
+  const root = document.documentElement;
+  const original = root.className;
+  sdk.setStyle.mockClear();
+  sdk.remove.mockClear();
+  root.classList.remove("dark");
+  try {
+    const { unmount } = mount({ initial: location });
+    await waitFor(() =>
+      expect(screen.getByRole("textbox", { name: "Location name" })).toHaveValue(location.name),
+    );
+    await act(async () => {
+      await import("@maptiler/sdk");
+    });
+    act(() => root.classList.add("dark"));
+    await waitFor(() => expect(sdk.setStyle).toHaveBeenLastCalledWith("dark"));
+    act(() => root.classList.add("irrelevant"));
+    expect(sdk.setStyle).toHaveBeenCalledTimes(1);
+    act(() => root.classList.remove("dark"));
+    await waitFor(() => expect(sdk.setStyle).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole("textbox", { name: "Location name" })).toHaveValue(location.name);
+    unmount();
+    expect(sdk.remove).toHaveBeenCalledOnce();
+  } finally {
+    root.className = original;
+  }
+});
+
+it("ignores a canceled search rejection after a new result is committed", async () => {
+  let rejectPrevious: ((error: Error) => void) | undefined;
+  const requested: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string, init?: RequestInit) => {
+      const query = new URL(input).searchParams.get("query") ?? "";
+      requested.push(query);
+      if (query === "Obsolete road")
+        return new Promise<Response>((_resolve, reject) => {
+          rejectPrevious = reject;
+          init?.signal?.addEventListener("abort", () =>
+            reject(new DOMException("Aborted", "AbortError")),
+          );
+        });
+      return Response.json({ items: [location] });
+    }),
+  );
+  mount();
+  const input = screen.getByRole("searchbox", { name: "Search address/place" });
+  fireEvent.change(input, { target: { value: "Obsolete road" } });
+  await waitFor(() => expect(rejectPrevious).toBeDefined());
+  fireEvent.change(input, { target: { value: "Verified road" } });
+  expect(await screen.findByRole("button", { name: location.address })).toBeVisible();
+  expect(screen.queryByText("Could not search addresses")).toBeNull();
+  expect(requested).toEqual(["Obsolete road", "Verified road"]);
+});
+
+it.each([false, true])(
+  "withdraws a vanished favorite from an open chooser (read failure: %s)",
+  async (failed) => {
+    const original = favorites();
+    const { props, rerender } = mount({ favorites: original });
+    const trigger = screen.getByRole("button", { name: /Favorite locations/ });
+    fireEvent.click(trigger);
+    expect(await screen.findByRole("option", { name: /Board game cafe/ })).toBeVisible();
+    rerender(
+      <SearchLocationPage
+        {...props}
+        favorites={{
+          items: [],
+          list: { ...original.list, isError: failed },
+        }}
+      />,
+    );
+    expect(screen.queryByRole("option", { name: /Board game cafe/ })).toBeNull();
+    expect(trigger).toBeDisabled();
+    if (failed) {
+      expect(screen.getAllByText("Could not load favorite locations").length).toBeGreaterThan(0);
+    } else {
+      expect(screen.queryByText("Could not load favorite locations")).toBeNull();
+    }
+    expect(props.onSelect).not.toHaveBeenCalled();
+    expect(original.list.fetchNextPage).not.toHaveBeenCalled();
+  },
+);

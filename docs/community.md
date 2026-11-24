@@ -61,7 +61,7 @@ there is no client download of the graph, per-author Profile fan-out, or duplica
 
 Private Event activities are excluded from both feeds unless their immutable finalization explicitly
 shares results with current friends of final frozen players. Only existing played/milestone activities
-are shared, without any Group identity, under the [Event access contract](groups-events-refactor.md#event-access-and-shared-final-results).
+are shared, without any Group identity, under the [Event access contract](groups-events-tables.md#event-access-and-shared-final-results).
 This includes private Events in either Group type. Other approved PUBLIC Group activities and PUBLIC
 Events/Tables remain visible without Group membership, subject to authentication, both block directions,
 active exclusions and source existence.
@@ -129,8 +129,8 @@ or reused, while retaining unrelated cache data.
 The migration maintains activity timestamp/source/join lookup indexes. Run it only with explicit
 scope against the intended replica set; documentation authorizes no migration/reset, Clerk changes,
 provisioning, publication or CI policy changes. Real MongoDB tests use only disposable Testcontainers
-databases. See [operational gates](organizations-events-operations.md).
+databases. See [operational gates](deployment-operations.md).
 
 Real-fixture Playwright and Maestro scenarios establish authenticated Development/Preview behavior.
 Unit coverage, compilation, syntax/discovery and isolated browser layouts do not establish that
-acceptance. Record actual executed evidence using the [verification requirements](implementation-progress.md).
+acceptance. Record actual executed evidence using the [verification requirements](verification-and-acceptance.md).
