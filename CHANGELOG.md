@@ -1,3 +1,25 @@
+## [1.10.1](https://github.com/BGOrganizer/board-game-organizer/compare/v1.10.0...v1.10.1) (2026-11-24)
+
+### 🐛 Bug Fixes
+
+* **ci:** align Netlify API runtime attestation ([df95fb0](https://github.com/BGOrganizer/board-game-organizer/commit/df95fb08f147882d3771bb079f6f3be4d3b4f8f6))
+* **ci:** publish the prebuilt Netlify MCP gateway ([a72086e](https://github.com/BGOrganizer/board-game-organizer/commit/a72086eb0776df03668ff776bce303167065b219))
+* **ci:** verify Netlify branch deploy metadata ([48491b0](https://github.com/BGOrganizer/board-game-organizer/commit/48491b00f7cbc437c3c558fb540e107bf665c037))
+
+### 🧪 Tests
+
+* **ci:** verify provider smoke requests and bypass scope ([412e33a](https://github.com/BGOrganizer/board-game-organizer/commit/412e33a8226a171bf92f5c5a4ff5b339dc81baac))
+* **mcp:** cover missing Netlify gateway upstream ([234c052](https://github.com/BGOrganizer/board-game-organizer/commit/234c052d937e477653f603eb7903346b5a2fef0b))
+
+### 🔧 CI/CD
+
+* add parallel Netlify deployments ([024c3db](https://github.com/BGOrganizer/board-game-organizer/commit/024c3db47ae75d304ec74808a9ec1382c6ad8f1e))
+* continue from a verified deploy after provider failure ([dbbc481](https://github.com/BGOrganizer/board-game-organizer/commit/dbbc481402cdb368157faf70dc7b6996c71b27fb))
+* route Vercel failures to separate Netlify deployments ([aa08d5f](https://github.com/BGOrganizer/board-game-organizer/commit/aa08d5fc567f60e074f5c8219a882482d62cd700))
+* scaffold missing hosting projects manually ([a87ad5b](https://github.com/BGOrganizer/board-game-organizer/commit/a87ad5bd4a9b0fdf0cad33358d9c0d1c629f5cf1))
+* switch production DNS after verified deployments ([c8f3987](https://github.com/BGOrganizer/board-game-organizer/commit/c8f398735c85ed1a41c930cb6b986bd89ad40cfa))
+* verify deployments with Vercel and Netlify fallback ([f0accab](https://github.com/BGOrganizer/board-game-organizer/commit/f0accab4887d021609d3df393bc2d0c2efdeef9f))
+
 ## [1.10.0](https://github.com/BGOrganizer/board-game-organizer/compare/v1.9.0...v1.10.0) (2026-11-23)
 
 ### ✨ Features
