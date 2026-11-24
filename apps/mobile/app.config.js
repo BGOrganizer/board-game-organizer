@@ -43,7 +43,7 @@ module.exports = {
   expo: {
     name: locales.en.android[appNameKey],
     slug: "board-game-organizer",
-    version: "1.10.2",
+    version: "1.11.0",
     runtimeVersion: { policy: "fingerprint" },
     updates: {
       url: "https://u.expo.dev/f19004af-2669-49ca-8c46-2697b66841b6",

@@ -1,3 +1,48 @@
+## [1.11.0](https://github.com/BGOrganizer/board-game-organizer/compare/v1.10.2...v1.11.0) (2026-11-24)
+
+### ✨ Features
+
+* **mcp:** compose HeroUI views and enforce 93% coverage ([fe4a39c](https://github.com/BGOrganizer/board-game-organizer/commit/fe4a39c691a3c0e2ad4d861631b3cb88e0c08ae5))
+
+### 🐛 Bug Fixes
+
+* **ci:** recognize unchanged legacy Web benchmark fixtures ([399e812](https://github.com/BGOrganizer/board-game-organizer/commit/399e812accae41a877b6da96989e80fb87da17da))
+* **mobile:** restart contact sync after permission changes ([1272904](https://github.com/BGOrganizer/board-game-organizer/commit/12729047c2f4e5b60d043a3b7184572f61ee97fc))
+* restore incomplete public event schedules ([4113904](https://github.com/BGOrganizer/board-game-organizer/commit/4113904efed144e80123ae899a95a47efe659f66))
+* use the installed TypeScript parser for render provenance ([2149f41](https://github.com/BGOrganizer/board-game-organizer/commit/2149f4168172adce43fabe0710d37d343cb3acf7))
+
+### 🧪 Tests
+
+* bound observed asynchronous render variance ([3be31da](https://github.com/BGOrganizer/board-game-organizer/commit/3be31da824e13fd833776f71aefb729b23660da5))
+* calibrate asynchronous render variance ([29211be](https://github.com/BGOrganizer/board-game-organizer/commit/29211bede601233b4555bb9db81c3a243da0d59d))
+* calibrate Mobile Reassure commit ceilings ([068e6ee](https://github.com/BGOrganizer/board-game-organizer/commit/068e6ee2138f1a6ba52aa35b7aec035de01be375))
+* calibrate Web Reassure commit ceilings ([9ae3075](https://github.com/BGOrganizer/board-game-organizer/commit/9ae3075b4079c75145ed0f9ecf56189fc1a1690c))
+* cover application and repository boundaries ([8cfeb5d](https://github.com/BGOrganizer/board-game-organizer/commit/8cfeb5de1af7fb1635ea8b3a42df49cb28d60b7f))
+* enforce 98 percent coverage across runtime workspaces ([d9e70ed](https://github.com/BGOrganizer/board-game-organizer/commit/d9e70edc2821d654f30a7b3f7a26c7369f2e25fe))
+* exercise remaining native render paths ([e22f933](https://github.com/BGOrganizer/board-game-organizer/commit/e22f9337e1a6d6b4c62a3734db8f77a09a1d28e4))
+* expand native coverage and enforce the shared gate ([feffc20](https://github.com/BGOrganizer/board-game-organizer/commit/feffc2081965b77702b23dd86423ff6d05359d49))
+* extend rendering paths and gate web coverage at 98 percent ([27790d7](https://github.com/BGOrganizer/board-game-organizer/commit/27790d7a906bc337cf96fff0531b0bc4a154aab7))
+* extend verified interaction and recovery coverage ([5de8b0c](https://github.com/BGOrganizer/board-game-organizer/commit/5de8b0c982701c868589fcd127989bb009edfeab))
+* isolate coverage policy from render instrumentation ([718e24a](https://github.com/BGOrganizer/board-game-organizer/commit/718e24a9a94d504a9c2d7f44c03ea56448ce7058))
+* keep rerun reports and bound isolated render variation ([6995ddb](https://github.com/BGOrganizer/board-game-organizer/commit/6995ddb4dca744912b339d97ce5296da0ebfa7a7))
+* **mcp:** cover deployed gateway entrypoints ([fdd295e](https://github.com/BGOrganizer/board-game-organizer/commit/fdd295e204f2035c4b4b2e5c470a0296ab5e86a5))
+* **mcp:** cover game rows in table browse results ([50ff198](https://github.com/BGOrganizer/board-game-organizer/commit/50ff198e7139e610b992ccb9393681e9a80a6cbe))
+* **mobile:** wait for proposal form hydration ([244f46b](https://github.com/BGOrganizer/board-game-organizer/commit/244f46bf87617cff535e1bc56dec918e5ff079c8))
+* prepare full Reassure calibration ([71971c9](https://github.com/BGOrganizer/board-game-organizer/commit/71971c9ad32e09428b85026658cca3938067c154))
+* stabilize calibrated render comparisons ([5ecc6a3](https://github.com/BGOrganizer/board-game-organizer/commit/5ecc6a3879c13846d5cce2b23b9cd04a4fc862e9))
+* stabilize native query and render scenarios ([ee36fdb](https://github.com/BGOrganizer/board-game-organizer/commit/ee36fdb30b80ef7eef242cb01d0990079927e294))
+* verify native score and roster reconciliation ([c431819](https://github.com/BGOrganizer/board-game-organizer/commit/c431819518ff2c5a376e498bf97d48607fc03477))
+* **web:** isolate the cached BGG render measurement ([7f3da34](https://github.com/BGOrganizer/board-game-organizer/commit/7f3da347174d37109a9446fa2704dd15ebe99ea0))
+
+### 🔧 CI/CD
+
+* resume calibrated React render benchmarks ([11afda4](https://github.com/BGOrganizer/board-game-organizer/commit/11afda42f41dd5bac57f7b6981bff9b9afc15dc6))
+
+### 🧹 Chores
+
+* integrate 98 percent coverage and Reassure ([c003383](https://github.com/BGOrganizer/board-game-organizer/commit/c0033830c0542496a3ec615bc8c754166c3feca4))
+* synchronize MCP widget PR with main ([205375b](https://github.com/BGOrganizer/board-game-organizer/commit/205375b80cd8c5e999820e5de21f54c61bb45c2c))
+
 ## [1.10.2](https://github.com/BGOrganizer/board-game-organizer/compare/v1.10.1...v1.10.2) (2026-11-24)
 
 ### 🐛 Bug Fixes
