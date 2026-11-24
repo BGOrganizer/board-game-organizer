@@ -18,7 +18,10 @@ import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const initialMain = "466220e26f672ad8de644e0a2c2ce223f02879df";
-const pausedMain = "13c84d3e9b3c17e6e817dd8685a97824336d17aa";
+const legacyWebBaselines = new Set([
+  "13c84d3e9b3c17e6e817dd8685a97824336d17aa",
+  "39d488037509a60c5fbeee377999ec29be679add",
+]);
 // These historical fixtures predate the numbered table title, indicator and vote button changes.
 const staleWebScenarios = new Set([
   "EventTableCard window: twelve cached planning tables",
@@ -251,7 +254,7 @@ function prepare(root, expectedRef, app, phase, execute) {
   const { renderCommitBudgets } = require(budgetFile);
   const approved = Object.keys(renderCommitBudgets);
   const scenarioNames =
-    phase === "baseline" && app === "web" && expectedRef === pausedMain
+    phase === "baseline" && app === "web" && legacyWebBaselines.has(expectedRef)
       ? approved.filter((name) => !staleWebScenarios.has(name))
       : approved;
   ensure(scenarioNames.length > 0, "Missing approved render scenarios");

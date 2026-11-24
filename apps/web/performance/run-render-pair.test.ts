@@ -14,7 +14,10 @@ const { runRenderPair } = await import(
   ).href
 );
 const initialMain = "466220e26f672ad8de644e0a2c2ce223f02879df";
-const pausedMain = "13c84d3e9b3c17e6e817dd8685a97824336d17aa";
+const legacyWebBaselines = [
+  "13c84d3e9b3c17e6e817dd8685a97824336d17aa",
+  "39d488037509a60c5fbeee377999ec29be679add",
+];
 const baseRef = "a".repeat(40),
   currentRef = "b".repeat(40);
 const flags = [
@@ -296,21 +299,24 @@ it("uses the native config and installed renderer/preset versions without import
     f.proof().current.instrumentation.files["apps/mobile/performance/uniwind-native-interop.ts"],
   ).toMatch(/^[a-f\d]{64}$/);
 });
-it("selects usable scenarios from the paused Web baseline", () => {
-  const f = fixture({ historicalRef: pausedMain });
-  put(
-    join(f.baseline, "apps/web/performance/renderCommitBudgets.ts"),
-    `export const renderCommitBudgets = ${JSON.stringify({
-      "Measured scenario": 1,
-      "EventTableCard window: twelve cached planning tables": 1,
-      "OptionVoteVoters: compact named ballots": 1,
-      "TabBar and TabTrigger: real HeroUI detail-tab changes": 10,
-    })};`,
-  );
-  expect(f.run()).toBe(0);
-  expect(f.proof().baseline.scenarios).toEqual(["Measured scenario"]);
-  expect(f.measurements()[1].args).not.toContain("--testNamePattern");
-});
+it.each(legacyWebBaselines)(
+  "selects usable scenarios from the historical Web baseline %s",
+  (ref) => {
+    const f = fixture({ historicalRef: ref });
+    put(
+      join(f.baseline, "apps/web/performance/renderCommitBudgets.ts"),
+      `export const renderCommitBudgets = ${JSON.stringify({
+        "Measured scenario": 1,
+        "EventTableCard window: twelve cached planning tables": 1,
+        "OptionVoteVoters: compact named ballots": 1,
+        "TabBar and TabTrigger: real HeroUI detail-tab changes": 10,
+      })};`,
+    );
+    expect(f.run()).toBe(0);
+    expect(f.proof().baseline.scenarios).toEqual(["Measured scenario"]);
+    expect(f.measurements()[1].args).not.toContain("--testNamePattern");
+  },
+);
 it("allows only the initial no-harness main to bootstrap and never creates old samples", () => {
   const f = fixture({ bootstrap: true });
   expect(f.run()).toBe(0);

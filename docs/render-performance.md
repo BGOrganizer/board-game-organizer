@@ -138,10 +138,10 @@ cases. The two checkouts have separate locked installations, completed before ei
 Web and mobile have independent reports and use separate comparisons. The artifact name includes
 the workflow attempt so a retry can preserve its own measurements.
 
-The Web baseline at `13c84d3e` predates updates to the numbered table label, clickable vote choices
-and restored HeroUI tab indicators. The three affected scenarios run in the full candidate suite
-with their observed ceilings and current behavior assertions. Comparisons against that historical
-revision report the three as additions.
+The Web baselines at `13c84d3e` and `39d48803` share the same historical fixtures for numbered
+table labels, clickable vote choices and restored HeroUI tab indicators. Those three scenarios run
+in the full candidate suite with their calibrated ceilings and current behavior assertions.
+Comparisons against these two immutable revisions report the three scenarios as additions.
 
 PR uses its immutable base SHA; a branch push resolves the repository's default branch to the
 actual checked-out SHA. Main uses the push event's previous SHA. The candidate is the actual
