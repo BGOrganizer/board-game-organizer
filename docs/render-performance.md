@@ -129,10 +129,10 @@ scenarios. This preserves measured history when a previously paused suite contai
 cases. The two checkouts have separate locked installations, completed before either timing run.
 Web and mobile have independent reports and use separate comparisons.
 
-The Web baseline at `13c84d3e` predates recalibration of two scenarios. Clickable vote choices
-and the restored HeroUI tab indicator add commits to their respective fixtures. Both scenarios
-run in the full candidate suite with their observed ceilings. Only comparisons against that
-historical revision treat those two scenarios as additions.
+The Web baseline at `13c84d3e` predates updates to the numbered table label, clickable vote choices
+and restored HeroUI tab indicators. The three affected scenarios run in the full candidate suite
+with their observed ceilings and current behavior assertions. Comparisons against that historical
+revision report the three as additions.
 
 PR uses its immutable base SHA; a branch push resolves the repository's default branch to the
 actual checked-out SHA. Main uses the push event's previous SHA. The candidate is the actual
@@ -155,10 +155,10 @@ The [comparison wrapper](../scripts/performance/compare-render-reports.mjs) uses
 named budget inventory, ten raw render counts, ten duration samples including removed outliers,
 one warmup and each calibrated commit ceiling before accepting the report. The historical report
 must include every scenario selected from the baseline checkout's budgets. Official errors,
-statistically significant duration increases and removed scenarios fail the gate. Improvements,
-added scenarios, warnings and stability remain in the output; stability has no invented automatic
-threshold. A render-count ceiling is a separate deterministic gate, not a substitute for the
-upstream statistical calculation.
+statistically significant duration increases of at least 0.2 ms, and removed scenarios fail the
+gate. The Web reactivation run observed differences up to 0.152 ms with identical application
+code and scenario assertions. The report retains smaller timing differences, improvements, added
+scenarios, warnings and stability. The commit-count ceilings remain independently enforced.
 
 The approved initial main, `466220e26f672ad8de644e0a2c2ce223f02879df`, has no performance harness.
 Only that exact no-harness source may bootstrap: current runs normally, every current scenario is

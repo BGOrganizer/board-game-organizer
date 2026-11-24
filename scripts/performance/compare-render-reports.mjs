@@ -5,6 +5,8 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const initialMain = "466220e26f672ad8de644e0a2c2ce223f02879df";
+// The same source and scenarios differed by up to 0.152 ms in the hosted reactivation run.
+const minimumDurationIncreaseMs = 0.2;
 const requiredFlags = [
   "--expose-gc",
   "--no-concurrent-sweeping",
@@ -243,7 +245,9 @@ export async function compareRenderReports(argv) {
     ),
     "Invalid official comparison output",
   );
-  const slowdowns = report.significant.filter((entry) => entry.durationDiff > 0);
+  const slowdowns = report.significant.filter(
+    (entry) => entry.durationDiff >= minimumDurationIncreaseMs,
+  );
   const reasons = [
     ...report.errors,
     ...slowdowns.map((entry) => `Significant duration regression: ${entry.name}`),
@@ -253,6 +257,7 @@ export async function compareRenderReports(argv) {
     passed: reasons.length === 0,
     mode: options.bootstrap ? "bootstrap" : "comparison",
     timingsCompared: !options.bootstrap,
+    minimumDurationIncreaseMs,
     reasons,
   };
   writeFileSync(options.output, `${JSON.stringify({ ...report, provenance, gate }, null, 2)}\n`);

@@ -19,8 +19,9 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const initialMain = "466220e26f672ad8de644e0a2c2ce223f02879df";
 const pausedMain = "13c84d3e9b3c17e6e817dd8685a97824336d17aa";
-// The paused Web baseline kept the counts from before the indicator and vote button changes.
-const staleWebBudgets = new Set([
+// These historical fixtures predate the numbered table title, indicator and vote button changes.
+const staleWebScenarios = new Set([
+  "EventTableCard window: twelve cached planning tables",
   "OptionVoteVoters: compact named ballots",
   "TabBar and TabTrigger: real HeroUI detail-tab changes",
 ]);
@@ -221,7 +222,7 @@ function prepare(root, expectedRef, app, phase, execute) {
   const approved = Object.keys(renderCommitBudgets);
   const scenarioNames =
     phase === "baseline" && app === "web" && expectedRef === pausedMain
-      ? approved.filter((name) => !staleWebBudgets.has(name))
+      ? approved.filter((name) => !staleWebScenarios.has(name))
       : approved;
   ensure(scenarioNames.length > 0, "Missing approved render scenarios");
   return {

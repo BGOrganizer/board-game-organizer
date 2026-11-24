@@ -277,12 +277,13 @@ it("uses the native config and installed renderer/preset versions without import
     f.proof().current.instrumentation.files["apps/mobile/performance/uniwind-native-interop.ts"],
   ).toMatch(/^[a-f\d]{64}$/);
 });
-it("keeps both stale ceilings outside the one paused Web baseline", () => {
+it("selects usable scenarios from the paused Web baseline", () => {
   const f = fixture({ historicalRef: pausedMain });
   put(
     join(f.baseline, "apps/web/performance/renderCommitBudgets.ts"),
     `export const renderCommitBudgets = ${JSON.stringify({
       "Measured scenario": 1,
+      "EventTableCard window: twelve cached planning tables": 1,
       "OptionVoteVoters: compact named ballots": 1,
       "TabBar and TabTrigger: real HeroUI detail-tab changes": 10,
     })};`,

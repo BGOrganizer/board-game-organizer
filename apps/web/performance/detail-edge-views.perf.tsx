@@ -1,5 +1,5 @@
 import type { TableCardSummary } from "@board-game-organizer/schemas";
-import { newTableDraft } from "@board-game-organizer/shared";
+import { type EventTableDraft, newTableDraft } from "@board-game-organizer/shared";
 import { fireEvent, screen, within } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, expect, vi } from "vitest";
@@ -84,7 +84,7 @@ measureWebFeature(
 );
 
 function DraftTable() {
-  const [row, setRow] = useState({
+  const [row, setRow] = useState<EventTableDraft>({
     ...newTableDraft("draft"),
     demonstratorGuestName: "Guest Ada",
     startsWall: "2030-06-03T20:00",

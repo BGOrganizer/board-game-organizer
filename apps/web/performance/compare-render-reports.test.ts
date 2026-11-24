@@ -167,6 +167,12 @@ it("fails a significant slowdown while retaining the actual official statistical
   });
   expect(f.report().gate.passed).toBe(false);
 });
+it("reports significant differences within the measured timing noise without failing the duration gate", () => {
+  const f = fixture({ baseline: [row(undefined, 1)], current: [row(undefined, 1.15)] });
+  expect(f.run().status).toBe(0);
+  expect(f.report().significant[0].durationDiff).toBeCloseTo(0.15);
+  expect(f.report().gate).toMatchObject({ passed: true, minimumDurationIncreaseMs: 0.2 });
+});
 it("records a significant improvement without reporting a regression", () => {
   const f = fixture({ current: [row(undefined, 5)] });
   expect(f.run().status).toBe(0);

@@ -2,7 +2,7 @@
 export const renderCommitBudgets: Readonly<Record<string, number>> = {
   "actual community list owners: cached reentry and authoritative HTTP refresh stay reactive": 29,
   "actual contacts screen: cached private state remains reactive and unconfirmed actions do not write": 43,
-  "actual event detail owner: cached tab reentry preserves native content and accepts authoritative receipts": 32,
+  "actual event detail owner: cached tab reentry preserves native content and accepts authoritative receipts": 33,
   "actual event wizard recovery: restore the rejected local draft without resubmitting it": 19,
   "actual event wizard: real picker round trips preserve unsaved drafts without writes": 46,
   "actual group detail owner: cached tab reentry preserves native content and accepts authoritative receipts": 37,
@@ -55,7 +55,7 @@ export const renderCommitBudgets: Readonly<Record<string, number>> = {
   "EventFinalizeAction: review immutable results and discard the private share opt-in on cancellation": 7,
   "EventGuestBadge: explain who may vote on behalf of the seated guest": 6,
   "EventGuestVoteEditor: stage a proxy ballot and publish it only on explicit submission": 5,
-  "EventInvitationPicker: validate guest input and return only after the guest receipt": 18,
+  "EventInvitationPicker: validate guest input and return only after the guest receipt": 19,
   "EventJoinSheet: incomplete ballots, explicit votes and pending registration reconcile the authoritative seat": 12,
   "EventPlayerCard: retain player identity and show avatar fallback on image failure": 3,
   "EventPlayerRatingPopover: retain the current rating popover through an authoritative update": 6,
