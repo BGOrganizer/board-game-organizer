@@ -7,14 +7,34 @@ import test from "node:test";
 
 const apiId = "11111111-1111-1111-1111-111111111111";
 const webId = "22222222-2222-2222-2222-222222222222";
+const siteId = "33333333-3333-3333-3333-333333333333";
+const gatewayId = "44444444-4444-4444-4444-444444444444";
 const apiDeploy = "1".repeat(24);
 const webDeploy = "2".repeat(24);
+const siteDeploy = "3".repeat(24);
+const gatewayDeploy = "4".repeat(24);
 const apiUrl = `https://${apiDeploy}--bgo-api-development.netlify.app`;
 const webUrl = `https://${webDeploy}--bgo-web-development.netlify.app`;
 const apiAlias = "https://ci-pr-35-123-1--bgo-api-development.netlify.app";
 const webAlias = "https://ci-pr-35-123-1--bgo-web-development.netlify.app";
+const developmentApiAlias = apiAlias.replace("ci-pr", "pr");
+const developmentWebAlias = webAlias.replace("ci-pr", "pr");
+const gatewayOrigin = "https://bgo-mcp-development.netlify.app";
 const sourceSha = "a".repeat(40);
 const prHead = "b".repeat(40);
+const deployTitle = `bgo:${sourceSha}:${sourceSha}:123:1`;
+const actionScript = ".github/actions/netlify-deploy/deploy.sh";
+const developmentEnv = {
+  BGO_NETLIFY_STAGE: "development",
+  BGO_NETLIFY_ISOLATED: "true",
+  GITHUB_EVENT_NAME: "pull_request",
+  GITHUB_RUN_ID: "123",
+  GITHUB_RUN_ATTEMPT: "1",
+  PR_NUMBER: "35",
+  PR_HEAD_SHA: prHead,
+  SOURCE_SHA: sourceSha,
+  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_fixture",
+};
 
 function fixture(t) {
   const dir = mkdtempSync(join(tmpdir(), "bgo-netlify-ci-"));
@@ -44,6 +64,9 @@ function fixture(t) {
         ARTIFACT_DB: "bgo_ci_123_1",
         ARTIFACT_URL: apiUrl,
         NETLIFY_BRANCH: "ci-pr-35-123-1",
+        NETLIFY_TITLE: deployTitle,
+        FIXTURE_STAGE: "development",
+        PUBLISHED_API_DEPLOY: apiDeploy,
         REQUESTS: log,
         GITHUB_OUTPUT: outputs,
         GITHUB_STEP_SUMMARY: join(dir, "summary"),
@@ -56,15 +79,43 @@ function fixture(t) {
     `
 for arg in "$@"; do case "$arg" in https://*) url="$arg"; break ;; esac; done
 printf '%s\n' "$url" >> "$REQUESTS"
+function render_deploy() {
+  local id=$1 site=$2 component=$3 stage=$4 context=$5
+  jq -cn --arg id "$id" --arg site "$site" --arg name "bgo-$component-$stage" \
+    --arg context "$context" --arg branch "$NETLIFY_BRANCH" --arg title "$NETLIFY_TITLE" '
+    {id:$id,site_id:$site,name:$name,state:"ready",context:$context,branch:$branch,title:$title,
+    deploy_ssl_url:("https://"+$branch+"--"+$name+".netlify.app")}'
+}
+context=branch-deploy
+if [ "$FIXTURE_STAGE" = production ]; then context=production; fi
 case "$url" in
   'https://api.netlify.com/api/v1/board-game-organizer/sites?'*)
-    jq -cn --arg account "$NETLIFY_ACCOUNT" '[{id:"${apiId}",name:"bgo-api-development",account_slug:$account},{id:"${webId}",name:"bgo-web-development",account_slug:$account}]'
+    jq -cn --arg account "$NETLIFY_ACCOUNT" --arg stage "$FIXTURE_STAGE" '[
+      {id:"${apiId}",name:("bgo-api-"+$stage),account_slug:$account},
+      {id:"${webId}",name:("bgo-web-"+$stage),account_slug:$account},
+      {id:"${siteId}",name:("bgo-site-"+$stage),account_slug:$account},
+      {id:"${gatewayId}",name:("bgo-mcp-"+$stage),account_slug:$account}]'
+    ;;
+  'https://api.netlify.com/api/v1/sites/${apiId}')
+    jq -cn --arg id "$PUBLISHED_API_DEPLOY" '{id:"${apiId}",name:"bgo-api-production",account_slug:"board-game-organizer",published_deploy:{id:$id}}'
+    ;;
+  'https://api.netlify.com/api/v1/sites/${webId}')
+    printf '%s' '{"id":"${webId}","name":"bgo-web-production","account_slug":"board-game-organizer","published_deploy":{"id":"${webDeploy}"}}'
+    ;;
+  'https://api.netlify.com/api/v1/sites/${gatewayId}')
+    printf '%s' '{"id":"${gatewayId}","name":"bgo-mcp-development","account_slug":"board-game-organizer","published_deploy":{"id":"${gatewayDeploy}"}}'
     ;;
   'https://api.netlify.com/api/v1/deploys/${apiDeploy}')
-    jq -cn --arg alias "$NETLIFY_BRANCH" '{id:"${apiDeploy}",site_id:"${apiId}",name:"bgo-api-development",state:"ready",context:"branch-deploy",branch:$alias,deploy_ssl_url:("https://"+$alias+"--bgo-api-development.netlify.app")}'
+    render_deploy '${apiDeploy}' '${apiId}' api "$FIXTURE_STAGE" "$context"
     ;;
   'https://api.netlify.com/api/v1/deploys/${webDeploy}')
-    printf '%s' '${JSON.stringify({ id: webDeploy, site_id: webId, name: "bgo-web-development", state: "ready", context: "branch-deploy", branch: "ci-pr-35-123-1", deploy_ssl_url: webAlias })}'
+    render_deploy '${webDeploy}' '${webId}' web "$FIXTURE_STAGE" "$context"
+    ;;
+  'https://api.netlify.com/api/v1/deploys/${siteDeploy}')
+    render_deploy '${siteDeploy}' '${siteId}' site development branch-deploy
+    ;;
+  'https://api.netlify.com/api/v1/deploys/${gatewayDeploy}')
+    render_deploy '${gatewayDeploy}' '${gatewayId}' mcp development production
     ;;
   'https://api.vercel.com/v13/deployments/owned.vercel.app?teamId=team-test')
     printf '%s' '{"url":"owned.vercel.app","projectId":"project-test","target":null}'
@@ -78,10 +129,14 @@ case "$url" in
     [[ " $* " == *"$RECORD_DB"* ]]
     printf '%s' '{"ok":true}'
     ;;
-  '${apiUrl}/api/health'|'${apiAlias}/api/health')
+  '${apiUrl}/api/health'|'${apiAlias}/api/health'|'https://bgo-api-production.netlify.app/api/health')
     printf '%s' '{"ok":true,"service":"board-game-organizer-api"}'
     ;;
-  '${webUrl}/'|'${webAlias}/') ;;
+  '${webUrl}/'|'${webAlias}/'|'https://${webDeploy}--bgo-web-production.netlify.app/'|'https://bgo-web-production.netlify.app/') ;;
+  'https://${siteDeploy}--bgo-site-development.netlify.app/'|'https://pr-35-123-1--bgo-site-development.netlify.app/') ;;
+  'https://${gatewayDeploy}--bgo-mcp-development.netlify.app/.well-known/oauth-protected-resource/mcp'|'${gatewayOrigin}/.well-known/oauth-protected-resource/mcp')
+    printf '%s' '{"resource":"${gatewayOrigin}/mcp"}'
+    ;;
   *) exit 1 ;;
 esac`,
   );
@@ -93,8 +148,7 @@ esac`,
   };
 }
 
-test("Netlify CI builds and attests an isolated pair before exposing outputs", (t) => {
-  const { executable, run, requests, outputs } = fixture(t);
+function stubIsolatedDeploy(executable) {
   executable(
     "git",
     `
@@ -104,6 +158,9 @@ case "$2" in HEAD) printf '${sourceSha}' ;; 'HEAD^2') printf '${prHead}' ;; *) e
   executable(
     "netlify",
     `
+test -z "\${CLERK_SECRET_KEY:-}"
+[[ " $* " == *' --message ${deployTitle} '* && " $* " == *' --alias ci-pr-35-123-1 '* ]]
+printf 'deploy command\n' >> "$REQUESTS"
 case " $* " in
   *' --filter apps/api '*)
     test "$BGO_CI_DB_NAME" = bgo_ci_123_1
@@ -118,24 +175,185 @@ case " $* " in
   *) exit 1 ;;
 esac`,
   );
+}
 
-  const result = run(".github/actions/netlify-deploy/deploy.sh", [], {
-    BGO_NETLIFY_STAGE: "development",
-    BGO_NETLIFY_ISOLATED: "true",
-    GITHUB_EVENT_NAME: "pull_request",
-    GITHUB_RUN_ID: "123",
-    GITHUB_RUN_ATTEMPT: "1",
-    PR_NUMBER: "35",
-    PR_HEAD_SHA: prHead,
-    SOURCE_SHA: sourceSha,
-    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_fixture",
+test("Netlify deploys and attests the isolated API before exposing its outputs", (t) => {
+  const { executable, run, requests, outputs } = fixture(t);
+  stubIsolatedDeploy(executable);
+  const result = run(actionScript, [], {
+    ...developmentEnv,
+    BGO_NETLIFY_COMPONENT: "api",
   });
   assert.equal(result.status, 0, result.stderr);
   assert.equal(
     outputs(),
-    `api-url=${apiUrl}\napi-client-url=${apiAlias}\nweb-url=${webUrl}\nweb-client-url=${webAlias}\nci-db-name=bgo_ci_123_1\n`,
+    `api-url=${apiUrl}\napi-client-url=${apiAlias}\nci-db-name=bgo_ci_123_1\n`,
   );
+  assert(requests().includes(`${apiAlias}/api/health`));
   assert(!requests().some((url) => url.includes("/api/admin/ci-db")));
+});
+
+test("Netlify Web keeps the attested isolated API alias on a partial rerun", (t) => {
+  const { executable, run, requests, outputs } = fixture(t);
+  stubIsolatedDeploy(executable);
+  const result = run(actionScript, [], {
+    ...developmentEnv,
+    BGO_NETLIFY_COMPONENT: "web",
+    GITHUB_RUN_ATTEMPT: "2",
+    CLERK_SECRET_KEY: "",
+    API_URL: apiUrl,
+    API_CLIENT_URL: apiAlias,
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(outputs(), `web-url=${webUrl}\nweb-client-url=${webAlias}\n`);
+  assert(requests().includes(`${apiAlias}/api/health`));
+  assert(!requests().some((url) => url.includes("/api/admin/")));
+});
+
+test("Netlify Web rejects API deploys with mismatched ownership, provenance or aliases", (t) => {
+  const { executable, run, requests, outputs } = fixture(t);
+  stubIsolatedDeploy(executable);
+  for (const overrides of [
+    { NETLIFY_ACCOUNT: "unrelated-team" },
+    { NETLIFY_BRANCH: "ci-pr-35-999-1" },
+    { NETLIFY_TITLE: deployTitle.replace(":123:", ":999:") },
+    { NETLIFY_TITLE: deployTitle.replace(sourceSha, prHead) },
+    { NETLIFY_TITLE: deployTitle.replace(/1$/, "2") },
+    { API_CLIENT_URL: "https://arbitrary.netlify.app" },
+    { API_URL: `${apiUrl}/unverified` },
+  ]) {
+    const result = run(actionScript, [], {
+      ...developmentEnv,
+      BGO_NETLIFY_COMPONENT: "web",
+      API_URL: apiUrl,
+      API_CLIENT_URL: apiAlias,
+      ...overrides,
+    });
+    assert.notEqual(result.status, 0, JSON.stringify(overrides));
+    assert.match(result.stderr, /requires a verified same-run api deployment/);
+  }
+  assert.equal(outputs(), "");
+  assert(!requests().includes("deploy command"));
+  assert(!requests().some((url) => url.startsWith(apiAlias)));
+});
+
+test("Netlify rejects an isolated non-API component and an unauthorized stable gateway", (t) => {
+  const { executable, run, requests } = fixture(t);
+  stubIsolatedDeploy(executable);
+  const isolated = run(actionScript, [], {
+    ...developmentEnv,
+    BGO_NETLIFY_COMPONENT: "site",
+  });
+  assert.notEqual(isolated.status, 0);
+  assert.match(isolated.stderr, /require the Development API or Web/);
+  const unauthorized = run(actionScript, [], {
+    ...developmentEnv,
+    BGO_NETLIFY_ISOLATED: "false",
+    BGO_NETLIFY_COMPONENT: "mcp",
+    GATEWAY_PR: "34",
+  });
+  assert.notEqual(unauthorized.status, 0);
+  assert.match(unauthorized.stderr, /not authorized to publish/);
+  assert.deepEqual(requests(), []);
+});
+
+test("Netlify Development Site receives the verified same-run Web client URL", (t) => {
+  const { executable, run, requests, outputs } = fixture(t);
+  stubIsolatedDeploy(executable);
+  executable(
+    "netlify",
+    `
+[[ " $* " == *' --filter apps/site --site ${siteId} '* ]]
+[[ " $* " == *' --message ${deployTitle} '* && " $* " == *' --alias pr-35-123-1 '* ]]
+test "$BGO_NETLIFY_SITE_WEB_ORIGIN" = '${developmentWebAlias}'
+printf 'deploy command\n' >> "$REQUESTS"
+printf '%s' '{"site_id":"${siteId}","deploy_id":"${siteDeploy}"}'`,
+  );
+  const env = {
+    ...developmentEnv,
+    BGO_NETLIFY_ISOLATED: "false",
+    BGO_NETLIFY_COMPONENT: "site",
+    NETLIFY_BRANCH: "pr-35-123-1",
+    WEB_URL: webUrl,
+    WEB_CLIENT_URL: developmentWebAlias,
+  };
+  const wrongAlias = run(actionScript, [], { ...env, WEB_CLIENT_URL: webAlias });
+  assert.notEqual(wrongAlias.status, 0);
+  assert.match(wrongAlias.stderr, /requires a verified same-run web deployment/);
+  assert(!requests().includes("deploy command"));
+
+  const result = run(actionScript, [], env);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(outputs(), `site-url=https://${siteDeploy}--bgo-site-development.netlify.app\n`);
+});
+
+test("Netlify MCP publishes its existing stable URL with the verified same-run API origin", (t) => {
+  const { executable, run, requests, outputs } = fixture(t);
+  stubIsolatedDeploy(executable);
+  executable("bun", `test "$1" = build && touch "\${5#--outfile=}"`);
+  executable(
+    "netlify",
+    `
+[[ " $* " == *' --no-build --dir public --functions functions --site ${gatewayId} --prod '* ]]
+[[ " $* " == *'BGO_MCP_UPSTREAM_URL=${developmentApiAlias} '* && " $* " != *' --alias '* ]]
+test -f functions/mcp.mjs
+printf '%s' '{"site_id":"${gatewayId}","deploy_id":"${gatewayDeploy}"}'`,
+  );
+  const result = run(actionScript, [], {
+    ...developmentEnv,
+    BGO_NETLIFY_ISOLATED: "false",
+    BGO_NETLIFY_COMPONENT: "mcp",
+    GATEWAY_PR: "35",
+    NETLIFY_BRANCH: "pr-35-123-1",
+    API_URL: apiUrl,
+    API_CLIENT_URL: developmentApiAlias,
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(outputs(), `gateway-url=${gatewayOrigin}/mcp\n`);
+  assert(requests().includes(`${gatewayOrigin}/.well-known/oauth-protected-resource/mcp`));
+});
+
+test("Netlify Production Web checks that the upstream deploy is still published", (t) => {
+  const { executable, run, requests, outputs } = fixture(t);
+  const apiOrigin = "https://bgo-api-production.netlify.app";
+  executable(
+    "git",
+    `
+case "$1" in fetch) exit 0 ;; rev-parse) printf '${prHead}' ;; *) exit 1 ;; esac`,
+  );
+  executable(
+    "netlify",
+    `
+[[ " $* " == *' --filter apps/web --site ${webId} '* && " $* " == *' --context production --prod '* ]]
+test "$BGO_NETLIFY_API_ORIGIN" = '${apiOrigin}'
+printf 'deploy command\n' >> "$REQUESTS"
+printf '%s' '{"site_id":"${webId}","deploy_id":"${webDeploy}"}'`,
+  );
+  const env = {
+    BGO_NETLIFY_STAGE: "production",
+    BGO_NETLIFY_COMPONENT: "web",
+    FIXTURE_STAGE: "production",
+    GITHUB_EVENT_NAME: "push",
+    GITHUB_REF: "refs/heads/main",
+    GITHUB_RUN_ID: "123",
+    GITHUB_RUN_ATTEMPT: "1",
+    SOURCE_SHA: sourceSha,
+    RELEASE_SHA: prHead,
+    NETLIFY_TITLE: `bgo:${sourceSha}:${prHead}:123:1`,
+    API_URL: `https://${apiDeploy}--bgo-api-production.netlify.app`,
+    API_CLIENT_URL: apiOrigin,
+  };
+  const superseded = run(actionScript, [], { ...env, PUBLISHED_API_DEPLOY: webDeploy });
+  assert.notEqual(superseded.status, 0);
+  assert.match(superseded.stderr, /requires a verified same-run api deployment/);
+  assert(!requests().includes("deploy command"));
+
+  const result = run(actionScript, [], env);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(
+    outputs(),
+    `web-url=https://${webDeploy}--bgo-web-production.netlify.app\nweb-client-url=https://bgo-web-production.netlify.app\n`,
+  );
 });
 
 test("trusted cleanup checks project, run alias and runtime DB before Netlify writes", (t) => {

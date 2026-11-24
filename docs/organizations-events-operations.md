@@ -474,15 +474,19 @@ outstanding request lifetimes before any alias reassignment. Current cleanup doe
 aliases; Vercel retention protects currently aliased deployments. Merged PR publications remain
 eligible so links can activate when the Production gateway is first deployed after merge.
 
-## Parallel Netlify deployment
+## Vercel preflight and Netlify fallback
 
-Netlify and Vercel deploy independently on trusted PRs and Main. Each PR deploys isolated CI and
-ordinary Development pairs. Main deploys from the verified merge or its pinned release commit.
-Each lane selects a complete API and Web pair from the same provider. The selector checks the
-exact deploys for API health and a reachable Web page, preferring Vercel when both pass. A failed
-provider job alone does not block delivery. A missing healthy pair fails the relevant gate.
-Enabled deploy tests use the selected provider. Quality, artifact validation and release
-publication checks still apply.
+Trusted PRs and Main check the configured Vercel team before attempting any provider deploy. A
+read-only request detects an active account block, including fair-use quota blocks. An inconclusive
+response allows the standard Vercel attempt. A blocked team skips Vercel deployment jobs.
+Netlify runs only when Vercel is blocked or a required deployment or smoke check fails. API, Web,
+Site and MCP have separate provider jobs. PRs keep their isolated CI and ordinary Development
+lanes. Main uses the verified merge or its pinned release commit.
+
+An API and Web pair must come from the same provider. The smoke check verifies API health and a
+reachable Web page on the exact deploys. A verified Vercel pair stays preferred if an auxiliary
+deployment uses Netlify. Enabled deploy tests use the selected pair. A missing healthy pair fails
+the relevant gate. Quality, artifact validation and release publication checks still apply.
 
 The `board-game-organizer` Netlify team owns eight unlinked projects, one each for API, Web,
 Site and MCP in Development and Production. Provision them as `bgo-<api|web|site|mcp>-<development|production>`.
@@ -509,8 +513,8 @@ need API or database credentials. In each GitHub environment, set:
 
 Netlify classifies CLI deployments with aliases as branch deploys. They use one alias per PR, run and
 attempt. The deploy API reports the alias as `deploy_ssl_url`; the CI derives the immutable permalink
-from the verified deploy ID and project name. The Web build points to that API and the Site
-points to that Web deployment. The API allows that exact Web origin in addition to the existing
+from the verified deploy ID and project name. Web and MCP verify the owned API deployment and
+its source before using it. Development Site verifies the Web deployment it links to. The API allows that exact Web origin in addition to the existing
 environment configuration. The Main Site sign-in and Production widget links use the canonical
 Web domain for Clerk Production. Browser smoke at `netlify.app` is unauthenticated. Authenticated
 Production acceptance requires a verified BGO subdomain configured for the matching Clerk instance.

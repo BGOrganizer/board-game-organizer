@@ -87,12 +87,13 @@ Verify live GitHub required-check settings against the current workflow contexts
 A local YAML edit does not migrate branch protection or activate default-branch controllers;
 settings changes require explicit scope and preservation of reviews and unrelated protections.
 
-## Parallel Netlify deployment
+## Vercel preflight and Netlify fallback
 
-Netlify deploys the isolated CI, Development and Production lanes alongside Vercel when enabled.
-Each lane selects a healthy API/Web pair from one provider. The selector checks Vercel first and
-uses Netlify if Vercel cannot serve both endpoints. Enabled deploy tests use this pair. Quality
-checks run independently. A lane with no healthy pair fails its deployment gate.
-The Netlify action verifies the GitHub source and team-owned project IDs. It publishes Site and
-MCP where enabled and records deployment links in the job summary. See
-[Netlify setup and isolation](../docs/organizations-events-operations.md#parallel-netlify-deployment).
+An early, read-only team check skips Vercel when the provider reports an active block. Netlify
+runs only when Vercel is blocked or cannot provide a verified deployment. Each selected
+API/Web pair comes from one provider, and enabled deploy tests use that pair. Independent
+quality checks and mandatory release gates still apply.
+
+Netlify API, Web, Site and MCP have separate jobs. The shared [Netlify workflow](workflows/netlify-deploy.yml)
+scopes credentials, verifies team ownership and source, and records deployment links. The
+isolated PR deploys only API and Web. See [Netlify setup and isolation](../docs/organizations-events-operations.md#vercel-preflight-and-netlify-fallback).

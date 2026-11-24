@@ -15,8 +15,15 @@ const [changes, setup, build, deploy] = action.runs.steps;
 test("each gateway job is dedicated, scoped, and independent from API, APK and release jobs", () => {
   const development = pr.jobs["deploy-development-mcp-gateway"];
   const production = main.jobs["deploy-production-mcp-gateway"];
-  assert.deepEqual(development.needs, ["context", "commitlint", "lint", "typecheck", "unit-tests"]);
-  assert.deepEqual(production.needs, ["quality", "coverage"]);
+  assert.deepEqual(development.needs, [
+    "context",
+    "check-vercel",
+    "commitlint",
+    "lint",
+    "typecheck",
+    "unit-tests",
+  ]);
+  assert.deepEqual(production.needs, ["quality", "coverage", "check-vercel"]);
   assert.match(development.if, /mode == 'pr'.*trusted == 'true'/);
   assert.deepEqual(development.permissions, {
     contents: "read",
@@ -42,9 +49,10 @@ test("each gateway job is dedicated, scoped, and independent from API, APK and r
     "${{ vars.BGO_MCP_GATEWAY_PR_NUMBER }}",
   );
   assert.equal(production.steps[1].with["development-pr"], undefined);
-  for (const job of [...Object.values(pr.jobs), ...Object.values(main.jobs)]) {
-    for (const key of ["deploy-development-mcp-gateway", "deploy-production-mcp-gateway"])
-      assert(!(job.needs ?? []).includes(key));
+  for (const [id, job] of [...Object.entries(pr.jobs), ...Object.entries(main.jobs)]) {
+    for (const key of ["deploy-development-mcp-gateway", "deploy-production-mcp-gateway"]) {
+      if ((job.needs ?? []).includes(key)) assert.match(id, /^deploy-netlify-.*-(api|mcp)$/);
+    }
   }
   assert.equal(setup.with.install, "false");
   assert.match(build.run, /bun apps\/mcp\/gateway-build\.mts .*"\$TARGET"/);

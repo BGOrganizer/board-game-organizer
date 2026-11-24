@@ -352,10 +352,11 @@ Verify signatures with:
 git log --show-signature -1
 ```
 
-Netlify and Vercel deployment jobs remain independent. Use the matching GitHub, Infisical and
-provider environments and attest the deployed database before directing traffic. Run deploy
-checks against the selected API/Web pair, preferring healthy Vercel deployments. See
-[parallel Netlify deployment](docs/organizations-events-operations.md#parallel-netlify-deployment).
+Check the configured Vercel team before running its deploy jobs. Use Netlify as the fallback for
+blocked or unverified Vercel deployments. Keep provider credentials scoped to their GitHub and
+Infisical environments and attest the deployed database before directing traffic. Run deploy
+checks against the selected API/Web pair. See
+[Vercel preflight and Netlify fallback](docs/organizations-events-operations.md#vercel-preflight-and-netlify-fallback).
 
 Every job using local GitHub actions must checkout first. CI/workflow files and
 [operational gates](docs/organizations-events-operations.md) govern actual routing, required checks,

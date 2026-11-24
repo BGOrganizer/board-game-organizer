@@ -46,6 +46,35 @@ jobs:
         id: policy
         run: printf 'e2e-enabled=%s\n' "$BGO_PR_E2E_ENABLED" >> "$GITHUB_OUTPUT"
 
+  check-vercel:
+    name: Check Vercel deployment availability
+    needs: [context]
+    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
+    environment: development
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+    outputs:
+      status: ${{ steps.check.outputs.status }}
+    steps:
+      - name: Checkout verified PR merge
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+      - name: Check the configured Vercel team
+        id: check
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+        run: node .github/scripts/vercel-deploy-preflight.mjs
+
   commitlint:
     name: Check commits
     needs: [context]
@@ -560,8 +589,8 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    needs: [context, commitlint, lint, typecheck, unit-tests, integration-tests, native-tooling, build-api]
-    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
+    needs: [context, check-vercel, commitlint, lint, typecheck, unit-tests, integration-tests, native-tooling, build-api]
+    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true' && needs.check-vercel.outputs.status != 'blocked'
     continue-on-error: true
     runs-on: ubuntu-latest
     environment: development
@@ -685,44 +714,56 @@ jobs:
         id: candidate
         run: echo 'ready=true' >> "$GITHUB_OUTPUT"
 
-  deploy-netlify-preview:
-    name: Deploy Netlify (CI)
-    needs: [context, commitlint, lint, typecheck, unit-tests, integration-tests, build-api, build-web]
-    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
-    continue-on-error: true
-    runs-on: ubuntu-latest
-    environment: development
-    timeout-minutes: 45
-    outputs:
-      api-url: ${{ steps.deploy.outputs.api-url }}
-      api-client-url: ${{ steps.deploy.outputs.api-client-url }}
-      web-url: ${{ steps.deploy.outputs.web-url }}
-      web-client-url: ${{ steps.deploy.outputs.web-client-url }}
-      site-url: ${{ steps.deploy.outputs.site-url }}
-      gateway-url: ${{ steps.deploy.outputs.gateway-url }}
-      ci-db-name: ${{ steps.deploy.outputs.ci-db-name }}
+  deploy-netlify-ci-api:
+    name: Deploy Netlify API (CI)
+    needs: [context, commitlint, lint, typecheck, unit-tests, integration-tests, build-api, deploy-preview-web]
+    if: >-
+      ${{ !cancelled()
+        && needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
+        && needs.context.result == 'success'
+        && needs.commitlint.result == 'success'
+        && needs.lint.result == 'success'
+        && needs.typecheck.result == 'success'
+        && needs.unit-tests.result == 'success'
+        && needs.integration-tests.result == 'success'
+        && needs.build-api.result == 'success'
+        && needs.deploy-preview-web.outputs.ready != 'true' }}
     permissions:
-      actions: read
       contents: read
+      actions: read
       pull-requests: read
-    steps:
-      - name: Checkout verified PR merge
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-          fetch-depth: 2
-          persist-credentials: false
-      - name: Deploy to Netlify
-        id: deploy
-        if: vars.BGO_NETLIFY_ENABLED == 'true'
-        uses: ./.github/actions/netlify-deploy
-        with:
-          target: development
-          source-sha: ${{ github.sha }}
-          netlify-token: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          clerk-secret-key: ${{ secrets.CLERK_SECRET_KEY }}
-          clerk-publishable-key: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-          isolated: 'true'
+    uses: ./.github/workflows/netlify-deploy.yml
+    secrets:
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+    with:
+      target: development
+      component: api
+      source-sha: ${{ github.sha }}
+      isolated: true
+
+  deploy-netlify-ci-web:
+    name: Deploy Netlify Web (CI)
+    needs: [build-web, deploy-netlify-ci-api]
+    if: >-
+      ${{ !cancelled()
+        && needs.build-web.result == 'success'
+        && needs.deploy-netlify-ci-api.result == 'success'
+        && needs.deploy-netlify-ci-api.outputs.api-url != '' }}
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    uses: ./.github/workflows/netlify-deploy.yml
+    secrets:
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+    with:
+      target: development
+      component: web
+      source-sha: ${{ github.sha }}
+      isolated: true
+      api-url: ${{ needs.deploy-netlify-ci-api.outputs.api-url }}
+      api-client-url: ${{ needs.deploy-netlify-ci-api.outputs.api-client-url }}
 
   deploy-preview-web:
     name: Deploy Web (CI)
@@ -762,13 +803,21 @@ jobs:
             NEXT_PUBLIC_API_URL=${{ needs.deploy-preview-api.outputs.url }}
             NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS=${{ secrets.VERCEL_PROTECTION_BYPASS }}
 
-      - name: Mark verified Vercel candidate
+      - name: Verify the Vercel API/Web pair before allowing fallback
         id: candidate
-        run: echo 'ready=true' >> "$GITHUB_OUTPUT"
+        env:
+          TARGET: ci
+          VERCEL_API_URL: ${{ needs.deploy-preview-api.outputs.url }}
+          VERCEL_API_CLIENT_URL: ${{ needs.deploy-preview-api.outputs.branch-url }}
+          VERCEL_WEB_URL: ${{ steps.deploy.outputs.deployment-url }}
+          VERCEL_PROTECTION_BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+        run: |
+          node .github/scripts/select-deploy-provider.mjs
+          echo 'ready=true' >> "$GITHUB_OUTPUT"
 
   select-preview:
     name: Select verified CI deployment
-    needs: [context, deploy-preview-api, deploy-preview-web, deploy-netlify-preview]
+    needs: [context, deploy-preview-api, deploy-preview-web, deploy-netlify-ci-api, deploy-netlify-ci-web]
     if: "!cancelled() && needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'"
     runs-on: ubuntu-latest
     environment: development
@@ -778,7 +827,7 @@ jobs:
       api-client-url: ${{ steps.select.outputs.api-client-url }}
       web-url: ${{ steps.select.outputs.web-url }}
       web-client-url: ${{ steps.select.outputs.web-client-url }}
-      db-name: ${{ steps.select.outputs.provider == 'vercel' && needs.deploy-preview-api.outputs.db-name || needs.deploy-netlify-preview.outputs.ci-db-name }}
+      db-name: ${{ steps.select.outputs.provider == 'vercel' && needs.deploy-preview-api.outputs.db-name || needs.deploy-netlify-ci-api.outputs.ci-db-name }}
       fixtures: ${{ steps.select.outputs.provider == 'vercel' || needs.context.outputs.e2e-enabled == 'true' }}
     steps:
       - name: Checkout
@@ -797,11 +846,12 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           VERCEL_API_URL: ${{ needs.deploy-preview-api.outputs.ready == 'true' && needs.deploy-preview-api.outputs.url || '' }}
           VERCEL_API_CLIENT_URL: ${{ needs.deploy-preview-api.outputs.branch-url }}
+          VERCEL_VERIFIED: ${{ needs.deploy-preview-web.outputs.ready }}
           VERCEL_WEB_URL: ${{ needs.deploy-preview-web.outputs.ready == 'true' && needs.deploy-preview-web.outputs.url || '' }}
-          NETLIFY_API_URL: ${{ needs.deploy-netlify-preview.outputs.api-url }}
-          NETLIFY_API_CLIENT_URL: ${{ needs.deploy-netlify-preview.outputs.api-client-url }}
-          NETLIFY_WEB_URL: ${{ needs.deploy-netlify-preview.outputs.web-url }}
-          NETLIFY_WEB_CLIENT_URL: ${{ needs.deploy-netlify-preview.outputs.web-client-url }}
+          NETLIFY_API_URL: ${{ needs.deploy-netlify-ci-api.outputs.api-url }}
+          NETLIFY_API_CLIENT_URL: ${{ needs.deploy-netlify-ci-api.outputs.api-client-url }}
+          NETLIFY_WEB_URL: ${{ needs.deploy-netlify-ci-web.outputs.web-url }}
+          NETLIFY_WEB_CLIENT_URL: ${{ needs.deploy-netlify-ci-web.outputs.web-client-url }}
           VERCEL_PROTECTION_BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
         run: node .github/scripts/select-deploy-provider.mjs
 
@@ -1231,11 +1281,13 @@ jobs:
   # Development publication never waits for Internal/E2E or its cleanup.
   deploy-development-mcp-gateway:
     name: Deploy MCP gateway (Development)
-    needs: [context, commitlint, lint, typecheck, unit-tests]
-    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
+    needs: [context, check-vercel, commitlint, lint, typecheck, unit-tests]
+    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true' && needs.check-vercel.outputs.status != 'blocked'
     continue-on-error: true
     runs-on: ubuntu-latest
     environment: development
+    outputs:
+      failed: ${{ steps.deploy.outcome == 'failure' }}
     permissions:
       contents: read
       pull-requests: read
@@ -1249,6 +1301,7 @@ jobs:
           persist-credentials: false
 
       - name: 🚀 Deploy Development gateway
+        id: deploy
         uses: ./.github/actions/mcp-gateway-deploy
         with:
           target: development
@@ -1263,8 +1316,8 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    needs: [context, commitlint, lint, typecheck, unit-tests, integration-tests, native-tooling, build-api]
-    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
+    needs: [context, check-vercel, commitlint, lint, typecheck, unit-tests, integration-tests, native-tooling, build-api]
+    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true' && needs.check-vercel.outputs.status != 'blocked'
     continue-on-error: true
     runs-on: ubuntu-latest
     environment: development
@@ -1358,9 +1411,17 @@ jobs:
             NEXT_PUBLIC_API_URL=${{ needs.deploy-development-api.outputs.url }}
             NEXT_PUBLIC_VERCEL_PROTECTION_BYPASS=${{ secrets.VERCEL_PROTECTION_BYPASS }}
 
-      - name: Mark verified Vercel candidate
+      - name: Verify the Vercel API/Web pair before allowing fallback
         id: candidate
-        run: echo 'ready=true' >> "$GITHUB_OUTPUT"
+        env:
+          TARGET: development
+          VERCEL_API_URL: ${{ needs.deploy-development-api.outputs.url }}
+          VERCEL_API_CLIENT_URL: ${{ needs.deploy-development-api.outputs.branch-url }}
+          VERCEL_WEB_URL: ${{ steps.deploy.outputs.deployment-url }}
+          VERCEL_PROTECTION_BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+        run: |
+          node .github/scripts/select-deploy-provider.mjs
+          echo 'ready=true' >> "$GITHUB_OUTPUT"
 
   deploy-development-site:
     name: Deploy Site (Development)
@@ -1372,6 +1433,8 @@ jobs:
     continue-on-error: true
     runs-on: ubuntu-latest
     environment: development
+    outputs:
+      ready: ${{ steps.smoke.outputs.ready }}
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
@@ -1383,6 +1446,7 @@ jobs:
         run: git switch -C "$GITHUB_HEAD_REF"
 
       - name: 🚀 Deploy Site against Development Web
+        id: deploy
         uses: ./.github/actions/vercel-deploy
         with:
           app-name: Site (Development)
@@ -1394,48 +1458,121 @@ jobs:
           vercel-project-id: ${{ secrets.VERCEL_SITE_PROJECT_ID }}
           extra-env: NEXT_PUBLIC_BGO_WEB_ORIGIN=${{ needs.deploy-development-web.outputs.url }}
 
-  deploy-netlify-development:
-    name: Deploy Netlify (Development)
-    needs: [context, commitlint, lint, typecheck, unit-tests, integration-tests, build-api, build-web, build-site]
-    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
-    continue-on-error: true
-    runs-on: ubuntu-latest
-    environment: development
-    timeout-minutes: 45
-    outputs:
-      api-url: ${{ steps.deploy.outputs.api-url }}
-      api-client-url: ${{ steps.deploy.outputs.api-client-url }}
-      web-url: ${{ steps.deploy.outputs.web-url }}
-      web-client-url: ${{ steps.deploy.outputs.web-client-url }}
-      site-url: ${{ steps.deploy.outputs.site-url }}
-      gateway-url: ${{ steps.deploy.outputs.gateway-url }}
-      ci-db-name: ${{ steps.deploy.outputs.ci-db-name }}
+      - name: Verify the Vercel Site
+        id: smoke
+        env:
+          SITE_URL: ${{ steps.deploy.outputs.deployment-url }}
+          BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+        run: |
+          set -euo pipefail
+          [[ "$SITE_URL" =~ ^https://[a-zA-Z0-9-]+[.]vercel[.]app$ ]]
+          auth=()
+          if [ -n "$BYPASS" ]; then
+            auth+=(--get --data-urlencode "x-vercel-protection-bypass=$BYPASS")
+          fi
+          status=$(curl -sS --max-time 30 --retry 2 -o /dev/null -w '%{http_code}' "${auth[@]}" "$SITE_URL/")
+          [[ "$status" =~ ^2[0-9]{2}$ ]]
+          echo 'ready=true' >> "$GITHUB_OUTPUT"
+
+  deploy-netlify-development-api:
+    name: Deploy Netlify API (Development)
+    needs: [context, commitlint, lint, typecheck, unit-tests, integration-tests, build-api, build-web, build-site, deploy-development-web, deploy-development-site, deploy-development-mcp-gateway]
+    if: >-
+      ${{ !cancelled()
+        && needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
+        && needs.context.result == 'success'
+        && needs.commitlint.result == 'success'
+        && needs.lint.result == 'success'
+        && needs.typecheck.result == 'success'
+        && needs.unit-tests.result == 'success'
+        && needs.integration-tests.result == 'success'
+        && needs.build-api.result == 'success'
+        && needs.build-web.result == 'success'
+        && needs.build-site.result == 'success'
+        && (needs.deploy-development-web.outputs.ready != 'true' || needs.deploy-development-site.outputs.ready != 'true' || needs.deploy-development-mcp-gateway.outputs.failed == 'true' || needs.deploy-development-mcp-gateway.result == 'failure') }}
     permissions:
-      actions: read
       contents: read
+      actions: read
       pull-requests: read
-    steps:
-      - name: Checkout verified PR merge
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-          fetch-depth: 2
-          persist-credentials: false
-      - name: Deploy to Netlify
-        id: deploy
-        if: vars.BGO_NETLIFY_ENABLED == 'true'
-        uses: ./.github/actions/netlify-deploy
-        with:
-          target: development
-          source-sha: ${{ github.sha }}
-          netlify-token: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          clerk-secret-key: ${{ secrets.CLERK_SECRET_KEY }}
-          clerk-publishable-key: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-          gateway-pr: ${{ vars.BGO_NETLIFY_MCP_GATEWAY_PR_NUMBER }}
+    uses: ./.github/workflows/netlify-deploy.yml
+    secrets:
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+    with:
+      target: development
+      component: api
+      source-sha: ${{ github.sha }}
+
+  deploy-netlify-development-web:
+    name: Deploy Netlify Web (Development)
+    needs: [build-web, deploy-netlify-development-api]
+    if: >-
+      ${{ !cancelled()
+        && needs.build-web.result == 'success'
+        && needs.deploy-netlify-development-api.result == 'success'
+        && needs.deploy-netlify-development-api.outputs.api-url != '' }}
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    uses: ./.github/workflows/netlify-deploy.yml
+    secrets:
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+    with:
+      target: development
+      component: web
+      source-sha: ${{ github.sha }}
+      api-url: ${{ needs.deploy-netlify-development-api.outputs.api-url }}
+      api-client-url: ${{ needs.deploy-netlify-development-api.outputs.api-client-url }}
+
+  deploy-netlify-development-site:
+    name: Deploy Netlify Site (Development)
+    needs: [build-site, deploy-netlify-development-web, deploy-development-site]
+    if: >-
+      ${{ !cancelled()
+        && needs.build-site.result == 'success'
+        && needs.deploy-netlify-development-web.result == 'success'
+        && needs.deploy-netlify-development-web.outputs.web-url != ''
+        && needs.deploy-development-site.outputs.ready != 'true' }}
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    uses: ./.github/workflows/netlify-deploy.yml
+    secrets:
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+    with:
+      target: development
+      component: site
+      source-sha: ${{ github.sha }}
+      web-url: ${{ needs.deploy-netlify-development-web.outputs.web-url }}
+      web-client-url: ${{ needs.deploy-netlify-development-web.outputs.web-client-url }}
+
+  deploy-netlify-development-mcp:
+    name: Deploy Netlify MCP (Development)
+    needs: [deploy-netlify-development-api, deploy-development-mcp-gateway, deploy-development-web]
+    if: >-
+      ${{ !cancelled()
+        && needs.deploy-netlify-development-api.result == 'success'
+        && needs.deploy-netlify-development-api.outputs.api-url != ''
+        && (needs.deploy-development-mcp-gateway.outputs.failed == 'true' || needs.deploy-development-mcp-gateway.result != 'success' || needs.deploy-development-web.outputs.ready != 'true') }}
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    uses: ./.github/workflows/netlify-deploy.yml
+    secrets:
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+    with:
+      target: development
+      component: mcp
+      source-sha: ${{ github.sha }}
+      api-url: ${{ needs.deploy-netlify-development-api.outputs.api-url }}
+      api-client-url: ${{ needs.deploy-netlify-development-api.outputs.api-client-url }}
 
   select-development:
     name: Select verified development deployment
-    needs: [context, deploy-development-api, deploy-development-web, deploy-netlify-development]
+    needs: [context, deploy-development-api, deploy-development-web, deploy-netlify-development-api, deploy-netlify-development-web]
     if: "!cancelled() && needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'"
     runs-on: ubuntu-latest
     environment: development
@@ -1462,11 +1599,12 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           VERCEL_API_URL: ${{ needs.deploy-development-api.outputs.ready == 'true' && needs.deploy-development-api.outputs.url || '' }}
           VERCEL_API_CLIENT_URL: ${{ needs.deploy-development-api.outputs.branch-url }}
+          VERCEL_VERIFIED: ${{ needs.deploy-development-web.outputs.ready }}
           VERCEL_WEB_URL: ${{ needs.deploy-development-web.outputs.ready == 'true' && needs.deploy-development-web.outputs.url || '' }}
-          NETLIFY_API_URL: ${{ needs.deploy-netlify-development.outputs.api-url }}
-          NETLIFY_API_CLIENT_URL: ${{ needs.deploy-netlify-development.outputs.api-client-url }}
-          NETLIFY_WEB_URL: ${{ needs.deploy-netlify-development.outputs.web-url }}
-          NETLIFY_WEB_CLIENT_URL: ${{ needs.deploy-netlify-development.outputs.web-client-url }}
+          NETLIFY_API_URL: ${{ needs.deploy-netlify-development-api.outputs.api-url }}
+          NETLIFY_API_CLIENT_URL: ${{ needs.deploy-netlify-development-api.outputs.api-client-url }}
+          NETLIFY_WEB_URL: ${{ needs.deploy-netlify-development-web.outputs.web-url }}
+          NETLIFY_WEB_CLIENT_URL: ${{ needs.deploy-netlify-development-web.outputs.web-client-url }}
           VERCEL_PROTECTION_BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
         run: node .github/scripts/select-deploy-provider.mjs
 

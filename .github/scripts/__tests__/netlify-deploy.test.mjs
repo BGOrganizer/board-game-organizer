@@ -6,38 +6,90 @@ import { parse } from "yaml";
 
 const read = (path) => readFileSync(path, "utf8");
 
-test("Netlify deploys separately from Vercel, release publication and test fixtures", () => {
-  for (const [file, environment] of [
-    ["pr-ci", "development"],
-    ["main-ci", "production"],
+const workflows = ".github/workflows";
+const callable = parse(read(`${workflows}/netlify-deploy.yml`));
+const pr = parse(read(`${workflows}/pr-ci.yml`)).jobs;
+const main = parse(read(`${workflows}/main-ci.yml`)).jobs;
+
+test("Netlify API, Web, Site and MCP are separate jobs with scoped credentials", () => {
+  const job = callable.jobs.deploy;
+  const [checkout, deploy] = job.steps;
+  assert.equal(job.environment, `\${{ inputs.target }}`);
+  assert.equal(job["continue-on-error"], true);
+  assert(checkout.uses.startsWith("actions/checkout@"));
+  assert.equal(checkout.with["persist-credentials"], false);
+  assert.equal(deploy.uses, "./.github/actions/netlify-deploy");
+  assert.match(deploy.if, /vars.BGO_NETLIFY_ENABLED == 'true'/);
+  assert.match(deploy.if, /vars.BGO_NETLIFY_MCP_GATEWAY_PR_NUMBER/);
+  assert.equal(deploy.with["netlify-token"], `\${{ secrets.NETLIFY_AUTH_TOKEN }}`);
+  assert.match(deploy.with["clerk-secret-key"], /inputs.component == 'api'/);
+
+  for (const [jobs, environment] of [
+    [pr, "development"],
+    [main, "production"],
   ]) {
-    const { jobs } = parse(read(`.github/workflows/${file}.yml`));
-    const id = `deploy-netlify-${environment}`;
-    const job = jobs[id];
-    assert.equal(job.environment, environment);
-    assert(!job.needs.some((dependency) => /^(deploy-|build-apk)/.test(dependency)));
-    if (environment === "production") {
-      assert(jobs["select-production-deployment"].needs.includes(id));
-      assert(jobs["select-production-site"].needs.includes(id));
-      assert(!jobs["publish-release"].needs.includes(id));
-    } else {
-      assert.deepEqual(
-        Object.entries(jobs)
-          .filter(([, candidate]) => candidate.needs?.includes(id))
-          .map(([name]) => name),
-        ["select-development"],
-      );
+    for (const component of ["api", "web", "site", "mcp"]) {
+      const componentJob = jobs[`deploy-netlify-${environment}-${component}`];
+      assert.equal(componentJob.uses, "./.github/workflows/netlify-deploy.yml");
+      assert.equal(componentJob.with.target, environment);
+      assert.equal(componentJob.with.component, component);
+      assert.equal(Boolean(componentJob.secrets.CLERK_SECRET_KEY), component === "api");
+      if (component === "web" || component === "mcp") {
+        const api = `deploy-netlify-${environment}-api`;
+        assert(componentJob.needs.includes(api));
+        assert.equal(componentJob.with["api-url"], `\${{ needs.${api}.outputs.api-url }}`);
+        assert.equal(
+          componentJob.with["api-client-url"],
+          `\${{ needs.${api}.outputs.api-client-url }}`,
+        );
+      }
     }
-    assert(job.steps[0].uses.startsWith("actions/checkout@"));
-    const deploy = job.steps[1];
-    assert.equal(deploy.uses, "./.github/actions/netlify-deploy");
-    assert.equal(deploy.if, "vars.BGO_NETLIFY_ENABLED == 'true'");
-    assert.equal(deploy.with["netlify-token"], `\${{ secrets.NETLIFY_AUTH_TOKEN }}`);
-    if (environment === "development") {
-      assert.match(job.if, /mode == 'pr'.*trusted == 'true'/);
-      assert.equal(job.steps[0].with["persist-credentials"], false);
-      assert.equal(deploy.with["gateway-pr"], `\${{ vars.BGO_NETLIFY_MCP_GATEWAY_PR_NUMBER }}`);
-    }
+  }
+  for (const component of ["api", "web"]) {
+    const isolated = pr[`deploy-netlify-ci-${component}`];
+    assert.equal(isolated.with.isolated, true);
+    assert(pr["select-preview"].needs.includes(`deploy-netlify-ci-${component}`));
+    assert(pr["select-development"].needs.includes(`deploy-netlify-development-${component}`));
+  }
+  assert(pr["deploy-netlify-development-site"].needs.includes("deploy-netlify-development-web"));
+});
+
+test("a blocked team skips Vercel jobs and a verified Vercel pair skips Netlify fallback", () => {
+  for (const [jobs, environment] of [
+    [pr, "development"],
+    [main, "production"],
+  ]) {
+    const check = jobs["check-vercel"];
+    assert.equal(check.environment, environment);
+    assert.equal(check.steps.at(-1).run, "node .github/scripts/vercel-deploy-preflight.mjs");
+    assert.equal(check.outputs.status, `\${{ steps.check.outputs.status }}`);
+    assert.equal(check.steps.at(-1).env.VERCEL_TOKEN, `\${{ secrets.VERCEL_TOKEN }}`);
+  }
+  for (const id of [
+    "deploy-preview-api",
+    "deploy-development-api",
+    "deploy-development-mcp-gateway",
+  ]) {
+    assert(pr[id].needs.includes("check-vercel"), id);
+    assert.match(pr[id].if, /needs.check-vercel.outputs.status != 'blocked'/);
+  }
+  assert.match(pr["deploy-netlify-ci-api"].if, /needs.deploy-preview-web.outputs.ready != 'true'/);
+  assert.match(
+    pr["deploy-netlify-development-api"].if,
+    /needs.deploy-development-web.outputs.ready != 'true'/,
+  );
+  assert.match(
+    pr["deploy-netlify-development-api"].if,
+    /needs.deploy-development-site.outputs.ready != 'true'/,
+  );
+  assert.match(
+    pr["deploy-netlify-development-api"].if,
+    /needs.deploy-development-mcp-gateway.result == 'failure'/,
+  );
+  for (const id of ["deploy-preview-web", "deploy-development-web"]) {
+    const verify = pr[id].steps.find((item) => item.id === "candidate");
+    assert.match(verify.run, /node .github\/scripts\/select-deploy-provider\.mjs/);
+    assert(!Object.keys(verify.env).some((key) => key.startsWith("NETLIFY_")));
   }
 });
 

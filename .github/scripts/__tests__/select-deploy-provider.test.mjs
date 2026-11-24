@@ -1,4 +1,8 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import { deploymentCandidates, selectDeployment } from "../select-deploy-provider.mjs";
 
@@ -124,4 +128,18 @@ test("smoke checks exact URLs without following redirects or sending the bypass 
       [development.NETLIFY_WEB_URL, "/", null],
     ],
   );
+});
+
+test("the final selector reuses the successful Vercel smoke from the same run", (t) => {
+  const directory = mkdtempSync(join(tmpdir(), "bgo-deploy-selection-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const output = join(directory, "github-output");
+  const result = spawnSync(process.execPath, [".github/scripts/select-deploy-provider.mjs"], {
+    env: { ...process.env, ...development, VERCEL_VERIFIED: "true", GITHUB_OUTPUT: output },
+    encoding: "utf8",
+    timeout: 5000,
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(readFileSync(output, "utf8"), /^provider=vercel$/m);
+  assert.match(readFileSync(output, "utf8"), /^web-url=https:\/\/web-test\.vercel\.app$/m);
 });

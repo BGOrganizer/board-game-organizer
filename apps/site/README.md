@@ -32,4 +32,4 @@ The mascot and APK icon use the repository's approved BGO artwork. Resource illu
 GitHub Actions also supports deploying this app to the separate Netlify Site projects. The
 Development Site links to its run's Netlify Web deployment. The Production Site links to
 the canonical Clerk Production Web domain. See
-[parallel Netlify deployment](../../docs/organizations-events-operations.md#parallel-netlify-deployment).
+[Vercel preflight and Netlify fallback](../../docs/organizations-events-operations.md#vercel-preflight-and-netlify-fallback).

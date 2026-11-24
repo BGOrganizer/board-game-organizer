@@ -8,6 +8,32 @@ permissions:
   contents: read
 
 jobs:
+  check-vercel:
+    name: Check Vercel deploy availability
+    runs-on: ubuntu-latest
+    environment: production
+    continue-on-error: true
+    timeout-minutes: 2
+    outputs:
+      status: ${{ steps.check.outputs.status }}
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+
+      - name: Check Vercel account
+        id: check
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+        run: node .github/scripts/vercel-deploy-preflight.mjs
+
   # Every merged commit gets its own verification run; only release preparation
   # is serialized. GitHub can replace a pending run in a concurrency group.
   quality:
@@ -259,13 +285,17 @@ jobs:
         run: bun run --filter site build
 
   deploy-production-site:
-    name: Deploy Site (Production)
-    needs: [quality, build-site]
+    name: Deploy Site to Vercel (Production)
+    needs: [quality, build-site, check-vercel]
+    if: >-
+      ${{ !cancelled() && needs.quality.result == 'success' && needs.build-site.result == 'success'
+        && needs.check-vercel.outputs.status != 'blocked' }}
     runs-on: ubuntu-latest
     environment: production
     continue-on-error: true
     outputs:
       site-url: ${{ steps.deploy.outputs.deployment-url }}
+      ready: ${{ steps.smoke.outputs.ready }}
     concurrency:
       group: production-site
       cancel-in-progress: false
@@ -293,12 +323,35 @@ jobs:
           vercel-project-id: ${{ secrets.VERCEL_SITE_PROJECT_ID }}
           extra-env: NEXT_PUBLIC_BGO_WEB_ORIGIN=https://app.board-game-organizer.com
 
+      - name: Verify this Vercel Site deployment
+        id: smoke
+        if: steps.deploy.outputs.deployment-url != ''
+        env:
+          SITE_URL: ${{ steps.deploy.outputs.deployment-url }}
+          VERCEL_PROTECTION_BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+        run: |
+          set -euo pipefail
+          [[ "$SITE_URL" =~ ^https://[a-zA-Z0-9-]+\.vercel\.app$ ]]
+          auth=()
+          if [ -n "$VERCEL_PROTECTION_BYPASS" ]; then
+            auth+=(--get --data-urlencode "x-vercel-protection-bypass=$VERCEL_PROTECTION_BYPASS")
+          fi
+          status=$(curl --silent --show-error --max-time 30 --retry 2 --output /dev/null \
+            --write-out '%{http_code}' "${auth[@]}" "$SITE_URL/")
+          [[ "$status" =~ ^2[0-9]{2}$ ]]
+          printf 'ready=true\n' >> "$GITHUB_OUTPUT"
+
   deploy-production-mcp-gateway:
-    name: Deploy MCP gateway (Production)
-    needs: [quality, coverage]
+    name: Deploy MCP gateway to Vercel (Production)
+    needs: [quality, coverage, check-vercel]
+    if: >-
+      ${{ !cancelled() && needs.quality.result == 'success' && needs.coverage.result == 'success'
+        && needs.check-vercel.outputs.status != 'blocked' }}
     runs-on: ubuntu-latest
     environment: production
     continue-on-error: true
+    outputs:
+      failed: ${{ steps.deploy.outcome == 'failure' }}
     concurrency:
       group: production-mcp-gateway
       cancel-in-progress: false
@@ -313,6 +366,7 @@ jobs:
           persist-credentials: false
 
       - name: 🚀 Deploy Production gateway
+        id: deploy
         uses: ./.github/actions/mcp-gateway-deploy
         with:
           target: production
@@ -382,42 +436,76 @@ jobs:
     permissions:
       contents: write
 
-  deploy-netlify-production:
-    name: Deploy Netlify (Production)
-    needs: [release, build-site]
-    runs-on: ubuntu-latest
-    environment: production
-    continue-on-error: true
-    timeout-minutes: 45
-    outputs:
-      api-url: ${{ steps.deploy.outputs.api-url }}
-      api-client-url: ${{ steps.deploy.outputs.api-client-url }}
-      web-url: ${{ steps.deploy.outputs.web-url }}
-      web-client-url: ${{ steps.deploy.outputs.web-client-url }}
-      site-url: ${{ steps.deploy.outputs.site-url }}
-      gateway-url: ${{ steps.deploy.outputs.gateway-url }}
-    concurrency:
-      group: production-netlify
-      cancel-in-progress: false
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout verified Main source or prepared release
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.release.outputs.sha || github.sha }}
-          fetch-depth: 0
-      - name: Deploy to Netlify
-        id: deploy
-        if: vars.BGO_NETLIFY_ENABLED == 'true'
-        uses: ./.github/actions/netlify-deploy
-        with:
-          target: production
-          source-sha: ${{ github.sha }}
-          release-sha: ${{ needs.release.outputs.published == 'true' && needs.release.outputs.sha || '' }}
-          netlify-token: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          clerk-secret-key: ${{ secrets.CLERK_SECRET_KEY }}
-          clerk-publishable-key: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+  deploy-netlify-production-api:
+    name: Deploy API to Netlify (Production)
+    needs: [release, check-vercel, deploy-production-web, deploy-production-mcp-gateway]
+    if: >-
+      ${{ !cancelled() && needs.release.result == 'success' && needs.release.outputs.sha != ''
+        && (needs.check-vercel.outputs.status == 'blocked'
+          || needs.deploy-production-mcp-gateway.outputs.failed == 'true'
+          || needs.deploy-production-mcp-gateway.result == 'failure'
+          || (needs.release.outputs.published == 'true' && needs.deploy-production-web.outputs.ready != 'true')) }}
+    uses: ./.github/workflows/netlify-deploy.yml
+    with:
+      target: production
+      component: api
+      source-sha: ${{ github.sha }}
+      release-sha: ${{ needs.release.outputs.published == 'true' && needs.release.outputs.sha || '' }}
+    secrets:
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+
+  deploy-netlify-production-web:
+    name: Deploy Web to Netlify (Production)
+    needs: [release, check-vercel, deploy-production-web, deploy-netlify-production-api]
+    if: >-
+      ${{ !cancelled() && needs.release.result == 'success' && needs.deploy-netlify-production-api.outputs.api-url != ''
+        && (needs.check-vercel.outputs.status == 'blocked'
+          || (needs.release.outputs.published == 'true' && needs.deploy-production-web.outputs.ready != 'true')) }}
+    uses: ./.github/workflows/netlify-deploy.yml
+    with:
+      target: production
+      component: web
+      source-sha: ${{ github.sha }}
+      release-sha: ${{ needs.release.outputs.published == 'true' && needs.release.outputs.sha || '' }}
+      api-url: ${{ needs.deploy-netlify-production-api.outputs.api-url }}
+      api-client-url: ${{ needs.deploy-netlify-production-api.outputs.api-client-url }}
+    secrets:
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+
+  deploy-netlify-production-site:
+    name: Deploy Site to Netlify (Production)
+    needs: [quality, build-site, deploy-production-site]
+    if: >-
+      ${{ !cancelled() && needs.quality.result == 'success' && needs.build-site.result == 'success'
+        && needs.deploy-production-site.outputs.ready != 'true' }}
+    uses: ./.github/workflows/netlify-deploy.yml
+    with:
+      target: production
+      component: site
+      source-sha: ${{ github.sha }}
+    secrets:
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+
+  deploy-netlify-production-mcp:
+    name: Deploy MCP gateway to Netlify (Production)
+    needs: [release, check-vercel, deploy-production-web, deploy-production-mcp-gateway, deploy-netlify-production-api]
+    if: >-
+      ${{ !cancelled() && needs.release.result == 'success' && needs.deploy-netlify-production-api.outputs.api-url != ''
+        && (needs.check-vercel.outputs.status == 'blocked'
+          || needs.deploy-production-mcp-gateway.outputs.failed == 'true'
+          || needs.deploy-production-mcp-gateway.result == 'failure'
+          || (needs.release.outputs.published == 'true' && needs.deploy-production-web.outputs.ready != 'true')) }}
+    uses: ./.github/workflows/netlify-deploy.yml
+    with:
+      target: production
+      component: mcp
+      source-sha: ${{ github.sha }}
+      release-sha: ${{ needs.release.outputs.published == 'true' && needs.release.outputs.sha || '' }}
+      api-url: ${{ needs.deploy-netlify-production-api.outputs.api-url }}
+      api-client-url: ${{ needs.deploy-netlify-production-api.outputs.api-client-url }}
+    secrets:
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
 
   build-apk:
     name: Build APK (Production)
@@ -488,16 +576,17 @@ jobs:
           if-no-files-found: error
     environment: production
 
-  deploy-production:
-    name: Deploy API and Web to Vercel (Production)
-    needs: [release, build-apk]
-    if: needs.release.outputs.published == 'true'
+  deploy-production-api:
+    name: Deploy API to Vercel (Production)
+    needs: [release, build-apk, check-vercel]
+    if: >-
+      ${{ !cancelled() && needs.release.result == 'success' && needs.build-apk.result == 'success'
+        && needs.release.outputs.published == 'true' && needs.check-vercel.outputs.status != 'blocked' }}
     runs-on: ubuntu-latest
     environment: production
     continue-on-error: true
     outputs:
-      api-url: ${{ steps.api.outputs.deployment-url }}
-      web-url: ${{ steps.web.outputs.deployment-url }}
+      api-url: ${{ steps.deploy.outcome == 'success' && steps.deploy.outputs.deployment-url || '' }}
     steps:
       - name: 📥 Checkout pinned release commit
         uses: actions/checkout@v4
@@ -512,7 +601,7 @@ jobs:
           test "$(git rev-parse origin/main)" = "$RELEASE_SHA"
 
       - name: 🚀 Deploy Production API to Vercel
-        id: api
+        id: deploy
         uses: ./.github/actions/vercel-deploy
         with:
           app-name: API
@@ -523,8 +612,30 @@ jobs:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_API_PROJECT_ID }}
+    permissions:
+      contents: read
+      statuses: write
 
-      - name: 🔒 Recheck the release before deploying Web
+  deploy-production-web:
+    name: Deploy Web to Vercel (Production)
+    needs: [release, build-apk, check-vercel, deploy-production-api]
+    if: >-
+      ${{ !cancelled() && needs.release.result == 'success' && needs.build-apk.result == 'success'
+        && needs.release.outputs.published == 'true' && needs.check-vercel.outputs.status != 'blocked'
+        && needs.deploy-production-api.outputs.api-url != '' }}
+    runs-on: ubuntu-latest
+    environment: production
+    continue-on-error: true
+    outputs:
+      web-url: ${{ steps.smoke.outputs.provider == 'vercel' && steps.deploy.outputs.deployment-url || '' }}
+      ready: ${{ steps.smoke.outputs.provider == 'vercel' }}
+    steps:
+      - name: 📥 Checkout pinned release commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release.outputs.sha }}
+
+      - name: 🔒 Ensure this release is still latest
         env:
           RELEASE_SHA: ${{ needs.release.outputs.sha }}
         run: |
@@ -532,7 +643,7 @@ jobs:
           test "$(git rev-parse origin/main)" = "$RELEASE_SHA"
 
       - name: 🚀 Deploy Production Web to Vercel
-        id: web
+        id: deploy
         uses: ./.github/actions/vercel-deploy
         with:
           app-name: Web
@@ -544,14 +655,24 @@ jobs:
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_WEB_PROJECT_ID }}
           extra-env: NEXT_PUBLIC_API_URL=https://api.board-game-organizer.com
+      - name: 🔎 Read-only Vercel Production smoke
+        id: smoke
+        env:
+          TARGET: production
+          VERCEL_API_URL: ${{ needs.deploy-production-api.outputs.api-url }}
+          VERCEL_WEB_URL: ${{ steps.deploy.outputs.deployment-url }}
+          VERCEL_PROTECTION_BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+        run: node .github/scripts/select-deploy-provider.mjs
     permissions:
       contents: read
       statuses: write
 
   select-production-deployment:
     name: Verify selected Production deployment
-    needs: [release, deploy-production, deploy-netlify-production]
-    if: ${{ !cancelled() && needs.release.result == 'success' && needs.release.outputs.published == 'true' }}
+    needs: [release, check-vercel, deploy-production-api, deploy-production-web, deploy-netlify-production-api, deploy-netlify-production-web]
+    if: >-
+      ${{ !cancelled() && needs.release.result == 'success' && needs.release.outputs.sha != ''
+        && (needs.release.outputs.published == 'true' || needs.check-vercel.outputs.status == 'blocked') }}
     runs-on: ubuntu-latest
     environment: production
     outputs:
@@ -559,10 +680,10 @@ jobs:
       api-url: ${{ steps.select.outputs.api-url }}
       web-url: ${{ steps.select.outputs.web-url }}
     steps:
-      - name: 📥 Checkout pinned release commit
+      - name: 📥 Checkout pinned Main source
         uses: actions/checkout@v4
         with:
-          ref: ${{ needs.release.outputs.sha }}
+          ref: ${{ needs.release.outputs.sha || github.sha }}
           persist-credentials: false
 
       - name: Set up Node
@@ -574,18 +695,19 @@ jobs:
         id: select
         env:
           TARGET: production
-          VERCEL_API_URL: ${{ needs.deploy-production.outputs.api-url }}
-          VERCEL_WEB_URL: ${{ needs.deploy-production.outputs.web-url }}
+          VERCEL_API_URL: ${{ needs.deploy-production-api.outputs.api-url }}
+          VERCEL_WEB_URL: ${{ needs.deploy-production-web.outputs.web-url }}
+          VERCEL_VERIFIED: ${{ needs.deploy-production-web.outputs.ready }}
           VERCEL_PROTECTION_BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
-          NETLIFY_API_URL: ${{ needs.deploy-netlify-production.outputs.api-url }}
-          NETLIFY_API_CLIENT_URL: ${{ needs.deploy-netlify-production.outputs.api-client-url }}
-          NETLIFY_WEB_URL: ${{ needs.deploy-netlify-production.outputs.web-url }}
-          NETLIFY_WEB_CLIENT_URL: ${{ needs.deploy-netlify-production.outputs.web-client-url }}
+          NETLIFY_API_URL: ${{ needs.deploy-netlify-production-api.outputs.api-url }}
+          NETLIFY_API_CLIENT_URL: ${{ needs.deploy-netlify-production-api.outputs.api-client-url }}
+          NETLIFY_WEB_URL: ${{ needs.deploy-netlify-production-web.outputs.web-url }}
+          NETLIFY_WEB_CLIENT_URL: ${{ needs.deploy-netlify-production-web.outputs.web-client-url }}
         run: node .github/scripts/select-deploy-provider.mjs
 
   select-production-site:
     name: Verify selected Production Site
-    needs: [quality, build-site, deploy-production-site, deploy-netlify-production]
+    needs: [quality, build-site, deploy-production-site, deploy-netlify-production-site]
     if: ${{ !cancelled() && needs.quality.result == 'success' && needs.build-site.result == 'success' }}
     runs-on: ubuntu-latest
     environment: production
@@ -605,34 +727,22 @@ jobs:
       - name: 🔎 Check Site on Vercel, then Netlify if needed
         env:
           VERCEL_SITE_URL: ${{ needs.deploy-production-site.outputs.site-url }}
-          NETLIFY_SITE_URL: ${{ needs.deploy-netlify-production.outputs.site-url }}
-          VERCEL_PROTECTION_BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+          VERCEL_SITE_READY: ${{ needs.deploy-production-site.outputs.ready }}
+          NETLIFY_SITE_URL: ${{ needs.deploy-netlify-production-site.outputs.site-url }}
         run: |
           set -euo pipefail
           result=0
           node .github/scripts/check-site-main.mjs "$GITHUB_REF" "$GITHUB_SHA" || result=$?
           if [ "$result" = 3 ]; then exit 0; fi
           test "$result" = 0
-          for provider in Vercel Netlify; do
-            auth=()
-            if [ "$provider" = Vercel ]; then
-              url="$VERCEL_SITE_URL"
-              [[ "$url" =~ ^https://[a-zA-Z0-9-]+\.vercel\.app$ ]] || continue
-              if [ -n "$VERCEL_PROTECTION_BYPASS" ]; then
-                auth+=(--get --data-urlencode "x-vercel-protection-bypass=$VERCEL_PROTECTION_BYPASS")
-              fi
-            else
-              url="$NETLIFY_SITE_URL"
-              [[ "$url" =~ ^https://[a-f0-9]{24}--bgo-site-production\.netlify\.app$ ]] || continue
-            fi
-            status=$(curl --silent --show-error --max-time 30 --retry 2 --output /dev/null \
-              --write-out '%{http_code}' "${auth[@]}" "$url/") || continue
-            [[ "$status" =~ ^2[0-9]{2}$ ]] || continue
-            printf 'Production Site verified on %s at %s\n' "$provider" "$url" >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          done
-          printf 'No current Production Site deploy passed smoke.\n' >&2
-          exit 1
+          if [ "$VERCEL_SITE_READY" = true ] && [[ "$VERCEL_SITE_URL" =~ ^https://[a-zA-Z0-9-]+\.vercel\.app$ ]]; then
+            printf 'Production Site verified on Vercel at %s\n' "$VERCEL_SITE_URL" >> "$GITHUB_STEP_SUMMARY"
+          elif [[ "$NETLIFY_SITE_URL" =~ ^https://[a-f0-9]{24}--bgo-site-production\.netlify\.app$ ]]; then
+            printf 'Production Site verified on Netlify at %s\n' "$NETLIFY_SITE_URL" >> "$GITHUB_STEP_SUMMARY"
+          else
+            printf 'No current Production Site deploy passed smoke.\n' >&2
+            exit 1
+          fi
 
   publish-release:
     name: Publish release v${{ needs.release.outputs.version }}

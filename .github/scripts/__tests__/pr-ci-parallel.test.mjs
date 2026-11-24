@@ -137,13 +137,13 @@ test("Site builds gate branch and PR checks, while deployments follow their own 
   assert(!jobs["draft-release"].needs.includes("deploy-development-site"));
 
   const production = main["deploy-production-site"];
-  assert.deepEqual(production.needs, ["quality", "build-site"]);
+  assert.deepEqual(production.needs, ["quality", "build-site", "check-vercel"]);
   assert.equal(production.environment, "production");
   assert.deepEqual(production.permissions, { contents: "read", statuses: "write" });
   assert(!main["publish-release"].needs.includes("deploy-production-site"));
 
-  const previewConfig = preview.steps.at(-1).with;
-  const productionConfig = production.steps.at(-1).with;
+  const previewConfig = preview.steps.find(({ id }) => id === "deploy").with;
+  const productionConfig = production.steps.find(({ id }) => id === "deploy").with;
   for (const config of [previewConfig, productionConfig]) {
     assert.equal(config["app-path"], "apps/site");
     assert.equal(config["vercel-project-id"], `\${{ secrets.VERCEL_SITE_PROJECT_ID }}`);
@@ -209,7 +209,8 @@ test("Development publication ignores Internal results but requires every common
     "deploy-preview-web",
     "deploy-development-api",
     "deploy-development-web",
-    "deploy-netlify-development",
+    "deploy-netlify-development-api",
+    "deploy-netlify-development-web",
     "cleanup-e2e-user",
     "cleanup-e2e-db",
   ])
@@ -375,11 +376,17 @@ test("PR deployment, auth, build and publication secrets use the development Git
       JSON.stringify(job),
     ),
   );
-  assert(consumers.some(([name]) => name === "deploy-netlify-preview"));
+  assert(consumers.some(([name]) => name === "check-vercel"));
   assert(consumers.some(([name]) => name === "initialize-preview"));
   assert(consumers.some(([name]) => name === "deploy-development-mcp-gateway"));
-  assert(consumers.some(([name]) => name === "deploy-netlify-development"));
-  for (const [name, job] of consumers) assert.equal(job.environment, "development", name);
+  assert(consumers.some(([name]) => name === "deploy-netlify-development-api"));
+  for (const [name, job] of consumers) {
+    if (job.uses === "./.github/workflows/netlify-deploy.yml") {
+      assert.equal(job.with.target, "development", name);
+    } else {
+      assert.equal(job.environment, "development", name);
+    }
+  }
 });
 
 function runWebhookAlias(options = {}) {

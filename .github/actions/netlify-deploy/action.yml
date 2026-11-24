@@ -1,11 +1,14 @@
 name: Deploy BGO to Netlify
-description: Deploy the tested source to the matching Netlify projects.
+description: Deploy one BGO component to its matching Netlify project.
 inputs:
+  component:
+    description: Netlify component to deploy (api, web, site or mcp)
+    required: true
   target:
     description: Netlify project environment, development or production
     required: true
   isolated:
-    description: Deploy API and Web with the run-scoped CI database
+    description: Use the run-scoped CI deployment for API or Web
     required: false
     default: 'false'
   source-sha:
@@ -19,10 +22,22 @@ inputs:
     required: true
   clerk-secret-key:
     description: Matching Clerk secret for API runtime attestation
-    required: true
+    required: false
   clerk-publishable-key:
     description: Matching Clerk publishable key
-    required: true
+    required: false
+  api-url:
+    description: Verified immutable Netlify API deploy URL for Web or MCP
+    required: false
+  api-client-url:
+    description: Verified Netlify API client URL for Web or MCP
+    required: false
+  web-url:
+    description: Verified immutable Netlify Web deploy URL for Development Site
+    required: false
+  web-client-url:
+    description: Verified Netlify Web client URL for Development Site
+    required: false
   gateway-pr:
     description: PR allowed to publish the stable Development MCP gateway
     required: false
@@ -66,10 +81,15 @@ runs:
         NETLIFY_CLI_TELEMETRY_DISABLED: '1'
         CLERK_SECRET_KEY: ${{ inputs.clerk-secret-key }}
         NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ inputs.clerk-publishable-key }}
+        BGO_NETLIFY_COMPONENT: ${{ inputs.component }}
         BGO_NETLIFY_STAGE: ${{ inputs.target }}
         BGO_NETLIFY_ISOLATED: ${{ inputs.isolated }}
         SOURCE_SHA: ${{ inputs.source-sha }}
         RELEASE_SHA: ${{ inputs.release-sha }}
+        API_URL: ${{ inputs.api-url }}
+        API_CLIENT_URL: ${{ inputs.api-client-url }}
+        WEB_URL: ${{ inputs.web-url }}
+        WEB_CLIENT_URL: ${{ inputs.web-client-url }}
         GATEWAY_PR: ${{ inputs.gateway-pr }}
         PR_NUMBER: ${{ github.event.pull_request.number }}
         PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}

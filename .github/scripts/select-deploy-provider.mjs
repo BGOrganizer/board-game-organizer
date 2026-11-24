@@ -104,6 +104,10 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1
   try {
     const { provider, api, apiClient, web, webClient } = await selectDeployment(
       deploymentCandidates(process.env),
+      (candidate) =>
+        candidate.provider === "vercel" && process.env.VERCEL_VERIFIED === "true"
+          ? true
+          : smokeDeployment(candidate),
     );
     const values = [api, apiClient, web, webClient];
     appendFileSync(
