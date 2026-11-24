@@ -21,10 +21,12 @@ import {
   waitFor,
   within,
 } from "@testing-library/react-native";
-import type { ComponentProps, ReactNode } from "react";
+import { type ComponentProps, createContext, type ReactNode, useContext } from "react";
 import { View } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import EventScreen from "@/app/event/[eventId]";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
+import { scrollNativeListToEnd } from "@/test/nativeListGeometry";
 import {
   installNativePopoverMeasurements,
   pressMeasuredPopover,
@@ -34,7 +36,9 @@ import {
   plannedTable,
   seat,
 } from "../../../../../web/src/test-fixtures/eventRecords";
-import { EventDetail } from "../EventDetail";
+import type { EventDetail } from "../EventDetail";
+
+const RouteParams = createContext<Partial<ComponentProps<typeof EventDetail>>>({});
 
 const API = "https://event-detail-owner-native.test";
 const boundary = vi.hoisted(() => ({
@@ -63,7 +67,7 @@ vi.mock("@clerk/expo", () => ({
 vi.mock("expo-router", () => ({
   useRouter: () => ({ push: boundary.push }),
   useNavigation: () => ({ getState: () => ({ type: "stack" }) }),
-  useLocalSearchParams: () => ({}),
+  useLocalSearchParams: () => useContext(RouteParams),
   Stack: {
     Screen: ({ options: config }: { options: { headerRight?: () => ReactNode } }) => (
       <View testID="event-native-header-actions">{config.headerRight?.()}</View>
@@ -78,6 +82,9 @@ let changes: NotificationChangeRow[];
 let tabCounts: { details: number; participants: number; tables: number; members: number };
 let eventCode: number;
 let tablesCode: number;
+let nextTablesCode: number;
+let tablesCursor: string | null;
+let nextTables: PlannedTableResponse[];
 let pendingEvent: Promise<Response> | undefined;
 let pendingTables: Promise<Response> | undefined;
 const asOf = "2030-06-01T12:00:00.000Z";
@@ -139,7 +146,9 @@ beforeEach(async () => {
   ];
   changes = [];
   tabCounts = { details: 0, participants: 0, tables: 0, members: 0 };
-  eventCode = tablesCode = 200;
+  eventCode = tablesCode = nextTablesCode = 200;
+  tablesCursor = null;
+  nextTables = [];
   pendingEvent = pendingTables = undefined;
   reads.length = writes.length = 0;
   client = new QueryClient({
@@ -203,16 +212,19 @@ beforeEach(async () => {
           pendingEvent ??
           json(eventCode === 200 ? event : { error: "Fixture event unavailable" }, eventCode)
         );
-      if (path === `/api/events/${event.id}/tables`)
+      if (path === `/api/events/${event.id}/tables`) {
+        const next = url.searchParams.has("cursor");
+        const code = next ? nextTablesCode : tablesCode;
         return (
-          pendingTables ??
+          (next ? undefined : pendingTables) ??
           json(
-            tablesCode === 200
-              ? { items: tables, nextCursor: null }
+            code === 200
+              ? { items: next ? nextTables : tables, nextCursor: next ? null : tablesCursor }
               : { error: "Fixture tables unavailable" },
-            tablesCode,
+            code,
           )
         );
+      }
       if (path === `/api/events/${event.id}/participants`)
         return json({
           items: participants,
@@ -255,7 +267,9 @@ function Fixture(props: Partial<ComponentProps<typeof EventDetail>>) {
   return (
     <QueryClientProvider client={client}>
       <NativeTestProviders>
-        <EventDetail eventId={event.id} {...props} />
+        <RouteParams value={{ eventId: event.id, ...props }}>
+          <EventScreen />
+        </RouteParams>
       </NativeTestProviders>
     </QueryClientProvider>
   );
@@ -735,3 +749,107 @@ it("reconciles an ordinary server tab-count snapshot without issuing a read or p
   ).toBeVisible();
   expect(writes).toHaveLength(0);
 });
+
+it("explains each distinct confirmation blocker without restoring an unavailable table title", async () => {
+  const second = { ...tables[0], order: 1, id: "55555555-5555-4555-8555-555555555555" };
+  tables = [...tables, second];
+  event = {
+    ...event,
+    agreement: {
+      agreed: false,
+      tables: [],
+      reasons: [
+        { tableId: tables[0].id, code: "PENDING_RESERVATIONS" },
+        { tableId: second.id, code: "GAME_DISAGREEMENT" },
+        { tableId: "77777777-7777-4777-8777-777777777777", code: "NO_COMPATIBLE_PLAYERS" },
+      ],
+    },
+  };
+  await render(<Fixture />);
+  await ready();
+  await pressMeasuredPopover(screen.getByRole("button", { name: "Confirm event" }));
+  expect(screen.getByText(/Table #1: Pending invitations still reserve places/)).toBeVisible();
+  expect(
+    screen.getByText(/Table #2: Seated players agree on date and location but not game/),
+  ).toBeVisible();
+  expect(screen.getByText(/Table: No compatible accepted players for this table/)).toBeVisible();
+  expect(screen.queryByTestId("confirmation-dialog")).toBeNull();
+  expect(writes).toEqual([]);
+});
+
+it("keeps a failed next tables page visible and retries once after a native paging gesture", async () => {
+  tablesCursor = "event-next-table";
+  nextTables = [{ ...tables[0], order: 1, id: "55555555-5555-4555-8555-555555555555" }];
+  nextTablesCode = 503;
+  await render(<Fixture />);
+  await ready();
+  const nextReads = () =>
+    reads.filter(
+      ({ pathname, searchParams }) =>
+        pathname === `/api/events/${event.id}/tables` &&
+        searchParams.get("cursor") === "event-next-table",
+    );
+  expect(nextReads()).toHaveLength(0);
+  await select("Tables");
+  const first = await screen.findByText("Table #1");
+  let list: typeof first | null = first;
+  while (list && typeof list.props.onScroll !== "function") list = list.parent;
+  if (!list) throw new Error("Expected the actual tables list scroll owner");
+  await scrollNativeListToEnd(list);
+  expect(await screen.findByText("Could not load tables")).toBeVisible();
+  expect(first).toBeVisible();
+  expect(nextReads()).toHaveLength(1);
+  await scrollNativeListToEnd(list, 1300);
+  expect(nextReads()).toHaveLength(1);
+
+  nextTablesCode = 200;
+  await press("Load more");
+  expect(await screen.findByText("Table #2")).toBeVisible();
+  expect(first).toBeVisible();
+  expect(nextReads()).toHaveLength(2);
+});
+
+it("removes a previously cached tables page when only that collection loses authorization", async () => {
+  await render(<Fixture />);
+  await ready();
+  await select("Tables");
+  expect(await screen.findByText("Table #1")).toBeVisible();
+  tablesCode = 403;
+  await act(() =>
+    client.invalidateQueries({
+      queryKey: recordTablesQuery(options(), event.id).queryKey,
+      exact: true,
+    }),
+  );
+  expect(await screen.findByText("Could not load tables")).toBeVisible();
+  expect(screen.queryByText("Table #1")).toBeNull();
+  expect(screen.getByRole("header", { name: event.name })).toBeVisible();
+});
+
+it.each([
+  { categories: "dates", voteLabel: "2030-06-03 20:00: Choose your vote", kind: "date" },
+  { categories: "locations", voteLabel: "Club venue: Choose your vote", kind: "location" },
+])(
+  "lets a first $kind choice start from an older snapshot without saved votes",
+  async ({ categories, voteLabel, kind }) => {
+    const other = "77777777-7777-4777-8777-777777777777";
+    event = {
+      ...event,
+      canVote: true,
+      myRegistrations: [seat("owner")],
+      myVotes: undefined,
+      dates:
+        categories === "dates" ? [...event.dates, { id: other, day: "2030-06-04" }] : event.dates,
+      locations:
+        categories === "locations"
+          ? [...event.locations, { ...event.locations[0], id: other, name: "Other venue" }]
+          : event.locations,
+    };
+    await render(<Fixture />);
+    await ready();
+    await press(voteLabel);
+    await dialog("Yes");
+    await waitFor(() => expect(writes).toHaveLength(1));
+    expect(writes[0].input).toMatchObject({ kind, vote: "YES" });
+  },
+);

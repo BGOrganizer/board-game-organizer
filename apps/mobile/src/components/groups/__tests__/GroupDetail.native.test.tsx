@@ -10,13 +10,14 @@ import { act, render, screen, userEvent, waitFor } from "@testing-library/react-
 import { createContext, type ReactNode, useContext } from "react";
 import { Keyboard, View } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import GroupScreen from "@/app/group/[groupId]";
+import GroupBanScreen from "@/app/group/ban";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import {
   installNativePopoverMeasurements,
   pressMeasuredPopover,
 } from "@/test/nativePopoverGeometry";
 import { groupRecord, plannedEvent } from "../../../../../web/src/test-fixtures/eventRecords";
-import { GroupDetail } from "../GroupDetail";
 
 const API = "https://group-detail-fixtures.test";
 const navigation = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
@@ -27,6 +28,7 @@ const options = {
   enabled: true,
 };
 const Api = createContext(options);
+const RouteParams = createContext<{ groupId: string; tab?: string } | undefined>(undefined);
 vi.mock("@/lib/useCommunityApi", () => ({ useCommunityApi: () => useContext(Api) }));
 vi.mock("@clerk/expo", () => ({
   useAuth: () => {
@@ -44,7 +46,7 @@ vi.mock("@clerk/expo", () => ({
 vi.mock("expo-router", () => ({
   useRouter: () => navigation,
   useNavigation: () => ({ getState: () => ({ type: "stack" }) }),
-  useLocalSearchParams: () => ({}),
+  useLocalSearchParams: () => useContext(RouteParams) ?? {},
   Stack: {
     Screen: ({ options: config }: { options: { headerRight?: () => ReactNode } }) => (
       <View>{config.headerRight?.()}</View>
@@ -214,13 +216,19 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-async function mount(seed = true, initialTab?: "info" | "members" | "events") {
+async function mount(
+  seed = true,
+  initialTab?: "info" | "members" | "events",
+  bannedMembersRoute = false,
+) {
   if (seed) client.setQueryData(groupRecordDetailQuery(options, group.id).queryKey, group);
   return render(
     <QueryClientProvider client={client}>
       <NativeTestProviders>
         <Api value={options}>
-          <GroupDetail groupId={group.id} initialTab={initialTab} />
+          <RouteParams value={{ groupId: group.id, tab: initialTab }}>
+            {bannedMembersRoute ? <GroupBanScreen /> : <GroupScreen />}
+          </RouteParams>
         </Api>
       </NativeTestProviders>
     </QueryClientProvider>,
@@ -449,4 +457,55 @@ it("requests public-group membership without granting accepted access and cancel
   await userEvent.setup().press(screen.getByRole("button", { name: "Confirm" }));
   await waitFor(() => expect(writes).toHaveLength(2));
   expect(writes[1].body).toEqual({ action: "cancel", version: 3 });
+});
+
+it("opens the members owner from a valid group exclusion route", async () => {
+  await mount(true, undefined, true);
+  expect(await screen.findByRole("tab", { name: "Members" })).toBeSelected();
+  expect(screen.getByRole("button", { name: "Group members help" })).toBeEnabled();
+});
+
+it("shows requests only for the current manager and withdraws the affordance on demotion", async () => {
+  group = { ...group, pendingRequestCount: 2 };
+  await mount();
+  expect(screen.getByLabelText("Requests to review")).toBeVisible();
+  group = {
+    ...group,
+    role: "accepted",
+    myMembership: membership("REQUEST", "ACCEPTED"),
+    canEdit: false,
+    canInvite: false,
+  };
+  await act(() => client.setQueryData(groupRecordDetailQuery(options, group.id).queryKey, group));
+  expect(screen.queryByLabelText("Requests to review")).toBeNull();
+});
+
+it("preserves accepted access until an explicit versioned leave is confirmed", async () => {
+  group = {
+    ...group,
+    role: "accepted",
+    myMembership: membership("REQUEST", "ACCEPTED"),
+    canEdit: false,
+    canInvite: false,
+  };
+  await mount();
+  const user = userEvent.setup();
+  await user.press(screen.getByRole("button", { name: "Leave group" }));
+  expect(
+    screen.getByText(
+      "Active table registrations are removed. Historical results remain unchanged.",
+    ),
+  ).toBeVisible();
+  expect(writes).toEqual([]);
+  await user.press(screen.getByRole("button", { name: "Cancel" }));
+  expect(writes).toEqual([]);
+  await user.press(screen.getByRole("button", { name: "Leave group" }));
+  await user.press(screen.getByRole("button", { name: "Confirm" }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0]).toEqual({
+    method: "PATCH",
+    path: `/api/groups/${group.id}/members/owner`,
+    body: { action: "cancel", version: 3 },
+  });
+  expect(screen.queryByRole("button", { name: "Leave group" })).toBeNull();
 });

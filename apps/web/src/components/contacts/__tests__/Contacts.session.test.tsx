@@ -1,7 +1,9 @@
 import type { NotificationAttentionTarget } from "@board-game-organizer/schemas";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
+import type { ReactElement } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import ContactsPage from "@/app/(tabs)/contacts/page";
 import { renderWithI18n } from "@/test-utils";
 import { Contacts } from "../Contacts";
 
@@ -10,6 +12,9 @@ const auth = vi.hoisted(() => ({
   signedIn: true,
   token: "initial-token" as string | null,
   getToken: vi.fn<() => Promise<string | null>>(),
+}));
+vi.mock("next/headers", () => ({
+  headers: () => new Headers({ "accept-language": "en-US" }),
 }));
 vi.mock("@clerk/nextjs", () => ({
   useAuth: () => ({
@@ -28,6 +33,8 @@ const summary = {
 };
 let client: QueryClient;
 let presenceStatus: number;
+let inaccessibleRequests: boolean;
+const searches: { query: string | null; authorization: string | null }[] = [];
 const heartbeats: { authorization: string | null; status: unknown; bypass: string | null }[] = [];
 beforeEach(() => {
   vi.clearAllMocks();
@@ -36,7 +43,8 @@ beforeEach(() => {
   auth.token = "initial-token";
   auth.getToken.mockImplementation(async () => auth.token);
   presenceStatus = 200;
-  heartbeats.length = 0;
+  inaccessibleRequests = false;
+  heartbeats.length = searches.length = 0;
   client = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { retry: false } },
   });
@@ -58,8 +66,21 @@ beforeEach(() => {
           { status: presenceStatus },
         );
       }
-      if (url.pathname === "/api/relationships")
-        return Response.json({ rows: [], nextCursor: null });
+      if (url.pathname === "/api/relationships") {
+        const type = url.searchParams.get("type");
+        const rows =
+          inaccessibleRequests && (type === "pending" || type === "sent")
+            ? [{ fromUserId: "unknown-source", toUserId: "unknown-target", profile: null }]
+            : [];
+        return Response.json({ rows, nextCursor: null });
+      }
+      if (url.pathname === "/api/users/search") {
+        searches.push({
+          query: url.searchParams.get("query"),
+          authorization: new Headers(init?.headers).get("authorization"),
+        });
+        return Response.json({ users: [] });
+      }
       if (url.pathname === "/api/users/suggestions")
         return Response.json({ users: [], hasContacts: false, nextCursor: null });
       if (url.pathname === "/api/notifications/attention") {
@@ -89,12 +110,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
 });
-function mount() {
-  return renderWithI18n(
-    <QueryClientProvider client={client}>
-      <Contacts />
-    </QueryClientProvider>,
-  );
+function mount(content: ReactElement = <Contacts />) {
+  return renderWithI18n(<QueryClientProvider client={client}>{content}</QueryClientProvider>);
 }
 async function advance(milliseconds: number) {
   await act(async () => {
@@ -170,4 +187,76 @@ it("ignores a session token resolving after the Contacts screen has unmounted", 
   await act(() => finish("late-session-token"));
   await advance(60_000);
   expect(heartbeats).toEqual([]);
+});
+
+it("sends a pending Contacts search only after the session token becomes available", async () => {
+  auth.token = null;
+  mount(await ContactsPage());
+  fireEvent.click(screen.getByRole("tab", { name: "Search" }));
+  fireEvent.change(screen.getByRole("searchbox", { name: "Search users by name or email" }), {
+    target: { value: "friends" },
+  });
+  await advance(310);
+  expect(searches).toEqual([]);
+  expect(heartbeats).toEqual([]);
+  auth.token = "newly-available";
+  await advance(200);
+  await advance(310);
+  expect(searches).toEqual([{ query: "friends", authorization: "Bearer newly-available" }]);
+  expect(heartbeats.at(-1)?.authorization).toBe("Bearer newly-available");
+});
+
+it("stops waiting for a missing Contacts token after the retry limit and avoids network writes", async () => {
+  auth.token = null;
+  mount();
+  await advance(5_100);
+  const tokenCalls = auth.getToken.mock.calls.length;
+  expect(tokenCalls).toBeGreaterThanOrEqual(11);
+  await advance(5_000);
+  expect(auth.getToken).toHaveBeenCalledTimes(tokenCalls);
+  expect(heartbeats).toEqual([]);
+  expect(fetch).not.toHaveBeenCalled();
+  expect(screen.getByRole("tab", { name: "Connections" })).toBeVisible();
+});
+
+it("does not continue an armed token retry after leaving Contacts", async () => {
+  auth.token = null;
+  const view = mount();
+  await advance(10);
+  expect(auth.getToken).toHaveBeenCalled();
+  view.unmount();
+  const tokenCalls = auth.getToken.mock.calls.length;
+  await advance(1_000);
+  expect(auth.getToken).toHaveBeenCalledTimes(tokenCalls);
+  expect(heartbeats).toEqual([]);
+});
+
+it("keeps Contacts usable after an initial rejected authentication read without a presence write", async () => {
+  auth.getToken.mockRejectedValue(new Error("Session offline"));
+  mount();
+  await advance(1_000);
+  expect(heartbeats).toEqual([]);
+  expect(fetch).not.toHaveBeenCalled();
+  expect(screen.getByRole("tab", { name: "Connections" })).toBeVisible();
+  expect(screen.getByRole("tab", { name: "Search" })).toBeVisible();
+});
+
+it("excludes the identities and actions of unprojected pending and sent relationship rows", async () => {
+  inaccessibleRequests = true;
+  mount();
+  await advance(20);
+  fireEvent.click(screen.getByRole("tab", { name: "Requests" }));
+  await advance(20);
+  expect(screen.getByRole("tabpanel", { name: "Requests" })).toBeVisible();
+  expect(screen.queryByText("unknown-source")).toBeNull();
+  expect(screen.queryByText("unknown-target")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Accept friend request" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Cancel friend request" })).toBeNull();
+  expect(
+    vi
+      .mocked(fetch)
+      .mock.calls.map(([input]) => new URL(String(input)))
+      .filter((url) => url.pathname === "/api/relationships")
+      .map((url) => url.searchParams.get("type")),
+  ).toEqual(expect.arrayContaining(["pending", "sent"]));
 });

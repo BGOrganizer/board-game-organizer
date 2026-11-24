@@ -136,6 +136,78 @@ describe("source-paged entity notification attention", () => {
     expect(displayed).toHaveLength(1);
     return { scope, through: page.asOf, references: displayed.map((row) => row.readReference) };
   }
+  it("leaves the contacts request and connection inboxes untouched when search is acknowledged", async () => {
+    const source = db.collection(COLLECTIONS.NOTIFICATIONS);
+    const request = await source.insertOne(note("friend_request", "/contacts?tab=requests"));
+    const connection = await source.insertOne(note("follow", "/contacts?tab=connections"));
+    const result = await new NotificationAttentionRepository(db).read(ACTOR, {
+      target: { kind: "contacts", id: "search" },
+      through: new Date().toISOString(),
+    });
+    expect(result.updated).toBe(0);
+    expect(await source.findOne({ _id: request.insertedId })).not.toHaveProperty("readAt");
+    expect(await source.findOne({ _id: connection.insertedId })).not.toHaveProperty("readAt");
+  });
+
+  it("rejects missing or cross-account inbox cursors without leaking other notifications", async () => {
+    await seedAttentionResources();
+    const source = db.collection(COLLECTIONS.NOTIFICATIONS);
+    const href = `/events/${eventId}/tables/${tableId}`;
+    const older = await source.insertOne(note("event_booking_confirmed", href));
+    const newest = await source.insertOne(
+      note("event_updated", href, {
+        createdAt: new Date("2021-01-01T00:00:00.000Z"),
+      }),
+    );
+    const repository = new NotificationsRepository(db);
+    const page = await repository.list(ACTOR, 1);
+    expect(page.nextCursor).toBe(newest.insertedId.toHexString());
+    expect((await repository.list(ACTOR, 1, page.nextCursor!)).notifications[0].id).toBe(
+      older.insertedId.toHexString(),
+    );
+    const other = await source.insertOne(note("event_updated", href, { recipientUserId: TARGET }));
+    await source.deleteOne({ _id: newest.insertedId });
+    for (const cursor of [page.nextCursor!, other.insertedId.toHexString()]) {
+      expect(await repository.list(ACTOR, 1, cursor)).toEqual({
+        notifications: [],
+        unreadCount: 0,
+        nextCursor: null,
+      });
+    }
+    expect(await source.findOne({ _id: older.insertedId })).toBeTruthy();
+  });
+
+  it("acknowledges a displayed unversioned notification item without consuming its versioned sibling", async () => {
+    await seedAttentionResources();
+    const gameId = notificationItemId(tableId, "game", 1);
+    const dateId = notificationItemId(eventId, "date", groupId);
+    const source = db.collection(COLLECTIONS.NOTIFICATIONS);
+    const stored = await source.insertOne(
+      note("event_updated", `/events/${eventId}`, {
+        attentionItems: [{ id: gameId }, { id: dateId, revision: 7 }],
+      }),
+    );
+    const notifications = new NotificationChangesRepository(db);
+    const displayed = await captureDisplayedInformation(notifications, {
+      kind: "table",
+      id: tableId,
+      tab: "details",
+    });
+    expect(displayed.references).toEqual([expect.objectContaining({ itemId: gameId })]);
+    expect(displayed.references[0].revision).toBeUndefined();
+    const receipt = await notifications.read(ACTOR, displayed);
+    expect(receipt.updated).toBe(1);
+    expect(await source.findOne({ _id: stored.insertedId })).toMatchObject({
+      attentionItems: [
+        { id: gameId, readAt: expect.any(Date) },
+        { id: dateId, revision: 7 },
+      ],
+    });
+    const persisted = await source.findOne({ _id: stored.insertedId });
+    expect(persisted?.attentionItems[1]).not.toHaveProperty("readAt");
+    expect(persisted?.readAt).toBeUndefined();
+  });
+
   it("resource changes use the exact locale-specific inbox copy without changing points or leaking to other recipients", async () => {
     await seedAttentionResources();
     const itemId = notificationItemId(tableId, "game", 1);
@@ -2402,6 +2474,51 @@ describe("direct Preview catalog import on MongoDB replica set", () => {
 });
 
 describe("BGG account collection snapshots on MongoDB replica set", () => {
+  it("publishes an expansion-only collection without adding expansions as base catalog games", async () => {
+    const repository = new BggAccountRepository(db);
+    const identity = { id: 41, username: "owner", avatarUrl: null };
+    const snapshot = await repository.stage(ACTOR, identity);
+    const games = parseBggCollection(
+      '<items><item objectid="987620" subtype="boardgameexpansion"><name>An expansion</name><status own="1"/></item></items>',
+      ACTOR,
+      snapshot,
+      true,
+    );
+    await repository.publish(ACTOR, snapshot, identity, games);
+    expect(await db.collection(COLLECTIONS.BOARD_GAMES).findOne({ id: 987620 })).toBeNull();
+    expect(await repository.get(ACTOR)).toMatchObject({
+      active: { username: identity.username, counts: { withoutExpansions: 0, withExpansions: 1 } },
+      pending: null,
+    });
+    expect(
+      await repository.page(ACTOR, { snapshot, query: "", limit: 10, types: "expansions" }),
+    ).toMatchObject({
+      items: [{ id: 987620, name: "An expansion", isExpansion: true }],
+    });
+  });
+
+  it("does not publish a superseded BGG snapshot over a newer staging request", async () => {
+    const repository = new BggAccountRepository(db);
+    const former = { id: 41, username: "former", avatarUrl: null };
+    const current = { id: 42, username: "current", avatarUrl: null };
+    const formerSnapshot = await repository.stage(ACTOR, former);
+    const currentSnapshot = await repository.stage(ACTOR, current);
+    const games = parseBggCollection(
+      '<items><item objectid="987610" subtype="boardgame"><name>Older game</name><status own="1"/></item></items>',
+      ACTOR,
+      formerSnapshot,
+    );
+    await repository.publish(ACTOR, formerSnapshot, former, games);
+    expect(await repository.get(ACTOR)).toMatchObject({
+      active: null,
+      pending: { username: current.username },
+    });
+    expect(await repository.pending(ACTOR)).toMatchObject({ snapshot: currentSnapshot });
+    expect(
+      await db.collection(COLLECTIONS.BGG_COLLECTION_GAMES).countDocuments({ userId: ACTOR }),
+    ).toBe(0);
+  });
+
   it("hydrates only visible collection durations, persists successful dates and keeps global quota and retry state", async () => {
     const repository = new BggAccountRepository(db);
     const identity = { id: 41, username: "alice", avatarUrl: null };

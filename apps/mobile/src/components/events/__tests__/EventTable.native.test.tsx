@@ -13,9 +13,10 @@ import {
 } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, userEvent, waitFor, within } from "@testing-library/react-native";
-import type { ComponentProps, ReactNode } from "react";
+import { type ComponentProps, createContext, type ReactNode, useContext } from "react";
 import { View } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import TableScreen from "@/app/event/table";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import {
   installNativePopoverMeasurements,
@@ -26,7 +27,11 @@ import {
   plannedTable,
   seat,
 } from "../../../../../web/src/test-fixtures/eventRecords";
-import { EventTable } from "../EventTable";
+import type { EventTable } from "../EventTable";
+
+const RouteParams = createContext<
+  { eventId: string; tableId: string; fromEvent?: string } | undefined
+>(undefined);
 
 const API = "https://table-owner-native.test";
 const boundary = vi.hoisted(() => ({
@@ -61,7 +66,7 @@ vi.mock("@clerk/expo", () => ({
 vi.mock("expo-router", () => ({
   useRouter: () => ({ push: boundary.push, dismissTo: boundary.dismissTo }),
   useNavigation: () => ({ getState: () => ({ type: "stack" }) }),
-  useLocalSearchParams: () => boundary.params,
+  useLocalSearchParams: () => ({ ...boundary.params, ...useContext(RouteParams) }),
   Stack: {
     Screen: ({ options: config }: { options: { headerRight?: () => ReactNode } }) => (
       <View testID="native-table-header-actions">{config.headerRight?.()}</View>
@@ -276,11 +281,19 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
-function Fixture(props: Partial<ComponentProps<typeof EventTable>>) {
+function Fixture({
+  eventId = event.id,
+  tableId = table.id,
+  context,
+}: Partial<ComponentProps<typeof EventTable>>) {
   return (
     <QueryClientProvider client={client}>
       <NativeTestProviders>
-        <EventTable eventId={event.id} tableId={table.id} {...props} />
+        <RouteParams
+          value={{ eventId, tableId, fromEvent: context === "event" ? eventId : undefined }}
+        >
+          <TableScreen />
+        </RouteParams>
       </NativeTestProviders>
     </QueryClientProvider>
   );

@@ -13,13 +13,23 @@ import { useAppStore } from "@board-game-organizer/store";
 import type { AndroidNativeProps } from "@react-native-community/datetimepicker";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, userEvent, waitFor } from "@testing-library/react-native";
-import { type ComponentProps, type ReactNode, type Ref, useImperativeHandle } from "react";
+import {
+  type ComponentProps,
+  createContext,
+  type ReactNode,
+  type Ref,
+  useContext,
+  useImperativeHandle,
+} from "react";
 import { View } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import EventProposalScreen from "@/app/event/proposal";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import { beginOptimisticOperation } from "../../../../../../packages/shared/src/common/optimisticOperation";
 import { plannedEvent, plannedTable } from "../../../../../web/src/test-fixtures/eventRecords";
-import { EventProposalEditor } from "../EventProposalEditor";
+import type { EventProposalEditor } from "../EventProposalEditor";
+
+const RouteParams = createContext<Partial<ComponentProps<typeof EventProposalEditor>>>({});
 
 const API = "https://proposal-editor-native.test";
 const boundary = vi.hoisted(() => ({
@@ -56,7 +66,7 @@ vi.mock("expo-router", () => ({
     canGoBack: () => boundary.canGoBack,
   }),
   useNavigation: () => ({ getState: () => ({ type: "stack" }) }),
-  useLocalSearchParams: () => ({}),
+  useLocalSearchParams: () => useContext(RouteParams),
   Stack: {
     Screen: ({
       options: config,
@@ -227,7 +237,9 @@ function Fixture({
   return (
     <QueryClientProvider client={client}>
       <NativeTestProviders>
-        <EventProposalEditor eventId={eventId} kind={kind} {...props} />
+        <RouteParams value={{ eventId, kind, ...props }}>
+          <EventProposalScreen />
+        </RouteParams>
       </NativeTestProviders>
     </QueryClientProvider>
   );

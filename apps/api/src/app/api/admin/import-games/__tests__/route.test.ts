@@ -93,3 +93,19 @@ describe("/api/admin/import-games", () => {
     expect(bulkUpsert).toHaveBeenCalledWith([game]);
   });
 });
+
+it("rejects malformed JSON and explicit null before writing any games", async () => {
+  for (const body of ["{", "null"]) {
+    const response = await POST(
+      new Request("http://localhost/api/admin/import-games", {
+        method: "POST",
+        headers: { authorization: "Bearer test-secret", "content-type": "application/json" },
+        body,
+      }),
+    );
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "Invalid payload" });
+  }
+  expect(bulkUpsert).not.toHaveBeenCalled();
+  expect(count).not.toHaveBeenCalled();
+});

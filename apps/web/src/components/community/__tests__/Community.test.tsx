@@ -5,13 +5,13 @@ import { setupI18n } from "@lingui/core";
 import { I18nProvider } from "@lingui/react";
 import { fireEvent, screen } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
+import CommunityPage from "@/app/(tabs)/community/page";
 import { ActivityRow } from "@/components/activities/ActivityRow";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { ProfileActivityRow } from "@/components/profile/ProfileActivityRow";
 import { renderWithI18n } from "@/test-utils";
 import { messages as en } from "../../../../../../messages/en.js";
 import { messages as itMessages } from "../../../../../../messages/it.js";
-import { Community } from "../Community";
 import { CommunityActivities } from "../CommunityActivities";
 
 const m = vi.hoisted(() => ({
@@ -69,7 +69,7 @@ beforeEach(() => {
   };
 });
 it("orders Activities, Rankings and Marketplace and retains the activity filter", async () => {
-  renderWithI18n(<Community />);
+  renderWithI18n(<CommunityPage />);
   expect(screen.getByRole("heading", { name: "Community" })).toBeTruthy();
   expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
     "Activities",

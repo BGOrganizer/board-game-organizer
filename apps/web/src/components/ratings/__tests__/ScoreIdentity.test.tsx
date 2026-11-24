@@ -83,3 +83,21 @@ it("shows a guest winner's rank and identity without an OpenSkill rating", () =>
   expect(screen.getByText("Gu")).toBeVisible();
   expect(screen.queryByRole("img", { name: "Game rating" })).toBeNull();
 });
+
+it.each([
+  { delta: -2.5, label: "Rating decreased: -2.50", visible: "-2.50", provisional: true },
+  { delta: 0, label: "Rating unchanged: 0.00", visible: "0.00", provisional: false },
+])("explains a $label alongside the current score", ({ delta, label, visible, provisional }) => {
+  renderWithI18n(
+    <ScoreIdentity
+      player={player}
+      showGameRating
+      gameRating={{ userId: player.id, score: 490.5, delta, provisional }}
+    />,
+  );
+  expect(
+    screen.getByRole("img", { name: provisional ? "Provisional game rating" : "Game rating" }),
+  ).toBeVisible();
+  expect(screen.getByText("490.50")).toBeVisible();
+  expect(screen.getByLabelText(label)).toHaveTextContent(visible);
+});

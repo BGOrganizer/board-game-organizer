@@ -1,6 +1,7 @@
 import { act, screen, waitFor } from "@testing-library/react-native";
 import { Linking, Share } from "react-native";
 import { expect, it, vi } from "vitest";
+import { warmRegisteredContacts } from "@/lib/contacts/registeredContacts";
 import { scrollNativeListToEnd } from "@/test/nativeListGeometry";
 import {
   ContactsFixture,
@@ -382,4 +383,171 @@ it("ignores a late native address-book result after the authenticated screen own
   expect(screen.queryByText("Unregistered Friend")).toBeNull();
   expect(screen.getByRole("button", { name: "Add contacts" })).toBeEnabled();
   expect(syncWrites()).toHaveLength(0);
+});
+
+const privateContactReads = () =>
+  contactsFixture.reads.filter(
+    (url) => url.pathname === "/api/relationships" || url.pathname === "/api/users/suggestions",
+  );
+
+it("keeps private contacts unread during pending auth, rejected token recovery and sign-out", async () => {
+  contactsBoundary.authLoaded = false;
+  contactsBoundary.getToken.mockRejectedValue(new Error("Session did not refresh"));
+  const view = await renderContacts();
+  expect(contactsBoundary.getToken).not.toHaveBeenCalled();
+  expect(privateContactReads()).toEqual([]);
+
+  contactsBoundary.authLoaded = true;
+  await view.rerender(<ContactsFixture />);
+  await waitFor(() => expect(contactsBoundary.getToken).toHaveBeenCalled());
+  expect(privateContactReads()).toEqual([]);
+
+  contactsBoundary.signedIn = false;
+  await view.rerender(<ContactsFixture />);
+  expect(privateContactReads()).toEqual([]);
+});
+
+it("drops a late token issued to a session that signed out during authentication", async () => {
+  let finish: (token: string) => void = () => {};
+  const pendingToken = new Promise<string>((resolve) => {
+    finish = resolve;
+  });
+  contactsBoundary.getToken.mockImplementation(() => pendingToken);
+  const view = await renderContacts();
+  await waitFor(() => expect(contactsBoundary.getToken).toHaveBeenCalled());
+  contactsBoundary.signedIn = false;
+  await view.rerender(<ContactsFixture />);
+  await act(() => finish("late-former-owner-token"));
+  expect(privateContactReads()).toEqual([]);
+  expect(contactsFixture.writes.filter(({ path }) => path === "/api/users/presence")).toEqual([]);
+});
+
+it("reuses native permission granted while the in-app consent prompt was open", async () => {
+  devices();
+  await renderContacts();
+  await contactsReady();
+  await deviceTab();
+  await contactPress("Add contacts");
+  grant();
+  await contactPress("Yes");
+  expect(await screen.findByText("Unregistered Friend")).toBeVisible();
+  expect(contactsBoundary.requestPermissions).not.toHaveBeenCalled();
+  expect(syncWrites()).toHaveLength(1);
+});
+
+it("waits for the same owner's in-flight startup synchronization instead of scanning or sending twice", async () => {
+  grant();
+  devices();
+  let finish: (value: Response) => void = () => {};
+  contactsFixture.pendingSync = new Promise((resolve) => {
+    finish = resolve;
+  });
+  const warming = warmRegisteredContacts(
+    "owner",
+    contactsApi,
+    async () => "fixture-session-token",
+    () => true,
+  );
+  await waitFor(() => expect(syncWrites()).toHaveLength(1));
+  await renderContacts();
+  await contactsReady();
+  await deviceTab();
+  expect(screen.queryByText("Unregistered Friend")).toBeNull();
+  await act(async () => {
+    finish(
+      fixtureJson({
+        stored: 1,
+        users: [],
+        registeredIdentifiers: { emails: contactsFixture.registeredEmails, phoneNumbers: [] },
+      }),
+    );
+    await warming;
+  });
+  expect(await screen.findByText("Unregistered Friend")).toBeVisible();
+  expect(syncWrites()).toHaveLength(1);
+  expect(
+    contactsBoundary.readContacts.mock.calls.filter(([, page]) => page.limit === 200),
+  ).toHaveLength(1);
+});
+
+it("drops a late address-book synchronization receipt after the current owner has changed", async () => {
+  grant();
+  devices();
+  let finish: (value: Response) => void = () => {};
+  contactsFixture.pendingSync = new Promise((resolve) => {
+    finish = resolve;
+  });
+  const view = await renderContacts();
+  await contactsReady();
+  await waitFor(() => expect(syncWrites()).toHaveLength(1));
+  contactsBoundary.userId = "different-owner";
+  contactsBoundary.permission = {
+    granted: false,
+    status: "denied",
+    canAskAgain: false,
+    expires: "never",
+  };
+  await view.rerender(<ContactsFixture />);
+  await act(() =>
+    finish(
+      fixtureJson({
+        stored: 1,
+        users: [],
+        registeredIdentifiers: { emails: contactsFixture.registeredEmails, phoneNumbers: [] },
+      }),
+    ),
+  );
+  await deviceTab();
+  expect(screen.getByRole("button", { name: "Add contacts" })).toBeEnabled();
+  expect(screen.queryByText("Unregistered Friend")).toBeNull();
+  expect(
+    contactsFixture.client?.getQueryData(["contact-sync", contactsApi, "different-owner"]),
+  ).toBeUndefined();
+  expect(syncWrites()).toHaveLength(1);
+});
+
+it("keeps a failed first page of registered suggestions distinct from an exhausted address book", async () => {
+  grant();
+  contactsFixture.suggestionsStatus = 503;
+  await renderContacts();
+  await contactsReady();
+  await deviceTab();
+  expect(await screen.findByText("Could not load contacts")).toBeVisible();
+  expect(screen.queryByText("No contacts to invite")).toBeNull();
+});
+
+it("retries failed server suggestions only on the explicit control and retains the first page", async () => {
+  contactsFixture.suggestions = [
+    fixtureUser({ id: "first-match", name: "First matched contact", username: "first-match" }),
+  ];
+  contactsFixture.nextSuggestions = [
+    fixtureUser({ id: "second-match", name: "Next matched contact", username: "second-match" }),
+  ];
+  contactsFixture.suggestionsCursor = "next-contacts";
+  contactsFixture.nextSuggestionsStatus = 503;
+  await renderContacts();
+  await contactsReady();
+  await deviceTab();
+  const first = await screen.findByText("First matched contact");
+  let list: typeof first | null = first;
+  while (list && typeof list.props.onScroll !== "function") list = list.parent;
+  if (!list) throw new Error("Expected the real server-suggestion scroll host");
+  const laterPages = () =>
+    contactsFixture.reads.filter(
+      (url) =>
+        url.pathname === "/api/users/suggestions" &&
+        url.searchParams.get("cursor") === "next-contacts",
+    );
+  expect(screen.queryByText("Next matched contact")).toBeNull();
+  await scrollNativeListToEnd(list);
+  expect(await screen.findByRole("button", { name: "Retry" })).toBeEnabled();
+  expect(first).toBeVisible();
+  expect(laterPages()).toHaveLength(1);
+  await scrollNativeListToEnd(list, 1300);
+  expect(laterPages()).toHaveLength(1);
+  contactsFixture.nextSuggestionsStatus = 200;
+  await contactPress("Retry");
+  expect(await screen.findByText("Next matched contact")).toBeVisible();
+  expect(first).toBeVisible();
+  expect(laterPages()).toHaveLength(2);
 });

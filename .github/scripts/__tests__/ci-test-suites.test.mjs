@@ -22,6 +22,10 @@ test("both pipelines run all coverage workspaces without cancelling matrix sibli
     assert.equal(workflow.on.pull_request?.paths, undefined);
   }
   assert.match(pr.jobs["unit-tests"].if, /mode == 'branch'.*mode == 'pr'/);
+  assert.equal(
+    find(pr.jobs["unit-tests"], "📤 Upload coverage report").if,
+    "always() && !cancelled()",
+  );
   assert.equal(main.jobs.coverage.if, undefined);
   for (const app of ["mobile", "web", "api", "schemas", "shared", "mcp"]) {
     const directory = ["schemas", "shared"].includes(app) ? `packages/${app}` : `apps/${app}`;

@@ -13,13 +13,13 @@ import { act, render, screen, userEvent, waitFor, within } from "@testing-librar
 import { type ReactNode, useEffect } from "react";
 import { BackHandler, View } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import EventResultsScreen from "@/app/event/results";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import {
   plannedEvent,
   plannedTable,
   seat,
 } from "../../../../../web/src/test-fixtures/eventRecords";
-import { EventResults } from "../EventResults";
 
 const boundary = vi.hoisted(() => ({
   back: vi.fn(),
@@ -41,6 +41,7 @@ vi.mock("expo-constants", () => ({
 vi.mock("expo-router", () => ({
   useRouter: () => ({ back: boundary.back, dismissTo: boundary.dismissTo }),
   useNavigation: () => ({ getState: () => ({ type: "stack" }) }),
+  useLocalSearchParams: () => ({ eventId: event.id, tableId: table.id }),
   useFocusEffect: (effect: () => undefined | (() => void)) => useEffect(effect, [effect]),
   Stack: {
     Screen: ({ options }: { options: { headerLeft?: () => ReactNode } }) => (
@@ -189,7 +190,7 @@ function Fixture() {
   return (
     <QueryClientProvider client={client}>
       <NativeTestProviders>
-        <EventResults eventId={event.id} tableId={table.id} />
+        <EventResultsScreen />
       </NativeTestProviders>
     </QueryClientProvider>
   );

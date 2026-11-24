@@ -8,6 +8,7 @@ import { clearSessionQueryCache, groupRecordKeys } from "@board-game-organizer/s
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
+import { installBrowserIntersections } from "@/test-fixtures/browserIntersections";
 import { enterDateTime } from "@/test-fixtures/dateTime";
 import { groupRecord, plannedEvent } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
@@ -224,7 +225,10 @@ it("hides cached member details and closes the active confirmation when the rost
 });
 
 it("preserves accepted members through a failed next page and retries the same cursor explicitly", async () => {
-  let nextCalls = 0;
+  const browser = installBrowserIntersections();
+  let release: (response: Response) => void = () => {
+    throw new Error("Expected pending Group members request");
+  };
   const cursors: string[] = [];
   vi.stubGlobal(
     "fetch",
@@ -236,9 +240,10 @@ it("preserves accepted members through a failed next page and retries the same c
       const cursor = url.searchParams.get("cursor");
       if (!cursor) return Response.json({ items: [member], nextCursor: "member-page-2" });
       cursors.push(cursor);
-      nextCalls++;
-      return nextCalls === 1
-        ? Response.json({ error: "UNAVAILABLE" }, { status: 503 })
+      return cursors.length === 1
+        ? new Promise<Response>((resolve) => {
+            release = resolve;
+          })
         : Response.json({
             items: [
               {
@@ -255,7 +260,13 @@ it("preserves accepted members through a failed next page and retries the same c
   );
   mount();
   await screen.findByText("@accepted-player");
-  fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+  act(() => browser.intersect());
+  await waitFor(() => expect(cursors).toHaveLength(1));
+  expect(screen.getByText("@accepted-player")).toBeVisible();
+  await waitFor(() => expect(screen.queryByRole("button", { name: "Load more" })).toBeNull());
+  act(() => browser.intersect());
+  expect(cursors).toEqual(["member-page-2"]);
+  await act(() => release(Response.json({ error: "UNAVAILABLE" }, { status: 503 })));
   const retry = await screen.findByRole("button", { name: "Could not load more members. Retry" });
   expect(screen.getByText("@accepted-player")).toBeTruthy();
   expect(screen.queryByText("No members found")).toBeNull();
@@ -334,4 +345,27 @@ it("reports a failed global block from the actual social menu while preserving G
   expect(writes).toBe(1);
   expect(screen.getByText("@accepted-player")).toBeTruthy();
   expect(screen.getByRole("button", { name: "Manage member: accepted-player" })).toBeTruthy();
+});
+
+it("uses the roster fallback for an unavailable identity without making a member action available", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(
+      async (input: string) =>
+        boundary(input) ??
+        members(input, [
+          {
+            ...member,
+            name: null,
+            username: null,
+            userId: "deleted-account",
+            membership: null,
+          },
+        ]),
+    ),
+  );
+  mount({ ...groupRecord, role: "accepted", canInvite: false, canSocialInteract: false });
+  expect(await screen.findByText("Username unavailable")).toBeVisible();
+  expect(screen.queryByText("deleted-account")).toBeNull();
+  expect(screen.queryByRole("button", { name: /Manage member/ })).toBeNull();
 });

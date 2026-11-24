@@ -10,6 +10,7 @@ import {
   finalizeSavedEventSchema,
   joinTableSchema,
   plannedTableInputSchema,
+  saveTableGuestVotesSchema,
   tableRegistrationReceiptSchema,
   tableSeatOrderSchema,
 } from "../dto/eventRecords";
@@ -171,6 +172,23 @@ it("accepts a strict idempotent guest request and a separate tagged registration
   ])
     expect(tableRegistrationSchema.safeParse(invalid).success).toBe(false);
 });
+it("allows distinct guest vote options and rejects two choices for the same option", () => {
+  const votes = [
+    { kind: "game", tableId: id, gameId: 1, vote: "YES" },
+    { kind: "date", optionId: id, vote: "YES" },
+    { kind: "location", optionId: id, vote: "NO" },
+  ] as const;
+  expect(saveTableGuestVotesSchema.parse({ votes })).toEqual({ votes });
+  for (const option of votes) {
+    const duplicate = saveTableGuestVotesSchema.safeParse({
+      votes: [...votes, { ...option, vote: "IF_NEEDED" }],
+    });
+    expect(duplicate.error?.issues).toEqual([
+      expect.objectContaining({ path: ["votes"], message: "Vote options must be unique" }),
+    ]);
+  }
+});
+
 describe("unified event request boundaries", () => {
   it.each(["abcde", "a".repeat(30)])(
     "accepts and trims boundary Event/Table name %s on creation and edits",

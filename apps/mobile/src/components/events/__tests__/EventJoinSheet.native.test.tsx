@@ -395,3 +395,66 @@ it("displays a known rejected participation and allows recovery without inventin
   await ready();
   expect(writes).toHaveLength(0);
 });
+
+it.each([
+  ["date", "Dates", "2030-06-03 20:00", "dateVotes"],
+  ["location", "Locations", "Club venue", "locationVotes"],
+] as const)(
+  "requires a new positive %s vote while retaining the fixed game fact",
+  async (category, tabName, label, voteKey) => {
+    event = {
+      ...event,
+      ...(category === "date" ? { dateVoteRequired: true } : { locationVoteRequired: true }),
+    };
+    table = { ...table, gamesDetail: [] };
+    await render(<Fixture />);
+    await ready();
+    expect(
+      screen.getByText("Review the event and table settings, then vote in the sections shown."),
+    ).toBeOnTheScreen();
+    expect(screen.getByRole("tab", { name: tabName })).toBeSelected();
+    expect(screen.queryByRole("tab", { name: "Games" })).toBeNull();
+    expect(screen.getByText("Unknown")).toBeOnTheScreen();
+    await press("Join table");
+    expect(writes).toHaveLength(0);
+    await vote(label, "If needed");
+    await press("Join table");
+    await waitFor(() => expect(writes).toHaveLength(1));
+    const option = category === "date" ? event.dates[0] : event.locations[0];
+    expect(writes[0].input).toMatchObject({
+      gameVotes: {},
+      availability: { [voteKey]: { [option.id]: "IF_NEEDED" } },
+    });
+  },
+);
+
+it("shows an explicit fallback when vote metadata for a canonical game option is missing", async () => {
+  table = { ...table, gameVoteRequired: true, gamesDetail: [] };
+  await render(<Fixture />);
+  await ready();
+  expect(screen.getByRole("tab", { name: "Games" })).toBeSelected();
+  expect(screen.getByText("Unknown")).toBeOnTheScreen();
+  await vote("Unknown");
+  await press("Join table");
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(writes[0].input.gameVotes).toEqual({ "1": "YES" });
+});
+
+it("keeps a rejected pending invitation explicit without closing it or changing registration", async () => {
+  const invitation = { ...seat("owner"), status: "PENDING" as const, version: 7 };
+  const close = vi.fn();
+  table = { ...table, myRegistration: invitation, canRespond: true, canRegister: false };
+  writeStatus = 422;
+  await render(<Fixture registrationId={invitation.id} onClose={close} />);
+  await ready();
+  await press("Accept invitation");
+  expect(await screen.findByText("Could not accept invitation")).toBeOnTheScreen();
+  expect(writes).toHaveLength(1);
+  expect(writes[0]).toMatchObject({
+    method: "PATCH",
+    path: `/api/table-registrations/${invitation.id}`,
+    input: { action: "accept", version: 7 },
+  });
+  expect(close).not.toHaveBeenCalled();
+  await ready();
+});

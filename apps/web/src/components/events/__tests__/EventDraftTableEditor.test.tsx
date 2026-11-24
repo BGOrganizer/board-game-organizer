@@ -103,3 +103,49 @@ it("shows the selected demonstrator identity and clears its draft metadata expli
     demonstratorAvatarUrl: undefined,
   });
 });
+
+it.each([
+  {
+    field: "demonstratorGuestName",
+    label: "Enter a guest name between 1 and 80 characters.",
+    games: [],
+    gameMessage: "Choose at least one game.",
+  },
+  {
+    field: "demonstratorUserId",
+    label: "Choose an available group demonstrator.",
+    games: [{ id: 1, name: "Chess", year: null, imageUrl: null }],
+    gameMessage: "Choose compatible games.",
+  },
+])(
+  "reports $field, invalid counts and games independently and changes the rating flag",
+  ({ field, label, games, gameMessage }) => {
+    const onChange = vi.fn();
+    renderWithI18n(
+      <EventDraftTableEditor
+        row={{
+          ...newTableDraft("draft"),
+          demonstratorUserId: "missing-profile",
+          startsWall: "2030-06-03T20:00",
+          rankingEnabled: false,
+          games,
+        }}
+        publicGroup
+        eventStartWall="2030-06-03T20:00"
+        eventEndWall="2030-06-03T23:00"
+        busy={false}
+        fieldError={(name) => ["games", "minPlayers", "startsAt", field].includes(name)}
+        onChange={onChange}
+        onRemove={vi.fn()}
+        onGame={vi.fn()}
+        onDemonstrator={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Unknown")).toBeVisible();
+    expect(screen.getByText(label)).toBeVisible();
+    expect(screen.getByText(gameMessage)).toBeVisible();
+    expect(screen.getByText(/Choose valid player counts/)).toBeVisible();
+    fireEvent.click(screen.getByRole("switch", { name: "Enable ratings" }));
+    expect(onChange).toHaveBeenLastCalledWith({ rankingEnabled: true });
+  },
+);

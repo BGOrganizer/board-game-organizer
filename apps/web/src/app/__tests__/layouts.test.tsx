@@ -2,10 +2,13 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import TabsLayout from "@/app/(tabs)/layout";
 import RootLayout from "@/app/layout";
+import SignInPage from "@/app/sign-in/[[...sign-in]]/page";
+import SignUpPage from "@/app/sign-up/[[...sign-up]]/page";
 import { renderWithI18n } from "@/test-utils";
 
+const request = vi.hoisted(() => ({ language: "en-US,en;q=0.9" }));
 vi.mock("next/headers", () => ({
-  headers: () => ({ get: () => "en-US,en;q=0.9" }),
+  headers: () => ({ get: () => request.language }),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -33,6 +36,8 @@ vi.mock("@clerk/nextjs", () => ({
     isLoaded: true,
     user: { unsafeMetadata: { mobileNumber: "e2e" } },
   }),
+  SignIn: () => <form aria-label="Clerk sign in" />,
+  SignUp: () => <form aria-label="Clerk sign up" />,
   SignInButton: ({ children }: { children: React.ReactNode }) => (
     <button type="button">{children}</button>
   ),
@@ -53,11 +58,19 @@ vi.mock("@/components/common/providers/SessionQueryProvider", () => ({
 }));
 
 describe("RootLayout", () => {
-  it("sets the html lang from the Accept-Language header", async () => {
-    const layout = await RootLayout({ children: <p>content</p> });
-    render(layout);
-    expect(document.documentElement.lang).toBe("en");
-    expect(screen.getByText("content")).toBeTruthy();
+  it.each([
+    ["en-US,en;q=0.9", "en"],
+    ["it-IT,it;q=0.9,en;q=0.4", "it"],
+  ])("sets the HTML language to %s's supported locale", async (language, locale) => {
+    request.language = language;
+    try {
+      const layout = await RootLayout({ children: <p>content</p> });
+      render(layout);
+      expect(document.documentElement.lang).toBe(locale);
+      expect(screen.getByText("content")).toBeVisible();
+    } finally {
+      request.language = "en-US,en;q=0.9";
+    }
   });
 });
 
@@ -77,4 +90,13 @@ describe("TabsLayout", () => {
     expect(document.querySelector("[data-app-header]")?.className).toContain("sticky");
     expect(document.getElementById("page-header-actions")).toBeNull();
   });
+});
+
+it.each([
+  [SignInPage, "Clerk sign in", "Clerk sign up"],
+  [SignUpPage, "Clerk sign up", "Clerk sign in"],
+] as const)("mounts only the authentication widget for its entry point", (Page, widget, other) => {
+  render(<Page />);
+  expect(screen.getByRole("form", { name: widget })).toBeVisible();
+  expect(screen.queryByRole("form", { name: other })).toBeNull();
 });

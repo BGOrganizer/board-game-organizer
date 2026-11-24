@@ -3,9 +3,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
+import GroupModerationPage from "@/app/(tabs)/moderation/page";
 import { groupRecord } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
-import { GroupModeration } from "../GroupModeration";
 
 vi.mock("@/components/notifications/NotificationAttentionScope", () => ({
   NotificationAttentionScope: ({ children }: { children: ReactNode }) => children,
@@ -39,7 +39,7 @@ function mount() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const view = renderWithI18n(
     <QueryClientProvider client={client}>
-      <GroupModeration />
+      <GroupModerationPage />
     </QueryClientProvider>,
   );
   return { client, ...view };

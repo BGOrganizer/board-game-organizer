@@ -14,9 +14,20 @@ import {
   useReadNotificationAttention,
 } from "@board-game-organizer/shared";
 import { type InfiniteData, QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  renderHook,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
+import { renderWithI18n } from "@/test-utils";
+import { NotificationAttentionScope } from "../NotificationAttentionScope";
+import { NotificationTabBadge } from "../NotificationTabBadge";
 
 const eventId = "11111111-1111-4111-8111-111111111111",
   groupId = "22222222-2222-4222-8222-222222222222",
@@ -433,4 +444,32 @@ it("batches visible IDs, deduplicates reorderings, isolates actors and exposes r
   hook.rerender({ ids: many, userId: "other" });
   await waitFor(() => expect(hook.result.current.error).toBeTruthy());
   expect(hook.result.current.get(many[0])).toBeUndefined();
+});
+
+it("leaves the authorized UI visible after a failed notification read and recovers the indicator through Retry", async () => {
+  let available = false;
+  const requests = vi.fn(async (input: string, init?: RequestInit) => {
+    const url = new URL(input);
+    expect(url.pathname).toBe("/api/notifications/attention");
+    expect(init?.method ?? "GET").toBe("GET");
+    return available
+      ? Response.json({ ...original(), targets: [row(table, 2)] })
+      : Response.json({ error: "UNAVAILABLE" }, { status: 503 });
+  });
+  vi.stubGlobal("fetch", requests);
+  renderWithI18n(
+    <NotificationAttentionScope options={options} targets={[table]}>
+      <p>Open table</p>
+      <NotificationTabBadge target={table} />
+    </NotificationAttentionScope>,
+  );
+  const error = await screen.findByRole("alert");
+  expect(error).toHaveTextContent("Could not load notifications");
+  expect(screen.getByText("Open table")).toBeVisible();
+  expect(screen.queryByRole("img", { name: "Needs attention" })).toBeNull();
+  available = true;
+  fireEvent.click(within(error).getByRole("button", { name: "Try again" }));
+  expect(await screen.findByRole("img", { name: "Needs attention" })).toBeVisible();
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(requests).toHaveBeenCalledTimes(2);
 });

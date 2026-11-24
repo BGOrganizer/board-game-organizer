@@ -20,9 +20,10 @@ import {
   waitFor,
   within,
 } from "@testing-library/react-native";
-import type { ComponentProps } from "react";
+import { type ComponentProps, createContext, useContext } from "react";
 import { DeviceEventEmitter, View } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import EventWizardScreen from "@/app/event/wizard";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import {
   NativeStackHeader,
@@ -34,7 +35,7 @@ import {
   plannedEvent,
   plannedTable,
 } from "../../../../../web/src/test-fixtures/eventRecords";
-import { EventWizard } from "../EventWizard";
+import type { EventWizard } from "../EventWizard";
 import { eventDraftFixture } from "./eventWizardFixtures";
 
 const headerPaths = () =>
@@ -42,6 +43,8 @@ const headerPaths = () =>
     .getByTestId("native-stack-header")
     .queryAll((node) => node.type === "RNSVGPath")
     .map((node) => node.props.d);
+
+const RouteParams = createContext<ComponentProps<typeof EventWizard>>({});
 
 const API = "https://event-wizard-fixtures.test";
 const boundary = vi.hoisted(() => ({
@@ -70,7 +73,7 @@ vi.mock("@clerk/expo", () => ({
 vi.mock("expo-router", async () => ({
   useRouter: () => ({ back: boundary.back, dismissTo: boundary.dismissTo }),
   useNavigation: () => ({ getState: () => ({ type: "stack" }) }),
-  useLocalSearchParams: () => ({}),
+  useLocalSearchParams: () => useContext(RouteParams),
   Stack: { Screen: (await import("@/test/nativeStackOptionsPort")).NativeStackScreen },
 }));
 vi.mock("expo-router/react-navigation", async (original) => ({
@@ -180,7 +183,9 @@ function Fixture({
   return (
     <QueryClientProvider client={client}>
       <NativeTestProviders>
-        <EventWizard {...props} />
+        <RouteParams value={props}>
+          <EventWizardScreen />
+        </RouteParams>
         {showHeader ? <NativeStackHeader /> : null}
       </NativeTestProviders>
     </QueryClientProvider>

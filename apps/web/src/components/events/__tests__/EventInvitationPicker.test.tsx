@@ -1,9 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import EventInvitePage from "@/app/(tabs)/events/[eventId]/tables/[tableId]/invite/page";
 import { eventId, optionId, plannedEvent, seat, tableId } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
-import { EventInvitationPicker } from "../EventInvitationPicker";
 
 const m = vi.hoisted(() => ({
   back: vi.fn(),
@@ -23,7 +23,7 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 afterEach(() => vi.unstubAllGlobals());
-function mount() {
+async function mount() {
   renderWithI18n(
     <QueryClientProvider
       client={
@@ -32,7 +32,7 @@ function mount() {
         })
       }
     >
-      <EventInvitationPicker eventId={eventId} tableId={tableId} />
+      {await EventInvitePage({ params: Promise.resolve({ eventId, tableId }) })}
     </QueryClientProvider>,
   );
 }
@@ -68,7 +68,7 @@ it.each([false, true])(
       );
     });
     vi.stubGlobal("fetch", fetch);
-    mount();
+    await mount();
     fireEvent.click(await screen.findByRole("button", { name: "Select user: @eligible" }));
     await waitFor(() => expect(m.back).toHaveBeenCalledOnce());
     expect(fetch.mock.calls.filter(([url]) => url.includes("/invitations")).length).toBeGreaterThan(
@@ -113,7 +113,7 @@ it("keeps unavailable candidates visible, disables invitation and opens accessib
       ),
   );
   vi.stubGlobal("fetch", fetch);
-  mount();
+  await mount();
   const unavailable = await screen.findByRole("button", { name: "Select user: @busy" });
   expect((unavailable as HTMLButtonElement).disabled).toBe(true);
   expect(screen.getByText("@busy")).not.toBeNull();
@@ -167,7 +167,7 @@ it("reconciles a concurrent server conflict into disabled invitation/help rather
     );
   });
   vi.stubGlobal("fetch", fetch);
-  mount();
+  await mount();
   fireEvent.click(await screen.findByRole("button", { name: "Select user: Busy player" }));
   expect(m.back).toHaveBeenCalledOnce();
   await waitFor(() =>
@@ -202,7 +202,7 @@ it("keeps candidate failures observable, retries, and retains failed invite feed
         : new Response(JSON.stringify(plannedEvent)),
   );
   vi.stubGlobal("fetch", fetch);
-  mount();
+  await mount();
   await screen.findByText("Could not load users");
   broken = false;
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
@@ -217,7 +217,7 @@ it("does not query candidates when Event permissions or cutoff deny invitations"
     async () => new Response(JSON.stringify({ ...plannedEvent, canInvite: false })),
   );
   vi.stubGlobal("fetch", fetch);
-  mount();
+  await mount();
   await screen.findByRole("alert");
   expect(fetch.mock.calls).toHaveLength(1);
   expect(m.back).not.toHaveBeenCalled();
@@ -245,7 +245,7 @@ it("guards repeated invitation actions while pending and supports header Back", 
         ),
   );
   vi.stubGlobal("fetch", fetch);
-  mount();
+  await mount();
   const button = await screen.findByRole("button", { name: "Select user: Eligible player" });
   fireEvent.click(button);
   await waitFor(() =>
@@ -283,7 +283,7 @@ it.each([
         ),
       ),
     );
-    mount();
+    await mount();
     await screen.findByRole("searchbox", {
       name: context.groupId ? "Search members" : "Search friends",
     });
@@ -325,7 +325,7 @@ it("adds a guest directly and retries an uncertain response with the same reques
       );
     }),
   );
-  mount();
+  await mount();
   const open = await screen.findByRole("button", { name: "Add a guest" });
   expect(screen.queryByRole("textbox", { name: "Username" })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "About guests" }));
@@ -374,8 +374,66 @@ it.each([
       ),
     ),
   );
-  mount();
+  await mount();
   await screen.findByRole("searchbox", { name: "Search friends" });
   expect(screen.queryByRole("textbox", { name: "Username" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Add a guest" })).toBeNull();
+});
+
+it("dismisses a guest draft without adding anyone and submits a later guest without optional email", async () => {
+  let respond: (value: Response) => void = () => {
+    throw new Error("Expected pending guest request");
+  };
+  const submissions: unknown[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        expect(new URL(url).pathname).toBe(`/api/events/${eventId}/tables/${tableId}/guests`);
+        submissions.push(JSON.parse(String(init.body)));
+        return new Promise<Response>((resolve) => {
+          respond = resolve;
+        });
+      }
+      return Response.json(
+        url.includes("/invitations") ? { items: [], nextCursor: null } : plannedEvent,
+      );
+    }),
+  );
+  await mount();
+  const open = await screen.findByRole("button", { name: "Add a guest" });
+  fireEvent.click(open);
+  fireEvent.change(await screen.findByRole("textbox", { name: "Username" }), {
+    target: { value: "Unsent guest" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Close" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(submissions).toEqual([]);
+  expect(m.back).not.toHaveBeenCalled();
+  fireEvent.click(open);
+  const name = await screen.findByRole("textbox", { name: "Username" });
+  expect(name).toHaveValue("");
+  fireEvent.change(name, { target: { value: "Guest Ada" } });
+  const email = screen.getByRole("textbox", { name: "Email" });
+  fireEvent.change(email, { target: { value: "   " } });
+  fireEvent.blur(email);
+  fireEvent.click(screen.getByRole("button", { name: "Add" }));
+  await waitFor(() =>
+    expect(submissions).toEqual([{ name: "Guest Ada", requestId: expect.any(String) }]),
+  );
+  expect(screen.getByRole("button", { name: "Close" })).toBeDisabled();
+  expect(m.back).not.toHaveBeenCalled();
+  await act(() =>
+    respond(
+      Response.json({
+        ...seat("guest:4a6bd36e-a27b-4b44-84df-8a4e36ee5f4e"),
+        kind: "GUEST",
+        guestName: "Guest Ada",
+        status: "ACCEPTED",
+        eventVersion: 2,
+      }),
+    ),
+  );
+  await waitFor(() => expect(m.back).toHaveBeenCalledOnce());
+  expect(screen.queryByRole("button", { name: "Select user: Guest Ada" })).toBeNull();
 });

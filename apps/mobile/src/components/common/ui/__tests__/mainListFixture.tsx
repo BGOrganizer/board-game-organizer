@@ -27,6 +27,7 @@ const listBoundary = vi.hoisted(() => ({
 export { listBoundary };
 export const listApi = "https://main-list-fixtures.test";
 const getToken = async () => "fixture-list-token";
+const RouteParams = createContext<{ section?: string }>({});
 const Api = createContext<CommunityApiOptions>({
   apiUrl: listApi,
   userId: "owner",
@@ -49,7 +50,8 @@ vi.mock("@clerk/expo", () => ({
 vi.mock("expo-router", () => ({
   useRouter: () => ({ push: listBoundary.push }),
   useNavigation: () => ({ getState: () => ({ type: "tab" }) }),
-  useLocalSearchParams: () => ({}),
+  useLocalSearchParams: () => useContext(RouteParams),
+  Stack: { Screen: () => null },
   useFocusEffect: (effect: EffectCallback) => useEffect(effect, [effect]),
 }));
 vi.mock("expo-notifications", () => ({
@@ -263,16 +265,20 @@ export function MainListFixture({
   children,
   apiUrl = listBoundary.apiUrl,
   userId = listBoundary.userId,
+  section,
 }: {
   children: ReactNode;
   apiUrl?: string;
   userId?: string;
+  section?: string;
 }) {
   if (!listFixture.client) throw new Error("Expected the fixture Query client");
   return (
     <QueryClientProvider client={listFixture.client}>
       <NativeTestProviders>
-        <Api value={{ apiUrl, userId, getToken, enabled: true }}>{children}</Api>
+        <Api value={{ apiUrl, userId, getToken, enabled: true }}>
+          <RouteParams value={{ section }}>{children}</RouteParams>
+        </Api>
       </NativeTestProviders>
     </QueryClientProvider>
   );

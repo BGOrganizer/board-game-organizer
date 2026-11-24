@@ -6,7 +6,15 @@ import {
   useRecordTable,
 } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, cleanup, fireEvent, renderHook, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  renderHook,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 import {
@@ -190,5 +198,78 @@ it.each(["known", "cold", "foreign"] as const)(
     } finally {
       observer.disconnect();
     }
+  },
+);
+
+it.each([403, 503])(
+  "opens guest votes through the actual seat list and handles a denied/temporary read [%s]",
+  async (status) => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    clients.push(client);
+    mocks.options = { apiUrl: "https://api.test", userId: actor, getToken: async () => "fresh" };
+    const table = {
+      ...plannedTable,
+      canManage: true,
+      eventVersion: 1,
+      groupType: "PRIVATE" as const,
+      gameVoteRequired: true,
+    };
+    const guest = {
+      ...seat("guest:88888888-8888-4888-8888-888888888888"),
+      kind: "GUEST",
+      guestName: "Guest Alice",
+      seatIndex: 0,
+    };
+    const votes = { guestName: "Guest Alice", dateVotes: {}, locationVotes: {}, gameVotes: {} };
+    const responses: number[] = [];
+    let fail = true;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string, init?: RequestInit) => {
+        const url = new URL(input);
+        expect(init?.method ?? "GET").toBe("GET");
+        if (url.pathname.endsWith("/votes")) {
+          responses.push(fail ? status : 200);
+          return fail
+            ? Response.json({ error: "Guest votes unavailable" }, { status })
+            : Response.json(votes);
+        }
+        if (url.pathname.endsWith("/seats"))
+          return Response.json({
+            items: url.searchParams.get("pending") ? [] : [guest],
+            nextCursor: null,
+          });
+        if (url.pathname === `/api/events/${table.eventId}`)
+          return Response.json({
+            ...plannedEvent,
+            canManage: true,
+            dates: [...plannedEvent.dates, { id: "next-date", day: "2030-06-05" }],
+          });
+        return Response.json({ items: [], nextCursor: null });
+      }),
+    );
+    renderWithI18n(
+      <QueryClientProvider client={client}>
+        <EventTableSeats table={table} onRemove={vi.fn()} />
+      </QueryClientProvider>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Edit guest votes: Guest Alice" }));
+    const sheet = within(await screen.findByRole("dialog", { name: "Edit guest votes" }));
+    await sheet.findByText("Could not load guest votes");
+    expect(sheet.getByRole("button", { name: "Vote" })).toBeDisabled();
+    if (status === 503) {
+      fail = false;
+      fireEvent.click(sheet.getByRole("button", { name: "Try again" }));
+      expect(await sheet.findByRole("tab", { name: "Dates" })).toBeVisible();
+      expect(responses).toEqual([503, 200]);
+    } else {
+      expect(sheet.queryByRole("button", { name: "Try again" })).toBeNull();
+      expect(responses).toEqual([403]);
+    }
+    fireEvent.click(sheet.getByRole("button", { name: "Close" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Edit guest votes" })).toBeNull(),
+    );
+    expect(screen.getByText("@Guest Alice")).toBeVisible();
   },
 );

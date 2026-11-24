@@ -273,3 +273,36 @@ it("does not offer stale manager affordances to ordinary members and shows empty
   await screen.findByText("Could not load participants");
   expect(screen.queryByText("@target-name")).toBeNull();
 });
+
+it("keeps member rows restricted after an unavailable page and reloads participants only on explicit retry", async () => {
+  const f = mount([person], {
+    ...plannedEvent,
+    canManage: false,
+    role: "member",
+    canEdit: false,
+  });
+  let unavailable = true;
+  const read = vi.fn(async (input: string, init?: RequestInit) => {
+    expect(new URL(input).pathname).toBe(`/api/events/${eventId}/participants`);
+    expect(init?.method ?? "GET").toBe("GET");
+    return unavailable
+      ? Response.json({ error: "UNAVAILABLE" }, { status: 503 })
+      : Response.json({
+          ...f.data.pages[0],
+          items: [{ ...person, name: null, username: null }],
+        });
+  });
+  vi.stubGlobal("fetch", read);
+  await act(async () => {
+    await f.client.refetchQueries({ queryKey: f.key });
+  });
+  const error = await screen.findByRole("alert");
+  expect(error).toHaveTextContent("Could not load participants");
+  expect(screen.queryByText("No participants yet")).toBeNull();
+  expect(screen.queryByRole("button", { name: /Manage participant/ })).toBeNull();
+  unavailable = false;
+  fireEvent.click(within(error).getByRole("button", { name: "Try again" }));
+  expect(await screen.findByText("Username unavailable")).toBeVisible();
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(read).toHaveBeenCalledTimes(2);
+});

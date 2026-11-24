@@ -144,3 +144,18 @@ describe("BGG account endpoints", () => {
     expect(mocks.restart).toHaveBeenCalledWith("clerk-user", "snap");
   });
 });
+
+it("distinguishes a provider 404 from a storage failure and never replaces the active account", async () => {
+  const body = { username: "alice" };
+  mocks.fetchUser.mockRejectedValueOnce(new BggRemoteError("not_found"));
+  const missing = await POST(request("POST", body));
+  expect(missing.status).toBe(404);
+  expect(await missing.json()).toEqual({ error: "BGG user not found" });
+  expect(mocks.stage).not.toHaveBeenCalled();
+  mocks.stage.mockRejectedValueOnce(new Error("database unavailable"));
+  const failed = await POST(request("POST", body));
+  expect(failed.status).toBe(500);
+  expect(await failed.json()).toEqual({ error: "Could not start BGG sync" });
+  expect(mocks.get).not.toHaveBeenCalled();
+  expect(mocks.unlink).not.toHaveBeenCalled();
+});

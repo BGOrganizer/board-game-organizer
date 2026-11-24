@@ -1,11 +1,15 @@
 import type { InviteClaimResponse, InviteReviewResponse } from "@board-game-organizer/schemas";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, userEvent, waitFor } from "@testing-library/react-native";
-import type { ComponentProps } from "react";
+import { type ComponentProps, createContext, useContext } from "react";
 import { Text } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import InviteScreen from "@/app/invite/[token]";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import { InviteClaimScreen } from "../InviteClaimScreen";
+
+const RouteParams = createContext<ComponentProps<typeof InviteClaimScreen>>({});
+
 import { inviteToken, tableClaimReceipt, tableInviteReview } from "./inviteFixtures";
 
 const API = "https://claim-native-fixtures.test";
@@ -35,6 +39,7 @@ vi.mock("@/lib/useCommunityApi", () => ({
 }));
 vi.mock("expo-router", () => ({
   useNavigation: () => ({ getState: () => ({ type: "stack" }) }),
+  useLocalSearchParams: () => useContext(RouteParams),
   Redirect: ({ href }: { href: unknown }) => (
     <Text testID="router-redirect">{JSON.stringify(href)}</Text>
   ),
@@ -108,7 +113,9 @@ function Fixture({ token = inviteToken }: ComponentProps<typeof InviteClaimScree
   return (
     <QueryClientProvider client={client}>
       <NativeTestProviders>
-        <InviteClaimScreen token={token} />
+        <RouteParams value={{ token }}>
+          <InviteScreen />
+        </RouteParams>
       </NativeTestProviders>
     </QueryClientProvider>
   );

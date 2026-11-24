@@ -92,6 +92,7 @@ const writes: { owner: string; path: string }[] = [];
 const appListeners = new Set<(state: AppStateStatus) => void>();
 let listStatus = 200;
 let listPending: Promise<Response> | undefined;
+let oldRegistration: Promise<Response> | undefined;
 
 beforeEach(async () => {
   await installNativePopoverMeasurements();
@@ -115,7 +116,7 @@ beforeEach(async () => {
   writes.length = 0;
   appListeners.clear();
   listStatus = 200;
-  listPending = undefined;
+  listPending = oldRegistration = undefined;
   client = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: Infinity } },
   });
@@ -163,7 +164,9 @@ beforeEach(async () => {
       }
       if (url.pathname === "/api/push-subscriptions" && method === "POST") {
         registrations.push({ owner, ...JSON.parse(String(init?.body)) });
-        return new Response(null, { status: 204 });
+        return (
+          (owner === "owner" ? oldRegistration : undefined) ?? new Response(null, { status: 204 })
+        );
       }
       throw new Error(`Unexpected fixture endpoint: ${method} ${url.pathname}`);
     }),
@@ -484,4 +487,42 @@ it("keeps the inbox usable and exposes a rejected native permission prompt witho
   expect(boundary.requestPermission).toHaveBeenCalledTimes(2);
   expect(screen.queryByText("Could not enable push notifications")).toBeNull();
   expect(await screen.findByText("No notifications yet")).toBeVisible();
+});
+
+it("does not register a native token if OS permission becomes denied between the refresh and registration", async () => {
+  boundary.readPermission.mockResolvedValueOnce(permission("granted", false));
+  boundary.permission = "denied";
+  boundary.canAskAgain = false;
+  await render(<Fixture />);
+  await waitFor(() => expect(boundary.readPermission).toHaveBeenCalledTimes(2));
+  await openBell();
+  expect(await screen.findByText("No notifications yet")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Open notification settings" })).toBeEnabled();
+  expect(boundary.requestPermission).not.toHaveBeenCalled();
+  expect(boundary.token).not.toHaveBeenCalled();
+  expect(registrations).toHaveLength(0);
+});
+
+it("serializes an account switch behind an in-flight server receipt and updates only the current registration", async () => {
+  boundary.permission = "granted";
+  let finish!: (response: Response) => void;
+  oldRegistration = new Promise((resolve) => {
+    finish = resolve;
+  });
+  const view = await render(<Fixture />);
+  await waitFor(() =>
+    expect(registrations.map((registration) => registration.owner)).toEqual(["owner"]),
+  );
+  await view.rerender(<Fixture owner="other" locale="it" />);
+  expect(registrations.map((registration) => registration.owner)).toEqual(["owner"]);
+  await act(() => finish(new Response(null, { status: 204 })));
+  await waitFor(() => {
+    expect(registrations.map(({ owner, locale }) => [owner, locale])).toEqual([
+      ["owner", "en"],
+      ["other", "it"],
+    ]);
+  });
+  await openBell();
+  expect(await screen.findByText("Other account notification")).toBeVisible();
+  expect(registrations).toHaveLength(2);
 });

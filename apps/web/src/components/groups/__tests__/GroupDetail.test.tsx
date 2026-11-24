@@ -1,7 +1,9 @@
 import { groupRecordKeys } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import type { ReactElement } from "react";
 import { afterEach, expect, it, vi } from "vitest";
+import GroupBanPage from "@/app/(tabs)/groups/[groupId]/ban/page";
 import { groupRecord, plannedEvent } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { GroupDetail } from "../GroupDetail";
@@ -33,16 +35,17 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.clearAllMocks();
 });
-function mount(initialTab: "info" | "members" | "events" = "info") {
+function mount(
+  initialTab: "info" | "members" | "events" = "info",
+  content: ReactElement = <GroupDetail groupId={groupRecord.id} initialTab={initialTab} />,
+) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   renderWithI18n(
     <>
       <header data-testid="app-header"></header>
-      <QueryClientProvider client={client}>
-        <GroupDetail groupId={groupRecord.id} initialTab={initialTab} />
-      </QueryClientProvider>
+      <QueryClientProvider client={client}>{content}</QueryClientProvider>
     </>,
   );
   return client;
@@ -456,4 +459,30 @@ it("reports a definite deletion rejection after immediate navigation and restore
   );
   await waitFor(() => expect(client.getQueryData(key)).toEqual(previous));
   expect(navigation.feedback.onSuccess).not.toHaveBeenCalled();
+});
+
+it("loads the Group members from a moderation deep link after an explicit retry", async () => {
+  const group = { ...groupRecord, pendingRequestCount: 1 };
+  let denied = true;
+  const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
+    const contacts = contactReadResponse(url, init);
+    if (contacts) return contacts;
+    const path = new URL(url).pathname;
+    if (path === `/api/groups/${group.id}`) {
+      return denied ? Response.json({ error: "FORBIDDEN" }, { status: 403 }) : Response.json(group);
+    }
+    return Response.json({ items: [], nextCursor: null });
+  });
+  vi.stubGlobal("fetch", fetcher);
+  mount("members", await GroupBanPage({ params: Promise.resolve({ groupId: group.id }) }));
+  const error = await screen.findByRole("alert");
+  expect(error).toHaveTextContent("Could not load group details");
+  expect(screen.queryByText(group.name)).toBeNull();
+  denied = false;
+  fireEvent.click(within(error).getByRole("button", { name: "Try again" }));
+  expect(await screen.findByRole("tab", { name: /Members/, selected: true })).toBeVisible();
+  expect(screen.getByRole("img", { name: "Requests to review" })).toBeVisible();
+  expect(
+    fetcher.mock.calls.filter(([url]) => new URL(url).pathname === `/api/groups/${group.id}`),
+  ).toHaveLength(2);
 });

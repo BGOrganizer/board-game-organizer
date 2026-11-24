@@ -190,3 +190,59 @@ it("clears an initial decision when ownership changes or the sheet is no longer 
   expect(callbacks.onAction).not.toHaveBeenCalled();
   expect(callbacks.onClose).not.toHaveBeenCalled();
 });
+
+it("routes to the currently selected person's profile without creating a social mutation", async () => {
+  const callbacks = make();
+  const view = await render(<UserActionsSheet visible user={null} {...callbacks} />, {
+    wrapper: NativeTestProviders,
+  });
+  expect(screen.queryByText(user.name, { includeHiddenElements: true })).toBeNull();
+  await view.rerender(<UserActionsSheet visible user={user} busy {...callbacks} />);
+  const pending = screen.getByRole("button", { name: "View profile", includeHiddenElements: true });
+  expect(pending).toBeDisabled();
+  await fireEvent.press(pending);
+  expect(io.push).not.toHaveBeenCalled();
+  expect(callbacks.onClose).not.toHaveBeenCalled();
+
+  const replacement = { ...user, id: "newly-selected" };
+  await view.rerender(<UserActionsSheet visible user={replacement} {...callbacks} />);
+  await fireEvent.press(
+    screen.getByRole("button", { name: "View profile", includeHiddenElements: true }),
+  );
+  expect(io.push).toHaveBeenCalledExactlyOnceWith({
+    pathname: "/user/[userId]",
+    params: { userId: replacement.id },
+  });
+  expect(callbacks.onAction).not.toHaveBeenCalled();
+  expect(callbacks.onClose).toHaveBeenCalledOnce();
+});
+
+it.each([
+  { patch: { blockedByMe: true }, menu: "Unblock", confirmation: "Unblock", key: "unblock" },
+  {
+    patch: { isFriend: true },
+    menu: "Remove friend",
+    confirmation: "Remove friend",
+    key: "unfriend",
+  },
+] as const)(
+  "demands explicit $key confirmation after selection in the native menu",
+  async (intent) => {
+    const callbacks = make();
+    await render(<UserActionsSheet visible user={{ ...user, ...intent.patch }} {...callbacks} />, {
+      wrapper: NativeTestProviders,
+    });
+    if ("blockedByMe" in intent.patch)
+      expect(
+        screen.queryByRole("button", { name: "View profile", includeHiddenElements: true }),
+      ).toBeNull();
+    await fireEvent.press(
+      screen.getByRole("button", { name: intent.menu, includeHiddenElements: true }),
+    );
+    const confirm = within(screen.getByTestId("confirmation-dialog"));
+    expect(callbacks.onAction).not.toHaveBeenCalled();
+    await userEvent.setup().press(confirm.getByRole("button", { name: intent.confirmation }));
+    expect(callbacks.onAction).toHaveBeenCalledExactlyOnceWith(intent.key);
+    expect(callbacks.onClose).toHaveBeenCalledOnce();
+  },
+);

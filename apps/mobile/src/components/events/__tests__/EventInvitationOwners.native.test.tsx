@@ -25,10 +25,10 @@ import {
 } from "@testing-library/react-native";
 import { View } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import EventInvitationScreen from "@/app/event/invite";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import { beginOptimisticOperation } from "../../../../../../packages/shared/src/common/optimisticOperation";
 import { plannedEvent, plannedTable } from "../../../../../web/src/test-fixtures/eventRecords";
-import { EventInvitationPicker } from "../EventInvitationPicker";
 import { EventTableInvitationActions } from "../EventTableInvitationActions";
 
 const API = "https://invitation-owners-native.test";
@@ -52,6 +52,7 @@ vi.mock("expo-constants", () => ({
 }));
 vi.mock("expo-router", () => ({
   useRouter: () => ({ back: io.back }),
+  useLocalSearchParams: () => ({ eventId: event.id, tableId: table.id }),
   Stack: { Screen: () => null },
 }));
 const options = {
@@ -99,7 +100,7 @@ function Fixture({ picker = false, sibling = false }: { picker?: boolean; siblin
     <QueryClientProvider client={client}>
       <NativeTestProviders>
         {picker ? (
-          <EventInvitationPicker eventId={event.id} tableId={table.id} />
+          <EventInvitationScreen />
         ) : (
           <>
             <View testID="current-invitation">

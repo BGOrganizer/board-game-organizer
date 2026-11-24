@@ -89,3 +89,9 @@ describe("BGG rankings CSV", () => {
     expect(() => parseBoardGamesCsv(csv)).toThrow(error);
   });
 });
+
+it("ignores empty separator lines and whitespace-only trailing rows in export files", () => {
+  expect(parseBoardGamesCsv(`${header}\r\n   \r\n${row}\r\n   `)).toEqual(
+    parseBoardGamesCsv(`${header}\n${row}`),
+  );
+});

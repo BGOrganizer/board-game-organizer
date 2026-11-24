@@ -1,9 +1,10 @@
 import { groupRecordMemberRoles } from "@board-game-organizer/schemas";
 import { groupRecordsPageQuery } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
+import { installBrowserIntersections } from "@/test-fixtures/browserIntersections";
 import { groupRecord, plannedEvent } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { Groups } from "../Groups";
@@ -245,4 +246,45 @@ it("uses centered discovery prompts without a separate search field help", async
   fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
   expect(screen.getByText(prompt)).toBeVisible();
   expect(screen.queryByText("No groups found")).toBeNull();
+});
+
+it("keeps the first private Group visible while retrying a failed next authorized page", async () => {
+  const browser = installBrowserIntersections();
+  const cursorReads: string[] = [];
+  let pending: Promise<Response> | undefined;
+  let finish: (res: Response) => void = () => {
+    throw new Error("Expected an authorized Group cursor read");
+  };
+  const other = {
+    ...groupRecord,
+    id: "88888888-8888-4888-8888-888888888888",
+    name: "Second group",
+  };
+  const requests = vi.fn(async (input: string) => {
+    const url = new URL(input);
+    expect(url.searchParams.get("type")).toBe("PRIVATE");
+    const cursor = url.searchParams.get("cursor");
+    if (cursor) {
+      cursorReads.push(cursor);
+      return pending ?? Response.json({ items: [other], nextCursor: null });
+    }
+    return Response.json({ items: [groupRecord], nextCursor: "second-group" });
+  });
+  vi.stubGlobal("fetch", requests);
+  renderGroups("private");
+  await screen.findByRole("link", { name: "Open group: Friday group" });
+  pending = new Promise<Response>((resolve) => {
+    finish = resolve;
+  });
+  act(() => browser.intersect());
+  await waitFor(() => expect(cursorReads).toEqual(["second-group"]));
+  expect(screen.getByRole("link", { name: "Open group: Friday group" })).toBeVisible();
+  await waitFor(() => expect(screen.queryByRole("button", { name: "Load more" })).toBeNull());
+  await act(() => finish(Response.json({ error: "UNAVAILABLE" }, { status: 503 })));
+  const retry = await screen.findByRole("button", { name: "Could not load groups. Retry" });
+  expect(screen.getByRole("link", { name: "Open group: Friday group" })).toBeVisible();
+  pending = undefined;
+  fireEvent.click(retry);
+  expect(await screen.findByRole("link", { name: "Open group: Second group" })).toBeVisible();
+  expect(cursorReads).toEqual(["second-group", "second-group"]);
 });

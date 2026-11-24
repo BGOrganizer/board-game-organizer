@@ -1,7 +1,9 @@
 import { clearSessionQueryCache } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import type { ReactElement } from "react";
 import { afterEach, expect, it, vi } from "vitest";
+import NewEventPage from "@/app/(tabs)/events/new/page";
 import {
   eventId,
   groupRecord,
@@ -65,13 +67,10 @@ function mount(
   cache = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   }),
+  content: ReactElement = <EventWizard {...props} />,
 ) {
   clients.push(cache);
-  return renderWithI18n(
-    <QueryClientProvider client={cache}>
-      <EventWizard {...props} />
-    </QueryClientProvider>,
-  );
+  return renderWithI18n(<QueryClientProvider client={cache}>{content}</QueryClientProvider>);
 }
 function fixture(input: string) {
   const url = new URL(input);
@@ -150,8 +149,13 @@ it("uses real demonstrator and catalog pickers, preserves expanded table state a
   const addGuest = screen.getByRole("button", { name: "Add a guest" }) as HTMLButtonElement;
   fireEvent.change(guestInput, { target: { value: "   " } });
   expect(addGuest.disabled).toBe(true);
+  fireEvent.keyDown(guestInput, { key: "Enter" });
+  expect(guestInput).toBeVisible();
   fireEvent.change(guestInput, { target: { value: "  Guest Guide  " } });
-  fireEvent.click(addGuest);
+  fireEvent.keyDown(guestInput, { key: "Enter", isComposing: true });
+  expect(guestInput).toBeVisible();
+  expect(writes).toHaveLength(0);
+  fireEvent.keyDown(guestInput, { key: "Enter" });
   expect(screen.getByText("Guest Guide")).toBeTruthy();
   expect(writes).toHaveLength(0);
   fireEvent.click(screen.getByRole("button", { name: "Choose demonstrator" }));
@@ -278,12 +282,16 @@ it("retries an event-detail denial without exposing a writable substitute draft"
   expect(navigation.replace).not.toHaveBeenCalled();
 });
 
-it("refuses a missing creation recovery instead of creating a new event implicitly", () => {
+it("refuses a missing creation recovery instead of creating a new event implicitly", async () => {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: string) => Response.json(fixture(input))),
   );
-  mount({ draftId: "missing-draft" });
+  mount(
+    {},
+    undefined,
+    await NewEventPage({ searchParams: Promise.resolve({ draftId: "missing-draft" }) }),
+  );
   const back = screen.getByRole("button", { name: "Back" });
   expect(back.textContent).toBe("");
   const previous = navigation.back.mock.calls.length;

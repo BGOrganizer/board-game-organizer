@@ -11,6 +11,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { plannedTable } from "@/test-fixtures/eventRecords";
 import { RankingResults } from "./RankingResults";
 import { TableFinalResults } from "./TableFinalResults";
+import { WidgetNavigation } from "./WidgetNavigation";
 
 const groupId = "cfda9b60-f22c-4fad-9aa6-8b9dd731441c";
 const eventId = "915c0578-ab94-4907-9663-45cf9bf16aba";
@@ -32,7 +33,10 @@ const player = {
 };
 const i18n = setupI18n({ locale: "en" });
 const call = vi.fn<App["callServerTool"]>();
-const app = { callServerTool: call } as unknown as App;
+const app = {
+  callServerTool: call,
+  getHostContext: () => ({ displayMode: "inline" }),
+} as unknown as App;
 const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
 
 function show(children: ReactNode) {
@@ -191,53 +195,57 @@ it("rejects an unscoped group result and shows a real empty global ranking", () 
   expect(call).not.toHaveBeenCalled();
 });
 
-it("renders table ranking rows and refuses a page for a different frozen game", async () => {
-  const operation = "list_table_leaderboard";
-  const items = [{ ...player, score: player.rating }];
-  call
-    .mockResolvedValueOnce(
-      response(operation, { gameId: 2, scope: "GROUP", items, nextCursor: null }),
-    )
-    .mockResolvedValueOnce(
-      response(operation, {
-        gameId: 1,
-        scope: "GROUP",
-        items: [{ ...items[0], userId: "next_player", username: undefined }],
-        nextCursor: null,
-      }),
+it.each([
+  { gameId: 2, scope: "GROUP" },
+  { gameId: 1, scope: "GLOBAL" },
+])(
+  "refuses a table ranking page outside its frozen game or scope: $gameId $scope",
+  async ({ gameId, scope }) => {
+    const operation = "list_table_leaderboard";
+    const items = [{ ...player, score: player.rating }];
+    call
+      .mockResolvedValueOnce(response(operation, { gameId, scope, items, nextCursor: null }))
+      .mockResolvedValueOnce(
+        response(operation, {
+          gameId: 1,
+          scope: "GROUP",
+          items: [{ ...items[0], userId: "next_player", username: undefined }],
+          nextCursor: null,
+        }),
+      );
+    show(
+      <RankingResults
+        app={app}
+        operation={operation}
+        data={{ gameId: 1, scope: "GROUP", items, nextCursor: "1" }}
+        input={{ params: { eventId, tableId } }}
+      />,
     );
-  show(
-    <RankingResults
-      app={app}
-      operation={operation}
-      data={{ gameId: 1, scope: "GROUP", items, nextCursor: "1" }}
-      input={{ params: { eventId, tableId } }}
-    />,
-  );
-  expect(screen.getByText("@ada")).toBeVisible();
-  expect(screen.queryByRole("button", { name: /Sort/ })).toBeNull();
-  expect(screen.queryByText("Accepted member")).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Load more" }));
-  expect(
-    await screen.findByRole("button", { name: "Could not load leaderboards. Retry" }),
-  ).toBeVisible();
-  expect(screen.queryByText("@ada")).toBeNull();
-  expect(call).toHaveBeenCalledWith(
-    {
-      name: operation,
-      arguments: { params: { eventId, tableId }, query: { cursor: "1" } },
-    },
-    { signal: expect.any(AbortSignal) },
-  );
-  fireEvent.click(screen.getByRole("button", { name: "Could not load leaderboards. Retry" }));
-  expect(await screen.findByText("Username unavailable")).toBeVisible();
-  expect(screen.getByText("540.00")).toBeVisible();
-  expect(screen.queryByText("@ada")).toBeNull();
-  expect(call).toHaveBeenLastCalledWith(
-    { name: operation, arguments: { params: { eventId, tableId }, query: {} } },
-    { signal: expect.any(AbortSignal) },
-  );
-});
+    expect(screen.getByText("@ada")).toBeVisible();
+    expect(screen.queryByRole("button", { name: /Sort/ })).toBeNull();
+    expect(screen.queryByText("Accepted member")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+    expect(
+      await screen.findByRole("button", { name: "Could not load leaderboards. Retry" }),
+    ).toBeVisible();
+    expect(screen.queryByText("@ada")).toBeNull();
+    expect(call).toHaveBeenCalledWith(
+      {
+        name: operation,
+        arguments: { params: { eventId, tableId }, query: { cursor: "1" } },
+      },
+      { signal: expect.any(AbortSignal) },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Could not load leaderboards. Retry" }));
+    expect(await screen.findByText("Username unavailable")).toBeVisible();
+    expect(screen.getByText("540.00")).toBeVisible();
+    expect(screen.queryByText("@ada")).toBeNull();
+    expect(call).toHaveBeenLastCalledWith(
+      { name: operation, arguments: { params: { eventId, tableId }, query: {} } },
+      { signal: expect.any(AbortSignal) },
+    );
+  },
+);
 
 it("uses the BGO final result rows and rating accordion for terminated table receipts", () => {
   const data = {
@@ -396,4 +404,109 @@ it("retries the first failed player read for the selected game", async () => {
     },
     { signal: expect.any(AbortSignal) },
   );
+});
+
+it.each([
+  {
+    operation: "list_group_leaderboard",
+    input: { params: { groupId } },
+    output: { games, players: [], nextCursor: null },
+    action: "Open group",
+    target: "get_group",
+    arguments: { params: { groupId } },
+  },
+  {
+    operation: "list_global_leaderboard",
+    input: { query: {} },
+    output: { games, players: [], nextCursor: null },
+    action: "Activities",
+    target: "list_community_activity",
+    arguments: {},
+  },
+  {
+    operation: "list_table_leaderboard",
+    input: { params: { eventId, tableId } },
+    output: { gameId: 1, scope: "GROUP", items: [], nextCursor: null },
+    action: "Open table",
+    target: "get_table",
+    arguments: { params: { eventId, tableId } },
+  },
+] as const)(
+  "opens the linked scope from $operation using the host tool boundary",
+  async (testCase) => {
+    call.mockResolvedValueOnce(response(testCase.target, { acknowledged: true }));
+    show(
+      <WidgetNavigation
+        app={app}
+        output={{ operation: testCase.operation, data: testCase.output }}
+        input={testCase.input}
+        render={(output, input) =>
+          output.operation === testCase.operation ? (
+            <RankingResults
+              app={app}
+              operation={testCase.operation}
+              data={output.data}
+              input={input}
+            />
+          ) : (
+            <h2>{output.operation}</h2>
+          )
+        }
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: testCase.action }));
+    expect(await screen.findByRole("heading", { name: testCase.target })).toBeVisible();
+    expect(call).toHaveBeenCalledExactlyOnceWith(
+      { name: testCase.target, arguments: testCase.arguments },
+      { signal: expect.any(AbortSignal) },
+    );
+  },
+);
+
+it("retains scoped table results through transient errors and merges the next compatible page once", async () => {
+  const operation = "list_table_leaderboard";
+  const items = [{ ...player, score: player.rating }];
+  call.mockRejectedValueOnce(new Error("Tool temporarily unavailable")).mockResolvedValueOnce(
+    response(operation, {
+      gameId: 1,
+      scope: "GROUP",
+      items: [{ ...items[0], userId: "later_player", username: "later" }],
+      nextCursor: "next",
+    }),
+  );
+  show(
+    <RankingResults
+      app={app}
+      operation={operation}
+      data={{ gameId: 1, scope: "GROUP", items, nextCursor: "next" }}
+      input={{ params: { eventId, tableId }, query: { cursor: "start", limit: 1 } }}
+    />,
+  );
+  expect(screen.getByText("@ada")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+  expect(await screen.findByRole("button", { name: "Try again" })).toBeVisible();
+  expect(screen.getByText("@ada")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  expect(await screen.findByText("@later")).toBeVisible();
+  expect(screen.getByText("@ada")).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+  expect(call).toHaveBeenCalledTimes(2);
+  for (const [request] of call.mock.calls)
+    expect(request).toEqual({
+      name: operation,
+      arguments: { params: { eventId, tableId }, query: { limit: 1, cursor: "next" } },
+    });
+});
+
+it("rejects invalid table ranking receipts even when their route parameters are valid", () => {
+  show(
+    <RankingResults
+      app={app}
+      operation="list_table_leaderboard"
+      data={{ items: [] }}
+      input={{ params: { eventId, tableId } }}
+    />,
+  );
+  expect(screen.getByRole("alert")).toHaveTextContent("Could not load leaderboards. Retry");
+  expect(call).not.toHaveBeenCalled();
 });

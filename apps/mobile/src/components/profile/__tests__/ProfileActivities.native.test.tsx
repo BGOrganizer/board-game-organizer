@@ -8,12 +8,15 @@ import { profileActivitiesQuery, profileViewQuery } from "@board-game-organizer/
 import { useAppStore } from "@board-game-organizer/store";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, userEvent, waitFor } from "@testing-library/react-native";
+import { createContext, useContext } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import UserActivitiesScreen from "@/app/user/[userId]/activities";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import { scrollNativeListToEnd } from "@/test/nativeListGeometry";
 import { installNativePopoverMeasurements } from "@/test/nativePopoverGeometry";
 import { positionMeasuredSelect } from "@/test/nativeSelectGeometry";
-import { ProfileActivities } from "../ProfileActivities";
+
+const Subject = createContext("subject");
 
 const boundary = vi.hoisted(() => ({
   apiUrl: "https://profile-activities-native.test",
@@ -27,7 +30,14 @@ const options = () => ({
   enabled: true,
 });
 vi.mock("@/lib/useCommunityApi", () => ({ useCommunityApi: () => options() }));
-vi.mock("expo-router", () => ({ useRouter: () => ({ push: boundary.push }) }));
+vi.mock("@clerk/expo", () => ({
+  useAuth: () => ({ isLoaded: true, isSignedIn: true }),
+  useUser: () => ({ isLoaded: true, user: { unsafeMetadata: { mobileNumber: "+441234567890" } } }),
+}));
+vi.mock("expo-router", () => ({
+  useRouter: () => ({ push: boundary.push }),
+  useLocalSearchParams: () => ({ userId: useContext(Subject) }),
+}));
 // Activity rows use the actual pure notification destination helper, not OS push delivery.
 vi.mock("expo-notifications", () => ({}));
 let client: QueryClient;
@@ -113,7 +123,9 @@ function Fixture({ subject = "subject" }: { subject?: string }) {
   return (
     <QueryClientProvider client={client}>
       <NativeTestProviders>
-        <ProfileActivities userId={subject} />
+        <Subject value={subject}>
+          <UserActivitiesScreen />
+        </Subject>
       </NativeTestProviders>
     </QueryClientProvider>
   );

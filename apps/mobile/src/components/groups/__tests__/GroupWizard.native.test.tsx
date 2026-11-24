@@ -7,8 +7,10 @@ import {
 import { useAppStore } from "@board-game-organizer/store";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, userEvent, waitFor } from "@testing-library/react-native";
+import { createContext, useContext } from "react";
 import { View } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import GroupWizardScreen from "@/app/group/wizard";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import {
   NativeStackHeader,
@@ -25,6 +27,8 @@ const headerPaths = () =>
     .queryAll((node) => node.type === "RNSVGPath")
     .map((node) => node.props.d);
 
+type Params = { groupId?: string | string[]; draftId?: string | string[] };
+const RouteParams = createContext<Params>({});
 const API = "https://group-wizard-fixtures.test";
 const boundary = vi.hoisted(() => ({
   push: vi.fn(),
@@ -54,7 +58,7 @@ vi.mock("@clerk/expo", () => ({
 vi.mock("expo-router", async () => ({
   useRouter: () => ({ push: boundary.push, back: boundary.back, dismissTo: boundary.dismissTo }),
   useNavigation: () => ({ getState: () => ({ type: "stack" }) }),
-  useLocalSearchParams: () => ({ slotId: "location-slot" }),
+  useLocalSearchParams: () => ({ slotId: "location-slot", ...useContext(RouteParams) }),
   Stack: { Screen: (await import("@/test/nativeStackOptionsPort")).NativeStackScreen },
 }));
 vi.mock("expo-router/react-navigation", async (original) => ({
@@ -151,12 +155,19 @@ afterEach(() => {
 
 function Fixture({
   showHeader,
+  params,
   ...props
-}: Parameters<typeof GroupWizard>[0] & { showHeader?: boolean } = {}) {
+}: Parameters<typeof GroupWizard>[0] & { showHeader?: boolean; params?: Params } = {}) {
   return (
     <QueryClientProvider client={client}>
       <NativeTestProviders>
-        <GroupWizard {...props} />
+        {params ? (
+          <RouteParams value={params}>
+            <GroupWizardScreen />
+          </RouteParams>
+        ) : (
+          <GroupWizard {...props} />
+        )}
         {showHeader ? <NativeStackHeader /> : null}
       </NativeTestProviders>
     </QueryClientProvider>
@@ -543,4 +554,35 @@ it("restores the actual create/edit group header and native Back action after an
     expect(writes).toHaveLength(0);
     await view.unmount();
   }
+});
+
+it("opens the actual route as a new draft without querying an unowned group", async () => {
+  await render(<Fixture params={{}} />);
+  expect(screen.getByTestId("group-name-input")).toHaveDisplayValue("");
+  expect(screen.getByRole("button", { name: "Create group" })).toBeEnabled();
+});
+
+it("normalizes repeated group IDs from the Expo query before loading the editable group", async () => {
+  await render(<Fixture params={{ groupId: [canonical.id, "not-the-group"] }} />);
+  expect(await screen.findByTestId("group-name-input")).toHaveDisplayValue(canonical.name);
+  const paths = vi
+    .mocked(fetch)
+    .mock.calls.map(
+      ([input]) =>
+        new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url)
+          .pathname,
+    );
+  expect(paths).toContain(`/api/groups/${canonical.id}`);
+  expect(paths).not.toContain("/api/groups/not-the-group");
+});
+
+it("normalizes a repeated draft ID before restoring the matching rejected group creation", async () => {
+  const mutation = failedCreation({
+    type: "PRIVATE",
+    name: "Recovered from route",
+    invitedUserIds: [],
+  });
+  await render(<Fixture params={{ draftId: [String(mutation.mutationId), "missing-draft"] }} />);
+  expect(screen.getByTestId("group-name-input")).toHaveDisplayValue("Recovered from route");
+  expect(writes).toEqual([]);
 });

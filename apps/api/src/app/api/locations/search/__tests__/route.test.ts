@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { GET } from "../route";
+import { GET, OPTIONS } from "../route";
 
 const mocks = vi.hoisted(() => ({ auth: vi.fn() }));
 vi.mock("@clerk/nextjs/server", () => ({ auth: mocks.auth }));
@@ -183,4 +183,18 @@ it("does not expose upstream errors or invalid coordinates", async () => {
   const response = await GET(request("Game cafe"));
   expect(response.status).toBe(502);
   expect(JSON.stringify(await response.json())).not.toContain("secret upstream details");
+});
+
+it("preserves the preview Origin on a search preflight without resolving an account", () => {
+  const origin = "https://location-search.vercel.app";
+  const response = OPTIONS(
+    new Request(request("Rome").url, {
+      method: "OPTIONS",
+      headers: { origin, "access-control-request-method": "GET" },
+    }),
+  );
+  expect(response.status).toBe(204);
+  expect(response.headers.get("access-control-allow-origin")).toBe(origin);
+  expect(response.headers.get("access-control-allow-methods")).toContain("GET");
+  expect(mocks.auth).not.toHaveBeenCalled();
 });

@@ -6,7 +6,9 @@ import {
 } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import type { ReactElement } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import EventResultsPage from "@/app/(tabs)/events/[eventId]/tables/[tableId]/results/page";
 import { eventId, plannedEvent, plannedTable, seat, tableId } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { EventResults } from "../EventResults";
@@ -110,16 +112,16 @@ function mount(
   client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   }),
+  content: ReactElement = <EventResults eventId={eventId} tableId={tableId} />,
 ) {
-  const view = renderWithI18n(
-    <QueryClientProvider client={client}>
-      <EventResults eventId={eventId} tableId={tableId} />
-    </QueryClientProvider>,
-  );
+  const view = renderWithI18n(<QueryClientProvider client={client}>{content}</QueryClientProvider>);
   return { ...view, client };
 }
 it("opens the selected Table directly, uses singular header and saves only that Table on the server", async () => {
-  const { client } = mount();
+  const { client } = mount(
+    undefined,
+    await EventResultsPage({ params: Promise.resolve({ eventId, tableId }) }),
+  );
   const save = await screen.findByRole("button", { name: "Save all ND" });
   expect(screen.getByRole("heading", { name: "Register result" })).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Finalize event" })).toBeNull();

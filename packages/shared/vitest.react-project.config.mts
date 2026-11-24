@@ -29,6 +29,9 @@ export default defineProject({
       "src/components/events/__tests__/EventParticipants.test.tsx",
       "src/components/events/__tests__/EventTableLeaderboard.test.tsx",
       "src/components/events/__tests__/EventTableResults.current.test.tsx",
+      "src/components/events/__tests__/{EventGuestVoteEditor,EventInvitationPicker}.test.tsx",
+      "src/components/groups/__tests__/{GroupDetail,GroupWizard,GroupWizard.interactions}.test.tsx",
+      "src/components/contacts/__tests__/Contacts.session.test.tsx",
     ],
     exclude: [
       ...test.exclude,

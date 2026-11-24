@@ -4,9 +4,9 @@ import { clearSessionQueryCache, groupRecordDetailQuery } from "@board-game-orga
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import GroupInvitePage from "@/app/(tabs)/groups/[groupId]/invite/page";
 import { groupRecord } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
-import { GroupPeoplePicker } from "../GroupPeoplePicker";
 
 const boundary = vi.hoisted(() => ({ back: vi.fn(), getToken: vi.fn() }));
 const options = {
@@ -28,6 +28,10 @@ const friend: ContactUser = {
 };
 let group: GroupRecordResponse;
 let status: number;
+let candidateStatus: number;
+let nextCandidate: Promise<Response> | undefined;
+let hasMore: boolean;
+const candidateCursors: (string | null)[] = [];
 let pending: Promise<Response> | undefined;
 let client: QueryClient;
 const writes: unknown[] = [];
@@ -36,7 +40,10 @@ beforeEach(() => {
   vi.clearAllMocks();
   boundary.getToken.mockResolvedValue("fresh-invite-picker-token");
   group = { ...groupRecord };
-  status = 200;
+  status = candidateStatus = 200;
+  hasMore = false;
+  nextCandidate = undefined;
+  candidateCursors.length = 0;
   pending = undefined;
   reads.length = writes.length = 0;
   client = new QueryClient({
@@ -70,8 +77,25 @@ beforeEach(() => {
           pending ??
           Response.json(status === 200 ? group : { error: "Fixture group unavailable" }, { status })
         );
-      if (url.pathname === `/api/groups/${group.id}/invitees`)
-        return Response.json({ items: [friend], nextCursor: null });
+      if (url.pathname === `/api/groups/${group.id}/invitees`) {
+        const cursor = url.searchParams.get("cursor");
+        candidateCursors.push(cursor);
+        if (cursor) {
+          return (
+            nextCandidate ??
+            Response.json({
+              items: [{ ...friend, id: "new-friend", name: "Another friend" }],
+              nextCursor: null,
+            })
+          );
+        }
+        return Response.json(
+          candidateStatus === 200
+            ? { items: [friend], nextCursor: hasMore ? "next-friend" : null }
+            : { error: "Candidates unavailable" },
+          { status: candidateStatus },
+        );
+      }
       throw new Error(`Unexpected group picker request: ${url.pathname}`);
     }),
   );
@@ -80,10 +104,10 @@ afterEach(() => {
   clearSessionQueryCache(client);
   vi.unstubAllGlobals();
 });
-function mount() {
+async function mount() {
   return renderWithI18n(
     <QueryClientProvider client={client}>
-      <GroupPeoplePicker groupId={group.id} />
+      {await GroupInvitePage({ params: Promise.resolve({ groupId: group.id }) })}
     </QueryClientProvider>,
   );
 }
@@ -95,7 +119,7 @@ it("keeps the initial authorization read pending and cancels the real friend cho
   pending = new Promise<Response>((resolve) => {
     finish = resolve;
   });
-  mount();
+  await mount();
   expect(screen.queryByRole("alert")).toBeNull();
   expect(screen.getByRole("button", { name: "Back" })).toBeVisible();
   expect(screen.getByRole("button", { name: "Back" }).textContent).toBe("");
@@ -108,7 +132,7 @@ it("keeps the initial authorization read pending and cancels the real friend cho
 
 it("recovers a failed authorization read only after explicit retry, then invites the selected actual friend", async () => {
   status = 503;
-  mount();
+  await mount();
   expect(await screen.findByText("Could not load group")).toBeVisible();
   expect(screen.getByRole("button", { name: "Back" })).toBeVisible();
   expect(screen.queryByText("No friends found")).toBeNull();
@@ -130,7 +154,7 @@ it.each([
   "keeps the %s authorization/capability gate ahead of the friend source",
   async (role, message) => {
     group = { ...group, role, canInvite: false };
-    mount();
+    await mount();
     expect(await screen.findByText(message)).toBeVisible();
     expect(screen.queryByRole("button", { name: "Select user: Known Friend" })).toBeNull();
     expect(reads.filter((path) => path.endsWith("/invitees"))).toHaveLength(0);
@@ -143,7 +167,7 @@ it.each([
 );
 
 it("revokes a cached authorized chooser after a background permission denial", async () => {
-  mount();
+  await mount();
   await screen.findByText("Known Friend");
   status = 403;
   await act(() =>
@@ -153,5 +177,44 @@ it("revokes a cached authorized chooser after a background permission denial", a
   expect(screen.queryByText("Known Friend")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Back" }));
   expect(boundary.back).toHaveBeenCalledOnce();
+  expect(writes).toEqual([]);
+});
+
+it("retains the friend choice during pagination, then retries a failed authorized cursor", async () => {
+  hasMore = true;
+  await mount();
+  await screen.findByRole("button", { name: "Select user: Known Friend" });
+  expect(screen.getByRole("searchbox", { name: "Search friends" })).toBeVisible();
+  let release: (result: Response) => void = () => {
+    throw new Error("Expected a pending invitee read");
+  };
+  nextCandidate = new Promise((resolve) => {
+    release = resolve;
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+  await waitFor(() => expect(candidateCursors).toEqual([null, "next-friend"]));
+  expect(screen.getByRole("button", { name: "Select user: Known Friend" })).toBeVisible();
+  await waitFor(() => expect(screen.queryByRole("button", { name: "Load more" })).toBeNull());
+  await act(() => release(Response.json({ error: "UNAVAILABLE" }, { status: 503 })));
+  const retry = await screen.findByRole("button", { name: "Could not load users. Retry" });
+  expect(screen.getByRole("button", { name: "Select user: Known Friend" })).toBeVisible();
+  nextCandidate = undefined;
+  fireEvent.click(retry);
+  expect(await screen.findByRole("button", { name: "Select user: Another friend" })).toBeVisible();
+  expect(candidateCursors).toEqual([null, "next-friend", "next-friend"]);
+  expect(writes).toEqual([]);
+});
+
+it("keeps an authorized group separate from a denied friend inventory and retries only the inventory", async () => {
+  candidateStatus = 403;
+  await mount();
+  await screen.findByText("Could not load users");
+  expect(screen.queryByRole("button", { name: "Select user: Known Friend" })).toBeNull();
+  expect(screen.queryByText("No friends found")).toBeNull();
+  candidateStatus = 200;
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  expect(await screen.findByRole("button", { name: "Select user: Known Friend" })).toBeVisible();
+  expect(reads.filter((path) => path === `/api/groups/${group.id}`)).toHaveLength(1);
+  expect(candidateCursors).toEqual([null, null]);
   expect(writes).toEqual([]);
 });

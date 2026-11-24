@@ -26,6 +26,7 @@ const player: GroupLeaderboardResponse["players"][number] = {
 };
 let games: GroupLeaderboardResponse;
 let players: GroupLeaderboardResponse;
+let gamesStatus: number;
 let playersStatus: number;
 let pageStatus: number;
 let pending: Promise<Response> | undefined;
@@ -37,7 +38,7 @@ beforeEach(() => {
   boundary.getToken.mockResolvedValue("fresh-ranking-token");
   games = { games: [game], players: [], nextCursor: null };
   players = { games: [], players: [player], nextCursor: null };
-  playersStatus = pageStatus = 200;
+  gamesStatus = playersStatus = pageStatus = 200;
   pending = undefined;
   reads.length = 0;
   client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
@@ -52,7 +53,7 @@ beforeEach(() => {
       const isPlayers = url.searchParams.has("gameId");
       const next = url.searchParams.get("cursor") === "25";
       if (pending && (isPlayers || next)) return pending;
-      const status = next ? pageStatus : isPlayers ? playersStatus : 200;
+      const status = next ? pageStatus : isPlayers ? playersStatus : gamesStatus;
       return json(
         status !== 200
           ? { error: "Fixture ranking unavailable" }
@@ -333,4 +334,40 @@ it("keeps a truly empty global leaderboard distinct from an unselected game", as
   expect(await screen.findByText("No rated tables played yet")).toBeVisible();
   expect(screen.queryByText("Choose a game to see the leaderboard")).toBeNull();
   expect(playerReads()).toHaveLength(0);
+});
+
+it("retries a failed catalog cursor without discarding the currently visible choices", async () => {
+  games.nextCursor = 25;
+  mount();
+  fireEvent.click(await screen.findByRole("button", { name: /Board game/ }));
+  expect(await screen.findByRole("option", { name: "Strategy game" })).toBeVisible();
+  pageStatus = 503;
+  fireEvent.click(screen.getByRole("button", { name: "Load more games" }));
+  const retry = await screen.findByRole("button", { name: "Could not load leaderboards. Retry" });
+  expect(screen.getByRole("option", { name: "Strategy game" })).toBeVisible();
+  pageStatus = 200;
+  fireEvent.click(retry);
+  expect(await screen.findByRole("option", { name: "Next game" })).toBeVisible();
+  expect(reads.map((read) => read.searchParams.get("cursor"))).toEqual(["0", "25", "25"]);
+  expect(playerReads()).toEqual([]);
+});
+
+it("keeps the selected game while recovering an errored catalog refresh", async () => {
+  mount();
+  await chooseGame();
+  await screen.findByText("@player-one");
+  gamesStatus = 503;
+  await act(async () => {
+    await client.refetchQueries({ predicate: (query) => query.queryKey.includes("games") });
+  });
+  const retry = await screen.findByRole("button", { name: "Could not load leaderboards. Retry" });
+  expect(screen.getByRole("grid", { name: "Group leaderboard" })).toBeVisible();
+  expect(screen.getByText("@player-one")).toBeVisible();
+  gamesStatus = 200;
+  fireEvent.click(retry);
+  await waitFor(() =>
+    expect(screen.queryByRole("button", { name: "Could not load leaderboards. Retry" })).toBeNull(),
+  );
+  expect(screen.getByText("@player-one")).toBeVisible();
+  expect(playerReads()).toHaveLength(1);
 });

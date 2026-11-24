@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
-import { type NativeMethods, PixelRatio, Text, View } from "react-native";
+import { DeviceEventEmitter, type NativeMethods, PixelRatio, Text, View } from "react-native";
 import { afterEach, expect, it, vi } from "vitest";
 import {
   FormInteractionScope,
@@ -240,4 +240,21 @@ it("enriches only rows intersecting the active viewport and unregisters after fi
   });
   expect(visible).toHaveBeenCalledOnce();
   await unmount();
+});
+
+it("remeasures the focused input when the native keyboard changes the available viewport", async () => {
+  const f = await fixture();
+  const fieldAndLabel = field(360);
+  await act(() => f.current().owner.reveal(fieldAndLabel, fieldAndLabel));
+  await f.flush();
+  expect(f.scrollTo).toHaveBeenLastCalledWith({ y: 244, animated: false });
+
+  f.scrollTo.mockClear();
+  f.viewportMeasure.mockImplementation((callback) => callback(0, 100, 320, 60));
+  await act(() => DeviceEventEmitter.emit("keyboardDidShow", { endCoordinates: { height: 120 } }));
+  await f.flush();
+  expect(f.scrollTo).toHaveBeenCalledExactlyOnceWith({ y: 260, animated: false });
+  expect(f.current().minHeight).toBe(320);
+  await act(() => f.current().owner.blur(fieldAndLabel));
+  expect(f.current().minHeight).toBe(60);
 });

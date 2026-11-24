@@ -775,3 +775,38 @@ it("lets the user resubmit when a requested write was stopped by the OAuth chall
   fireEvent.click(create);
   expect(await screen.findByText("Group created")).toBeVisible();
 });
+
+it.each(["connected", "rejected"])(
+  "ignores a host that becomes %s after the widget was closed",
+  async (outcome) => {
+    let complete: (() => void) | undefined;
+    host.connect.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve, reject) => {
+          complete =
+            outcome === "connected" ? resolve : () => reject(Error("offline after cleanup"));
+        }),
+    );
+    const view = render(<Widget />);
+    await waitFor(() => expect(host.connect).toHaveBeenCalledOnce());
+    view.unmount();
+    await act(async () => complete?.());
+    expect(host.close).toHaveBeenCalledOnce();
+    expect(host.getHostContext).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alert")).toBeNull();
+  },
+);
+
+it("uses the generic result card when a tool returns a receipt without displayable details", async () => {
+  await open("create_group", { status: "PENDING" });
+  expect(screen.getByRole("heading", { name: "Groups" })).toBeVisible();
+  expect(screen.getByText("Pending")).toBeVisible();
+  act(() => host.ontoolresult(response("search_locations", { keys: ["total"], count: 2 })));
+  expect(screen.getByRole("heading", { name: "Results" })).toBeVisible();
+  expect(screen.getByText("Total")).toBeVisible();
+  act(() => host.ontoolresult(response("create_invite", { count: 1 })));
+  expect(screen.queryByRole("button", { name: "Copy link" })).toBeNull();
+  expect(screen.getByText("Total")).toBeVisible();
+  expect(host.openLink).not.toHaveBeenCalled();
+  expect(host.callServerTool).not.toHaveBeenCalled();
+});

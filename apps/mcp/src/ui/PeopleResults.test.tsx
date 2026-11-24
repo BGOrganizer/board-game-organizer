@@ -384,6 +384,62 @@ it("displays the profile identity and stats, including an unknown win percentage
   expect(screen.queryByText(one.email)).toBeNull();
 });
 
+it.each([
+  { operation: "list_friend_requests", query: { direction: "incoming" }, label: "Received" },
+  { operation: "list_friend_requests", query: { direction: "outgoing" }, label: "Sent" },
+  { operation: "list_relationships", query: { type: "pending" }, label: "Received" },
+  { operation: "list_relationships", query: { type: "sent" }, label: "Sent" },
+  { operation: "list_blocked_users", query: {}, label: "Blocked" },
+  { operation: "search_users", query: {}, label: "Connections" },
+])("shows the active $label filter for $operation", ({ operation, query, label }) => {
+  open(operation, [], { query }, true);
+  expect(screen.getByRole("button", { name: label })).toBeVisible();
+  expect(screen.getByText("No users found")).toBeVisible();
+  expect(services.callServerTool).not.toHaveBeenCalled();
+});
+
+it.each(["declined", "failed"])(
+  "retains contact data when the external profile link is %s",
+  async (outcome) => {
+    if (outcome === "declined") services.openLink.mockResolvedValueOnce({ isError: true });
+    else services.openLink.mockRejectedValueOnce(Error("host disconnected"));
+    open("list_friends", [{ profile: one }]);
+    fireEvent.click(screen.getByRole("button", { name: "Avery" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Could not complete the action");
+    expect(screen.getByText("@avery")).toBeVisible();
+    expect(services.openLink).toHaveBeenCalledWith({
+      url: expect.stringMatching(/\/profiles\/user_same$/),
+    });
+    expect(services.callServerTool).not.toHaveBeenCalled();
+  },
+);
+
+it("opens contacts only from the viewer's own profile, including a fallback identity", async () => {
+  services.callServerTool.mockResolvedValueOnce(result("list_friends", []));
+  open("get_my_profile", { ...visibleProfile, name: "", username: null }, undefined, true);
+  expect(screen.getByText("Unknown")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Contacts" }));
+  expect(await screen.findByText("No users found")).toBeVisible();
+  expect(services.callServerTool).toHaveBeenCalledWith(
+    { name: "list_friends", arguments: {} },
+    { signal: expect.any(AbortSignal) },
+  );
+});
+
+it("keeps blocked identities non-navigable and does not treat malformed contact data as empty", () => {
+  const view = open("list_blocked_users", {
+    rows: [{ profile: { ...one, blockedByMe: true } }],
+    nextCursor: null,
+  });
+  expect(screen.getByText("Avery")).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Avery" })).toBeNull();
+  expect(services.openLink).not.toHaveBeenCalled();
+  view.unmount();
+  open("list_friends", { rows: [{ profile: { id: 123 } }], nextCursor: null });
+  expect(screen.getByRole("alert")).toHaveTextContent("Could not load users");
+  expect(screen.queryByText("No users found")).toBeNull();
+});
+
 it("renders authorized BGO activity narratives and delegates resource links to the host", async () => {
   open("list_community_activity", {
     items: [
