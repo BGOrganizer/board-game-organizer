@@ -3,11 +3,14 @@ import type {
   ProfileActivity,
   ProfileView,
 } from "@board-game-organizer/schemas";
+import { bggAccountQuery, useBggAccount } from "@board-game-organizer/shared";
 import { useAppStore } from "@board-game-organizer/store";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, vi } from "vitest";
 import ProfilePage from "@/app/(tabs)/profile/page";
 import UserProfilePage from "@/app/(tabs)/profiles/[userId]/page";
+import { ProfileBggCard } from "@/components/profile/ProfileBggCard";
 import { measureWebFeature } from "./featureScenario";
 
 const session = vi.hoisted(() => ({
@@ -88,9 +91,20 @@ measureWebFeature(
   prepareProfile,
 );
 
+const linkedBggClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+const linkedBggRequest = vi.fn(() => {
+  throw new Error("An unsent account edit must not issue a request");
+});
+function CachedBggCard() {
+  const bgg = useBggAccount(session);
+  return <ProfileBggCard bgg={bgg} />;
+}
+
 measureWebFeature(
   "ProfileBggCard: keep an unsent account edit through dismiss and reopen",
-  <ProfilePage />,
+  <QueryClientProvider client={linkedBggClient}>
+    <CachedBggCard />
+  </QueryClientProvider>,
   async () => {
     await screen.findByText("linked-player");
     const change = screen.getByRole("button", { name: "Change BGG username" });
@@ -106,8 +120,14 @@ measureWebFeature(
     expect(dialog.getByRole("textbox", { name: "BGG username" })).toHaveValue("unsent-player");
     fireEvent.click(dialog.getByRole("button", { name: "Cancel" }));
     expect(screen.getByText("linked-player")).toBeVisible();
+    expect(linkedBggRequest).not.toHaveBeenCalled();
   },
-  prepareProfile,
+  () => {
+    linkedBggClient.clear();
+    linkedBggClient.setQueryData(bggAccountQuery(session).queryKey, account);
+    linkedBggRequest.mockClear();
+    vi.stubGlobal("fetch", linkedBggRequest);
+  },
 );
 
 function prepareProfile() {

@@ -127,7 +127,7 @@ export const renderCommitBudgets: Readonly<Record<string, number>> = {
   "ProfileActivities: authoritative cached receipt appears without remount": 4,
   "ProfileActivities: cached type selection preserves authorized activity rows": 14,
   "ProfileBggAttribution: real provider attribution": 1,
-  "ProfileBggCard: keep an unsent account edit through dismiss and reopen": 17,
+  "ProfileBggCard: keep an unsent account edit through dismiss and reopen": 10,
   "ProfileCollection: cached page reveal, filter reentry and authoritative row update": 8,
   "ProfilePlayer: authoritative cached rating update retains selection": 10,
   "ProfilePlayer: cached game selection, clearing and repeated selection": 19,
