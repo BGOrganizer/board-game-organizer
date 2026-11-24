@@ -52,7 +52,7 @@ vi.mock("expo-constants", () => ({
 }));
 vi.mock("expo-router", () => ({
   useRouter: () => ({ back: io.back }),
-  useLocalSearchParams: () => ({ eventId: event.id, tableId: table.id }),
+  useLocalSearchParams: () => (incompleteRoute ? {} : { eventId: event.id, tableId: table.id }),
   Stack: { Screen: () => null },
 }));
 const options = {
@@ -63,6 +63,7 @@ const options = {
 };
 const otherId = "55555555-5555-4555-8555-555555555555";
 const otherTableId = "66666666-6666-4666-8666-666666666666";
+let incompleteRoute: boolean;
 let client: QueryClient;
 let event: PlannedEventResponse;
 let table: PlannedTableResponse;
@@ -235,6 +236,7 @@ async function http(input: RequestInfo | URL, init?: RequestInit) {
   throw new Error("Unexpected invitation endpoint");
 }
 beforeEach(() => {
+  incompleteRoute = false;
   io.back.mockClear();
   io.token.mockClear();
   registration = {
@@ -708,4 +710,14 @@ it("keeps guest name and optional email after refusal and fences duplicate submi
   });
   expect(screen.queryByLabelText("Username")).toBeNull();
   expect(screen.queryByRole("button", { name: "Select user: Guest Volunteer" })).toBeNull();
+});
+
+it("does not expose invitation or guest writes from an Expo link missing its event and table", async () => {
+  incompleteRoute = true;
+  await render(<Fixture picker />);
+  expect(screen.queryByRole("button", { name: "Add a guest" })).toBeNull();
+  expect(screen.queryByTestId("generate-table-invite-link")).toBeNull();
+  expect(screen.queryByText("@guest")).toBeNull();
+  expect(reads).toEqual([]);
+  expect(writes).toEqual([]);
 });

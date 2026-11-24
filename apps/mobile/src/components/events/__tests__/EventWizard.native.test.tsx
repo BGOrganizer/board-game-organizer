@@ -21,7 +21,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react-native";
-import { type ComponentProps, createContext, useContext } from "react";
+import { type ComponentProps, createContext, type ReactNode, useContext } from "react";
 import { DeviceEventEmitter, View } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import EventWizardScreen from "@/app/event/wizard";
@@ -82,16 +82,21 @@ vi.mock("expo-router/react-navigation", async (original) => ({
   usePreventRemove: () => {},
 }));
 vi.mock("expo-constants", () => ({
-  default: { expoConfig: { extra: { apiUrl: "https://event-wizard-fixtures.test" } } },
+  default: {
+    expoConfig: {
+      extra: { apiUrl: "https://event-wizard-fixtures.test", maptilerApiKey: "wizard-fixture-map" },
+    },
+  },
 }));
 vi.mock("expo-location", () => ({
   getForegroundPermissionsAsync: vi.fn(async () => ({ granted: false, canAskAgain: true })),
 }));
-// These external native SDK views are never mounted by the unconfigured-map
-// fixture; the application's inline LocationPicker still renders unchanged.
+// MapLibre is the device boundary. The actual location form and Query hooks render normally.
 vi.mock("@maplibre/maplibre-react-native", () => ({
-  Map: View,
-  Camera: View,
+  Map: ({ children }: { children: ReactNode }) => (
+    <View testID="wizard-native-map">{children}</View>
+  ),
+  Camera: () => <View />,
   GeoJSONSource: View,
   Layer: View,
 }));
@@ -113,6 +118,23 @@ let nextTablePage: Promise<Response> | undefined;
 let nextTableCursor: string | null;
 let favoriteStatus: number;
 const reads: URL[] = [];
+const additionalGame = {
+  id: 7,
+  name: "Additional strategy game",
+  year: 2024,
+  imageUrl: null,
+  minPlayers: 2,
+  maxPlayers: 4,
+  maxPlayMinutes: 60,
+  source: "search",
+};
+const anotherLocation = {
+  ...plannedEvent.locations[0],
+  id: "55555555-5555-4555-8555-555555555555",
+  address: "Via Torino 14, Rome, Italy",
+  latitude: 42.01,
+  longitude: 12.89,
+};
 const demoCandidate = {
   userId: "demo-player",
   name: "Demo Player",
@@ -185,13 +207,14 @@ beforeEach(() => {
         return json({ items: [demoCandidate], nextCursor: null });
       if (url.pathname === "/api/bgg/picker")
         return json({
-          items: [],
+          items: url.searchParams.get("query") ? [additionalGame] : [],
           sourceEpoch: "participant-source",
           nextCursor: null,
         });
       if (url.pathname === "/api/groups") return json({ items: [group], nextCursor: null });
       if (url.pathname === "/api/events") return json({ items: [], nextCursor: null });
       if (url.pathname === "/api/bgg/account") return json({ active: null, pending: null });
+      if (url.pathname === "/api/locations/search") return json({ items: [anotherLocation] });
       if (url.pathname === "/api/locations/favorites") {
         if (url.searchParams.has("keys"))
           return json(
@@ -503,7 +526,7 @@ it("keeps an actual inline location picker reversible through native Back", asyn
   await press("Next");
   await press("Choose a location");
   expect(screen.getByLabelText("Location name")).toBeVisible();
-  expect(screen.getByText("Map unavailable")).toBeVisible();
+  expect(screen.getByTestId("wizard-native-map")).toBeOnTheScreen();
   await act(() => DeviceEventEmitter.emit("hardwareBackPress"));
   expect(screen.getByText("Games club")).toBeVisible();
   expect(screen.getByRole("button", { name: "2. Dates / Locations" })).toBeSelected();
@@ -732,5 +755,34 @@ it("keeps scheduling editable after favorite-location status fails without treat
   expect(screen.getByRole("button", { name: "Choose a location" })).toBeEnabled();
   await press("Next");
   expect(screen.getByRole("button", { name: "3. Tables" })).toBeSelected();
+  expect(writes).toHaveLength(0);
+});
+
+it("returns verified location and selected catalog game to their actual event draft and supports completed step navigation", async () => {
+  const mutation = recovery();
+  await render(<Fixture draftId={String(mutation.mutationId)} showHeader />);
+  await press("Next");
+  await press("Choose a location");
+  await fireEvent.changeText(screen.getByLabelText("Location name"), "Additional verified venue");
+  await fireEvent.changeText(screen.getByTestId("location-address-input"), "Via Torino");
+  await userEvent.setup().press(await screen.findByTestId("address-result-0"));
+  await press("Confirm Location");
+  expect(await screen.findByText("Additional verified venue")).toBeVisible();
+  expect(screen.getByText("Games club")).toBeVisible();
+
+  await press("Next");
+  await userEvent.setup().press(screen.getByTestId("event-draft-table-local-table-key"));
+  await press("Choose a game");
+  await fireEvent.changeText(screen.getByTestId("game-search-input"), "Additional");
+  await userEvent.setup().press(
+    await screen.findByRole("button", {
+      name: "Select: Additional strategy game",
+    }),
+  );
+  expect(await screen.findByText("Additional strategy game")).toBeVisible();
+  expect(screen.getByText("First strategy game")).toBeVisible();
+  await press("2. Dates / Locations");
+  expect(screen.getByText("Additional verified venue")).toBeVisible();
+  expect(screen.queryByTestId("game-search-input")).toBeNull();
   expect(writes).toHaveLength(0);
 });

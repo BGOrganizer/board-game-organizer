@@ -6,6 +6,7 @@ import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 import GroupBanPage from "@/app/(tabs)/groups/[groupId]/ban/page";
+import GroupPage from "@/app/(tabs)/groups/[groupId]/page";
 import { groupRecord, plannedEvent } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { messages as italian } from "../../../../../../messages/it.js";
@@ -546,4 +547,29 @@ it("loads the Italian resource notifications on a localized Group detail", async
   await waitFor(() => expect(fetchNotifications).toHaveBeenCalledWith("it", groupRecord.id));
   expect(fetchNotifications).not.toHaveBeenCalledWith("en", groupRecord.id);
   expect(await screen.findByRole("tab", { name: "Dettagli", selected: true })).toBeVisible();
+});
+
+it("falls back to Details for a direct Group link with an unsupported tab", async () => {
+  const reads: URL[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string, init?: RequestInit) => {
+      const url = new URL(input);
+      reads.push(url);
+      if (url.pathname === `/api/groups/${groupRecord.id}`) return Response.json(groupRecord);
+      return contactReadResponse(input, init) ?? Response.json({ items: [], nextCursor: null });
+    }),
+  );
+  mount(
+    "info",
+    await GroupPage({
+      params: Promise.resolve({ groupId: groupRecord.id }),
+      searchParams: Promise.resolve({ tab: "unknown" }),
+    }),
+  );
+  expect(await screen.findByRole("tab", { name: "Details", selected: true })).toBeVisible();
+  expect(screen.getByRole("tab", { name: "Events", selected: false })).toBeVisible();
+  expect(screen.getByRole("tab", { name: "Members", selected: false })).toBeVisible();
+  expect(reads.some((url) => url.pathname.endsWith("/members"))).toBe(false);
+  expect(reads.some((url) => url.pathname === "/api/events")).toBe(false);
 });

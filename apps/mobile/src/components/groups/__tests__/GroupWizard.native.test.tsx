@@ -9,7 +9,7 @@ import { useAppStore } from "@board-game-organizer/store";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, userEvent, waitFor } from "@testing-library/react-native";
 import { createContext, useContext } from "react";
-import { View } from "react-native";
+import { Linking, View } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import GroupWizardScreen from "@/app/group/wizard";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
@@ -632,3 +632,20 @@ it.each([
     });
   },
 );
+
+it("opens only the explicitly tapped map credit while an unconfigured map cannot add the draft venue", async () => {
+  const external = vi.spyOn(Linking, "openURL").mockResolvedValue(undefined);
+  await render(<Fixture params={{}} />);
+  await press("Choose a location");
+  expect(screen.getByText("Map unavailable")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Confirm Location" })).toBeDisabled();
+  expect(external).not.toHaveBeenCalled();
+  const user = userEvent.setup();
+  await user.press(screen.getByRole("link", { name: "Map by MapTiler" }));
+  await user.press(screen.getByRole("link", { name: "© OpenStreetMap contributors" }));
+  expect(external.mock.calls).toEqual([
+    ["https://www.maptiler.com/"],
+    ["https://www.openstreetmap.org/copyright"],
+  ]);
+  expect(writes).toHaveLength(0);
+});

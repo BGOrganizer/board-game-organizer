@@ -1,6 +1,6 @@
 import { eventRecordKeys, eventTableRoster, useTableSeatOrder } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, renderHook, screen, within } from "@testing-library/react";
+import { act, fireEvent, renderHook, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 import { plannedEvent, plannedTable, seat } from "@/test-fixtures/eventRecords";
@@ -523,5 +523,157 @@ it("accepts a fresh canonical review newer than the cached Table epoch after a c
   expect(fetcher).toHaveBeenCalledTimes(4);
   expect(JSON.parse(String(fetcher.mock.calls[3][1].body)).version).toBe(2);
   expect(result.current.editing).toBe(false);
+  f.client.clear();
+});
+
+it("disallows entering a confirmed table’s roster and resets an unreviewed local editor cleanly", async () => {
+  const fetcher = vi.fn();
+  vi.stubGlobal("fetch", fetcher);
+  const f = setup();
+  const { result } = renderHook(
+    () => useTableSeatOrder(f.o, { ...plannedTable, canManage: true, eventStatus: "CONFIRMED" }),
+    { wrapper: f.wrapper },
+  );
+  await act(() => result.current.start());
+  act(() => result.current.reset());
+  expect(result.current).toMatchObject({ rows: [], seatedCount: 0, editing: false, stale: false });
+  await act(() => result.current.save());
+  expect(fetcher).not.toHaveBeenCalled();
+  f.client.clear();
+});
+
+it("exposes a conflicted review read, preserves a locked seat and discards the roster on access denial", async () => {
+  const initial = snapshot();
+  initial.registrations[0].locked = true;
+  const fetcher = vi
+    .fn()
+    .mockResolvedValueOnce(Response.json(initial))
+    .mockResolvedValueOnce(Response.json({ error: "ALLOCATION_CHANGED" }, { status: 409 }))
+    .mockResolvedValueOnce(Response.json({ error: "ACCESS_REVOKED" }, { status: 403 }));
+  vi.stubGlobal("fetch", fetcher);
+  const f = setup();
+  const { result } = renderHook(
+    () => useTableSeatOrder(f.o, { ...plannedTable, canManage: true, eventVersion: 1 }),
+    { wrapper: f.wrapper },
+  );
+  await act(() => result.current.start());
+  expect(result.current.canMove(0, 1)).toBe(false);
+  act(() => result.current.move(0, 1));
+  expect(result.current.rows[0]).toMatchObject({ userId: "a", locked: true, seatIndex: 0 });
+
+  await act(() => result.current.start());
+  expect(result.current).toMatchObject({ stale: true, editing: true, error: true, seatedCount: 2 });
+  await act(() => result.current.save());
+  expect(fetcher).toHaveBeenCalledTimes(2);
+  await act(() => result.current.start());
+  expect(result.current).toMatchObject({
+    rows: [],
+    loading: false,
+    stale: false,
+    editing: false,
+    error: false,
+  });
+  expect(fetcher.mock.calls.map(([, init]) => init.method)).toEqual(["GET", "GET", "GET"]);
+  f.client.clear();
+});
+
+it("does not resurface an error from a cancelled review read after permission changes", async () => {
+  const read = Promise.withResolvers<Response>();
+  const fetcher = vi.fn<(url: string, init: RequestInit) => Promise<Response>>(() => read.promise);
+  vi.stubGlobal("fetch", fetcher);
+  const f = setup();
+  const { result, rerender } = renderHook(
+    ({ canManage }) => useTableSeatOrder(f.o, { ...plannedTable, canManage }),
+    { wrapper: f.wrapper, initialProps: { canManage: true } },
+  );
+  let request: Promise<void> | undefined;
+  await act(async () => {
+    request = result.current.start();
+  });
+  expect(result.current.loading).toBe(true);
+  const signal = fetcher.mock.calls[0][1].signal;
+  rerender({ canManage: false });
+  expect(signal?.aborted).toBe(true);
+  await act(async () => {
+    read.resolve(Response.json({ error: "STALE_FAILURE" }, { status: 409 }));
+    await request;
+  });
+  expect(result.current).toMatchObject({
+    rows: [],
+    loading: false,
+    stale: false,
+    editing: false,
+    error: false,
+  });
+  f.client.clear();
+});
+
+it.each([200, 400])(
+  "preserves the new empty roster when the previous table’s write settles with HTTP %s",
+  async (status) => {
+    const reply = Promise.withResolvers<Response>();
+    const f = setup();
+    const initial = snapshot();
+    const fetcher = vi.fn(async (_url: string, init: RequestInit) =>
+      init.method === "PATCH" ? reply.promise : Response.json(initial),
+    );
+    vi.stubGlobal("fetch", fetcher);
+    const { result, rerender } = renderHook(
+      ({ tableId }) =>
+        useTableSeatOrder(f.o, { ...plannedTable, id: tableId, canManage: true, eventVersion: 1 }),
+      { wrapper: f.wrapper, initialProps: { tableId: plannedTable.id } },
+    );
+    await act(() => result.current.start());
+    act(() => result.current.move(2, -1));
+    let request: Promise<void> | undefined;
+    await act(async () => {
+      request = result.current.save();
+    });
+    await waitFor(() =>
+      expect(fetcher.mock.calls.map(([, init]) => init.method)).toEqual(["GET", "PATCH"]),
+    );
+    rerender({ tableId: "44444444-4444-4444-8444-444444444444" });
+    await act(async () => {
+      reply.resolve(
+        status === 200
+          ? Response.json({ ...initial, version: 2 })
+          : Response.json({ error: "ROSTER_REJECTED" }, { status }),
+      );
+      await request;
+    });
+    expect(result.current).toMatchObject({
+      rows: [],
+      loading: false,
+      stale: false,
+      editing: false,
+      error: false,
+    });
+    f.client.clear();
+  },
+);
+
+it("clears a reviewed seat draft when the save is rejected because the session expired", async () => {
+  const fetcher = vi
+    .fn()
+    .mockResolvedValueOnce(Response.json(snapshot()))
+    .mockResolvedValueOnce(Response.json({ error: "SESSION_EXPIRED" }, { status: 401 }));
+  vi.stubGlobal("fetch", fetcher);
+  const f = setup();
+  const { result } = renderHook(
+    () => useTableSeatOrder(f.o, { ...plannedTable, canManage: true, eventVersion: 1 }),
+    { wrapper: f.wrapper },
+  );
+  await act(() => result.current.start());
+  act(() => result.current.move(2, -1));
+  await act(() => result.current.save());
+
+  expect(result.current).toMatchObject({
+    rows: [],
+    loading: false,
+    stale: false,
+    editing: false,
+    error: false,
+  });
+  expect(fetcher.mock.calls.map(([, init]) => init.method)).toEqual(["GET", "PATCH"]);
   f.client.clear();
 });

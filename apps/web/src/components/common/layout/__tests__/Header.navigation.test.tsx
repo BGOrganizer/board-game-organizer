@@ -1,10 +1,14 @@
 import type { NotificationListResponse } from "@board-game-organizer/schemas";
 import { clearSessionQueryCache, notificationListKey } from "@board-game-organizer/shared";
+import { setupI18n } from "@lingui/core";
+import { I18nProvider } from "@lingui/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterAll, afterEach, beforeEach, expect, it, vi } from "vitest";
+import { NotificationNavigationBadge } from "@/components/notifications/NotificationNavigationBadge";
 import { renderWithI18n } from "@/test-utils";
+import { messages as italian } from "../../../../../../../messages/it.js";
 import { Header } from "../Header";
 import { HeaderActions } from "../HeaderActions";
 
@@ -222,5 +226,41 @@ it("reacts to authenticated role loss and logout without leaving moderation or p
   expect(screen.queryByRole("button", { name: "Notifications" })).toBeNull();
   expect(screen.getAllByRole("button", { name: "Sign In" })).toHaveLength(2);
   expect(screen.getAllByRole("button", { name: "Sign Up" })).toHaveLength(2);
+  expect(writes).toEqual([]);
+});
+
+it("shows only the attention snapshot for the current locale without fetching or reading notices", async () => {
+  const i18n = setupI18n({ locale: "it", messages: { it: italian } });
+  const localized = notificationListKey({ apiUrl: API, userId: "viewer", locale: "it" }, 3);
+  const count = {
+    ...initialPage.attention,
+    events: 3,
+    sections: { connections: 0, requests: 0, search: 0 },
+  };
+  client.setQueryData(localized, {
+    pages: [{ ...initialPage, attention: count }],
+    pageParams: [undefined],
+  });
+  renderWithI18n(
+    <QueryClientProvider client={client}>
+      <I18nProvider i18n={i18n}>
+        <NotificationNavigationBadge section="events" />
+        <NotificationNavigationBadge section="groups" />
+      </I18nProvider>
+    </QueryClientProvider>,
+  );
+  expect(screen.getAllByRole("img", { name: "Da verificare" })).toHaveLength(1);
+  await act(() =>
+    client.setQueryData(key, {
+      pages: [{ ...initialPage, attention: { ...count, events: 0, groups: 2 } }],
+      pageParams: [undefined],
+    }),
+  );
+  expect(screen.getAllByRole("img", { name: "Da verificare" })).toHaveLength(1);
+  await act(() =>
+    client.setQueryData(localized, { pages: [initialPage], pageParams: [undefined] }),
+  );
+  await waitFor(() => expect(screen.queryByRole("img", { name: "Da verificare" })).toBeNull());
+  expect(reads).toEqual([]);
   expect(writes).toEqual([]);
 });

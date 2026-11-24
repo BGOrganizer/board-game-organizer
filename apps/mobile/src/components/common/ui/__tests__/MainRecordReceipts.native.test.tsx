@@ -39,14 +39,20 @@ it.each([
       "",
       "create",
     );
-    const eventDraft = eventDraftFixture({ name, groupId: null });
-    const eventInput = eventDraftInput(eventDraft, false);
-    if (!eventInput.success || "version" in eventInput.data)
-      throw new Error("Expected real valid event creation data");
-    const variables: CreateEventVariables | CreateGroupVariables =
-      kind === "events"
-        ? { ...eventInput.data, clientRequestId }
-        : { name, clientRequestId, type: "PRIVATE", invitedUserIds: [] };
+    let variables: CreateEventVariables | CreateGroupVariables;
+    if (kind === "events") {
+      const eventDraft = eventDraftFixture({
+        name,
+        groupId: null,
+        dates: [{ id: listId(872), day: "2030-05-02" }],
+      });
+      const eventInput = eventDraftInput(eventDraft, false);
+      if (!eventInput.success || "version" in eventInput.data)
+        throw new Error("Expected real valid event creation data");
+      variables = { ...eventInput.data, clientRequestId };
+    } else {
+      variables = { name, clientRequestId, type: "PRIVATE", invitedUserIds: [] };
+    }
     const error = new CommunityApiError(503, "Server write outcome is unresolved");
     client.getMutationCache().build(
       client,

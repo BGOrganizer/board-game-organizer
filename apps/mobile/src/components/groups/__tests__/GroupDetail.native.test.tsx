@@ -6,7 +6,7 @@ import type {
 } from "@board-game-organizer/schemas";
 import { groupRecordDetailQuery } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, userEvent, waitFor } from "@testing-library/react-native";
+import { act, render, screen, userEvent, waitFor, within } from "@testing-library/react-native";
 import { createContext, type ReactNode, useContext } from "react";
 import { Keyboard, View } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -468,7 +468,9 @@ it("opens the members owner from a valid group exclusion route", async () => {
 it("shows requests only for the current manager and withdraws the affordance on demotion", async () => {
   group = { ...group, pendingRequestCount: 2 };
   await mount();
-  expect(screen.getByLabelText("Requests to review")).toBeVisible();
+  const requestsBadge = () =>
+    within(screen.getByRole("tab", { name: /Members/ })).queryByLabelText("Requests to review");
+  expect(requestsBadge()).toBeVisible();
   group = {
     ...group,
     role: "accepted",
@@ -477,7 +479,7 @@ it("shows requests only for the current manager and withdraws the affordance on 
     canInvite: false,
   };
   await act(() => client.setQueryData(groupRecordDetailQuery(options, group.id).queryKey, group));
-  expect(screen.queryByLabelText("Requests to review")).toBeNull();
+  await waitFor(() => expect(requestsBadge()).toBeNull());
 });
 
 it("preserves accepted access until an explicit versioned leave is confirmed", async () => {
@@ -509,3 +511,50 @@ it("preserves accepted access until an explicit versioned leave is confirmed", a
   });
   expect(screen.queryByRole("button", { name: "Leave group" })).toBeNull();
 });
+
+it.each(["delete", "decline"] as const)(
+  "blocks stale %s confirmation after an authoritative group authority change",
+  async (action) => {
+    group = {
+      ...group,
+      type: "PUBLIC",
+      ...(action === "decline"
+        ? {
+            role: "invited" as const,
+            myMembership: membership("INVITATION", "PENDING"),
+            canEdit: false,
+            canInvite: false,
+          }
+        : {}),
+    };
+    await mount();
+    const user = userEvent.setup();
+    await user.press(
+      screen.getByRole("button", { name: action === "delete" ? "Delete group" : "Decline" }),
+    );
+    const confirmation = action === "delete" ? "Delete group and events" : "Confirm";
+    expect(screen.getByRole("button", { name: confirmation })).toBeEnabled();
+
+    group = {
+      ...group,
+      version: group.version + 1,
+      role: "none",
+      myMembership: null,
+      canEdit: false,
+      canInvite: false,
+      canViewMembers: false,
+      canViewEvents: false,
+      canViewRankings: false,
+    };
+    await act(() => client.setQueryData(groupRecordDetailQuery(options, group.id).queryKey, group));
+    const stale = screen.queryByRole("button", { name: confirmation });
+    if (stale) await user.press(stale);
+    expect(writes).toEqual([]);
+    expect(navigation.replace).not.toHaveBeenCalled();
+    if (action === "decline") {
+      const cancel = screen.queryByRole("button", { name: "Cancel" });
+      if (cancel) await user.press(cancel);
+    }
+    await waitFor(() => expect(screen.queryByRole("button", { name: confirmation })).toBeNull());
+  },
+);

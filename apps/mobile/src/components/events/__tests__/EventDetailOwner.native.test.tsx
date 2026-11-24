@@ -853,3 +853,10 @@ it.each([
     expect(writes[0].input).toMatchObject({ kind, vote: "YES" });
   },
 );
+
+it("keeps a missing event parameter outside authenticated event queries and mutation UI", async () => {
+  await render(<Fixture eventId={undefined} />);
+  expect(screen.queryByRole("tab")).toBeNull();
+  expect(reads).toEqual([]);
+  expect(writes).toEqual([]);
+});

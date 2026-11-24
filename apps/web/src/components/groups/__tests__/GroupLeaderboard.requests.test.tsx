@@ -422,10 +422,12 @@ it("shows an active compact leaderboard row and reveals its statistics on demand
   const details = row.getByRole("button", { name: /Game statistics: @player-one/ });
   fireEvent.click(details);
   expect(details).toHaveAttribute("aria-expanded", "true");
-  expect(row.getByText("Played")).toBeVisible();
-  expect(row.getByText("8")).toBeVisible();
-  expect(row.getByText("Wins")).toBeVisible();
-  expect(row.getByText("2")).toBeVisible();
-  expect(row.getByText("ND")).toBeVisible();
-  expect(row.getByText("1")).toBeVisible();
+  const played = await row.findByText("Played");
+  expect(played).toBeVisible();
+  // The API includes ND in gamesPlayed; the UI reports finished games separately.
+  expect(played.nextElementSibling).toHaveTextContent("7");
+  expect(row.getByText("Wins").nextElementSibling).toHaveTextContent("2");
+  expect(row.getByText("ND").nextElementSibling).toHaveTextContent("1");
+  expect(playerReads()).toHaveLength(1);
+  expect(playerReads()[0].searchParams.get("gameId")).toBe(String(game.id));
 });

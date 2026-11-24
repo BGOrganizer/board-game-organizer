@@ -30,7 +30,7 @@ import {
 import type { EventTable } from "../EventTable";
 
 const RouteParams = createContext<
-  { eventId: string; tableId: string; fromEvent?: string } | undefined
+  { eventId?: string; tableId?: string; fromEvent?: string } | undefined
 >(undefined);
 
 const API = "https://table-owner-native.test";
@@ -285,12 +285,17 @@ function Fixture({
   eventId = event.id,
   tableId = table.id,
   context,
-}: Partial<ComponentProps<typeof EventTable>>) {
+  incompleteRoute = false,
+}: Partial<ComponentProps<typeof EventTable>> & { incompleteRoute?: boolean }) {
   return (
     <QueryClientProvider client={client}>
       <NativeTestProviders>
         <RouteParams
-          value={{ eventId, tableId, fromEvent: context === "event" ? eventId : undefined }}
+          value={
+            incompleteRoute
+              ? {}
+              : { eventId, tableId, fromEvent: context === "event" ? eventId : undefined }
+          }
         >
           <TableScreen />
         </RouteParams>
@@ -725,4 +730,12 @@ it("drops all cached private panes when the authenticated owner/API changes", as
   expect(screen.getByText("@second-owner")).not.toBe(old);
   expect(reads.at(-1)?.authorization).toBe("Bearer fixture-second-owner");
   expect(writes).toHaveLength(0);
+});
+
+it("keeps an incomplete Expo Table link from reading or creating any unrelated table", async () => {
+  await render(<Fixture incompleteRoute />);
+  expect(screen.queryByTestId("table-overview-tab")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Delete table" })).toBeNull();
+  expect(reads).toEqual([]);
+  expect(writes).toEqual([]);
 });

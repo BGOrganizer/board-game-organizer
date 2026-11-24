@@ -57,7 +57,8 @@ for (const [workspace, pattern, uncovered, large] of [
 ]) {
   test(`actual ${workspace} gate ${pattern} rejects a missed owner despite passing global coverage`, async () => {
     const { directory, coverage } = configs[workspace];
-    for (const metric of metrics) assert.equal(coverage.thresholds[pattern]?.[metric], 90);
+    const minimum = workspace === "web" ? 98 : 90;
+    for (const metric of metrics) assert.equal(coverage.thresholds[pattern]?.[metric], minimum);
     const provider = await v8.getProvider();
     assert.equal(provider.version, require("vitest/package.json").version);
     const errors = [];
@@ -74,12 +75,12 @@ for (const [workspace, pattern, uncovered, large] of [
     const groups = provider.resolveThresholds(map);
     const owner = groups.find((group) => group.name === pattern);
     assert(owner.coverageMap.files().includes(missed), "The configured owner glob must match");
-    for (const metric of metrics) assert(map.getCoverageSummary().data[metric].pct >= 90);
+    for (const metric of metrics) assert(map.getCoverageSummary().data[metric].pct >= minimum);
     const previousExitCode = process.exitCode;
     try {
       provider.checkThresholds(groups);
       assert.equal(process.exitCode, 1, "A masked owner must fail the actual provider gate");
-      assert(errors.some((error) => error.includes(`"${pattern}" threshold (90%)`)));
+      assert(errors.some((error) => error.includes(`"${pattern}" threshold (${minimum}%)`)));
       assert(errors.every((error) => !error.includes("global threshold")));
     } finally {
       process.exitCode = previousExitCode;

@@ -120,17 +120,17 @@ export default defineConfig({
       ],
       thresholds: {
         "public/firebase-messaging-sw.js": {
-          lines: 90,
-          functions: 90,
-          branches: 90,
-          statements: 90,
+          lines: 98,
+          functions: 98,
+          branches: 98,
+          statements: 98,
         },
         // Shared hook coverage must not conceal gaps in the web application's own sources.
         "src/**/*.{ts,tsx,js,jsx}": {
-          lines: 90,
-          functions: 90,
-          branches: 90,
-          statements: 90,
+          lines: 98,
+          functions: 98,
+          branches: 98,
+          statements: 98,
         },
         "src/components/events/TableScoreEditor.tsx": {
           lines: 90,
@@ -527,10 +527,10 @@ export default defineConfig({
           branches: 90,
           statements: 90,
         },
-        lines: 90,
-        functions: 90,
-        branches: 90,
-        statements: 90,
+        lines: 98,
+        functions: 98,
+        branches: 98,
+        statements: 98,
         "src/app/mobile-number/page.tsx": {
           lines: 90,
           functions: 90,

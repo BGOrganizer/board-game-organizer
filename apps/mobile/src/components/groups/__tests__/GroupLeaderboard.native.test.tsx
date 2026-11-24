@@ -687,6 +687,7 @@ it("loads another game only at the nested selector's native edge and retains the
 });
 
 it("reverses the same sort both ways while retaining the selected game and canonical position", async () => {
+  players = { ...players, players: [player("admin", { position: 1 })] };
   await render(<Fixture />);
   await chooseGame();
   expect(await screen.findByText("@admin")).toBeVisible();
@@ -699,5 +700,5 @@ it("reverses the same sort both ways while retaining the selected game and canon
   expect(direction()).toHaveProp("accessibilityLabel", "Sort ascending");
   expect(await screen.findByText("@admin")).toBeVisible();
   expect(screen.getByLabelText("Board game: Strategy game")).toBeOnTheScreen();
-  expect(screen.getByRole("image", { name: "Position: #1" })).toBeVisible();
+  expect(await screen.findByRole("image", { name: "Position: #1" })).toBeVisible();
 });

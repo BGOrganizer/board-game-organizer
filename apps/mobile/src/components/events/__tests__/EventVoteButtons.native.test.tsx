@@ -177,3 +177,23 @@ it("shows overlapping decorative avatars and opens the corresponding read-only v
   expect(screen.queryByLabelText("Votes: Azul")).toBeNull();
   expect(screen.queryByText("@albar", hidden)).toBeNull();
 });
+
+it("cancels the real ballot dialog without changing the retained vote or revealing named votes", async () => {
+  const choose = vi.fn();
+  const user = userEvent.setup();
+  await render(
+    <EventVoteButtons label="Azul" busy={false} value="YES" voters={voters} onChange={choose} />,
+    {
+      wrapper: NativeTestProviders,
+    },
+  );
+  const trigger = screen.getByRole("button", { name: "Azul: Yes" });
+  await user.press(trigger);
+  const dialog = within(await screen.findByTestId("confirmation-dialog"));
+  await user.press(dialog.getByRole("button", { name: "Cancel" }));
+  await waitFor(() => expect(screen.queryByTestId("confirmation-dialog")).toBeNull());
+  expect(screen.getByRole("button", { name: "Azul: Yes" })).toBe(trigger);
+  expect(trigger).not.toHaveProp("accessibilityState", expect.objectContaining({ expanded: true }));
+  expect(screen.queryByText("@albar", hidden)).toBeNull();
+  expect(choose).not.toHaveBeenCalled();
+});

@@ -32,6 +32,7 @@ let candidateStatus: number;
 let nextCandidate: Promise<Response> | undefined;
 let hasMore: boolean;
 const candidateCursors: (string | null)[] = [];
+const candidateSearches: (string | null)[] = [];
 let pending: Promise<Response> | undefined;
 let client: QueryClient;
 const writes: unknown[] = [];
@@ -43,7 +44,7 @@ beforeEach(() => {
   status = candidateStatus = 200;
   hasMore = false;
   nextCandidate = undefined;
-  candidateCursors.length = 0;
+  candidateCursors.length = candidateSearches.length = 0;
   pending = undefined;
   reads.length = writes.length = 0;
   client = new QueryClient({
@@ -80,6 +81,9 @@ beforeEach(() => {
       if (url.pathname === `/api/groups/${group.id}/invitees`) {
         const cursor = url.searchParams.get("cursor");
         candidateCursors.push(cursor);
+        const search = url.searchParams.get("query");
+        candidateSearches.push(search);
+        if (search === "unknown") return Response.json({ items: [], nextCursor: null });
         if (cursor) {
           return (
             nextCandidate ??
@@ -216,5 +220,26 @@ it("keeps an authorized group separate from a denied friend inventory and retrie
   expect(await screen.findByRole("button", { name: "Select user: Known Friend" })).toBeVisible();
   expect(reads.filter((path) => path === `/api/groups/${group.id}`)).toHaveLength(1);
   expect(candidateCursors).toEqual([null, null]);
+  expect(writes).toEqual([]);
+});
+
+it("searches the current group's eligible friends only and restores its initial choices when cleared", async () => {
+  await mount();
+  const input = await screen.findByRole("searchbox", { name: "Search friends" });
+  expect(await screen.findByRole("button", { name: "Select user: Known Friend" })).toBeVisible();
+  fireEvent.change(input, { target: { value: "un" } });
+  expect(screen.getByText("Enter at least 4 characters to search")).toBeVisible();
+  expect(screen.getByRole("button", { name: "Select user: Known Friend" })).toBeVisible();
+  fireEvent.change(input, { target: { value: "unknown" } });
+  expect(await screen.findByText("No friends found")).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Select user: Known Friend" })).toBeNull();
+  expect(candidateSearches).toEqual([null, "unknown"]);
+  fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
+  expect(await screen.findByRole("button", { name: "Select user: Known Friend" })).toBeVisible();
+  expect(
+    reads.every(
+      (path) => path === `/api/groups/${group.id}` || path === `/api/groups/${group.id}/invitees`,
+    ),
+  ).toBe(true);
   expect(writes).toEqual([]);
 });

@@ -323,3 +323,32 @@ it("ignores a canceled search rejection after a new result is committed", async 
   expect(screen.queryByText("Could not search addresses")).toBeNull();
   expect(requested).toEqual(["Obsolete road", "Verified road"]);
 });
+
+it.each([false, true])(
+  "withdraws a vanished favorite from an open chooser (read failure: %s)",
+  async (failed) => {
+    const original = favorites();
+    const { props, rerender } = mount({ favorites: original });
+    const trigger = screen.getByRole("button", { name: /Favorite locations/ });
+    fireEvent.click(trigger);
+    expect(await screen.findByRole("option", { name: /Board game cafe/ })).toBeVisible();
+    rerender(
+      <SearchLocationPage
+        {...props}
+        favorites={{
+          items: [],
+          list: { ...original.list, isError: failed },
+        }}
+      />,
+    );
+    expect(screen.queryByRole("option", { name: /Board game cafe/ })).toBeNull();
+    expect(trigger).toBeDisabled();
+    if (failed) {
+      expect(screen.getAllByText("Could not load favorite locations").length).toBeGreaterThan(0);
+    } else {
+      expect(screen.queryByText("Could not load favorite locations")).toBeNull();
+    }
+    expect(props.onSelect).not.toHaveBeenCalled();
+    expect(original.list.fetchNextPage).not.toHaveBeenCalled();
+  },
+);

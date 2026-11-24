@@ -1,6 +1,8 @@
 import {
   createPlannedEventSchema,
   type EventParticipantResponse,
+  type NotificationAttentionSnapshot,
+  notificationItemId,
   type PlannedEventResponse,
   type PlannedTableResponse,
   type SaveTableResultResponse,
@@ -10,11 +12,13 @@ import {
 } from "@board-game-organizer/schemas";
 import {
   clearSessionQueryCache,
+  emptyAttentionSummary,
   eventParticipantsQuery,
   eventProposalKeys,
   eventRecordKeys,
   eventRecordsQuery,
   groupRecordKeys,
+  notificationAttentionQuery,
   useEventRecordActions,
   useTableSeats,
 } from "@board-game-organizer/shared";
@@ -682,5 +686,91 @@ it.each(["http", "transport"] as const)(
     expect(hook.result.current.actions.register.isPending).toBe(true);
     expect(calls.filter(({ method }) => method === "POST")).toHaveLength(1);
     expect(calls.some(({ url }) => url.pathname.endsWith("/seats"))).toBe(true);
+  },
+);
+
+it.each([200, 409])(
+  "acknowledges a captured table invitation only through its own response (HTTP %s)",
+  async (status) => {
+    const { client, options, wrapper } = setup();
+    const own = { ...seat("owner"), status: "PENDING" as const, kind: "INVITATION" as const };
+    const invited = {
+      ...plannedEvent,
+      adminUserId: "organizer",
+      role: "invited" as const,
+      canEdit: false,
+      canInvite: false,
+      myRegistrations: [own],
+    };
+    client.setQueryData(eventRecordKeys.detail(options, eventId), invited);
+    client.setQueryData(eventRecordKeys.table(options, eventId, tableId), {
+      ...plannedTable,
+      adminUserId: "organizer",
+      canRespond: true,
+      canRegister: false,
+      canInvite: false,
+      myRegistration: own,
+      myPosition: "SEATED",
+    });
+    const target = {
+      kind: "item" as const,
+      id: notificationItemId(tableId, "invitation", undefined, "table"),
+    };
+    const summary = { ...emptyAttentionSummary(), tables: 1, events: 1 };
+    const source: NotificationAttentionSnapshot = {
+      asOf: "2030-06-01T10:00:00.000Z",
+      summary,
+      unreadCount: 1,
+      targets: [
+        {
+          target,
+          count: 1,
+          direct: 1,
+          events: 0,
+          sections: summary.sections,
+          readEffect: {
+            unread: 1,
+            summary: { ...summary },
+            targets: [{ target, count: 1, direct: 1, events: 0 }],
+          },
+        },
+      ],
+    };
+    const attention = notificationAttentionQuery(options, [target]).queryKey;
+    const unrelated = notificationAttentionQuery({ ...options, userId: "another" }, [
+      target,
+    ]).queryKey;
+    for (const key of [attention, unrelated]) client.setQueryData(key, source);
+    const network = Promise.withResolvers<Response>();
+    const calls = transport(async (url, method) => {
+      if (method === "PATCH") return network.promise;
+      expect(url.pathname).toBe(`/api/events/${eventId}`);
+      return Response.json({ ...invited, version: 2, myRegistrations: [] });
+    });
+    const { result } = renderHook(() => useEventRecordActions(options, eventId), { wrapper });
+    act(() =>
+      result.current.respond.mutate({
+        tableId,
+        registrationId: own.id,
+        input: { action: "decline", version: 1 },
+      }),
+    );
+    await waitFor(() => expect(calls).toHaveLength(1));
+    expect(calls[0].method).toBe("PATCH");
+    expect(calls[0].body).toEqual({ action: "decline", version: 1, attentionThrough: source.asOf });
+    expect(client.getQueryData(attention)).toMatchObject({ unreadCount: 0 });
+    expect(client.getQueryData(unrelated)).toEqual(source);
+    const receipt = { ...own, version: 2, status: "DECLINED", eventVersion: 2 };
+    await act(async () =>
+      network.resolve(status === 200 ? Response.json(receipt) : Response.json({}, { status })),
+    );
+    await waitFor(() =>
+      expect(
+        status === 200 ? result.current.respond.isSuccess : result.current.respond.isError,
+      ).toBe(true),
+    );
+    expect(client.getQueryData(attention)).toMatchObject({ unreadCount: status === 200 ? 0 : 1 });
+    expect(client.getQueryData(unrelated)).toEqual(source);
+    expect(calls.filter(({ method }) => method === "PATCH")).toHaveLength(1);
   },
 );

@@ -230,3 +230,20 @@ it("hides cached proposal fields immediately after review authorization is revok
   expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
   expect(requests).toEqual([]);
 });
+
+it("keeps review in verification when both an approval response and its authoritative reread are unavailable", async () => {
+  await mount();
+  await screen.findByText(pendingGroup.name);
+  const initialReads = readPaths.filter((path) => path.endsWith("/review")).length;
+  readStatus = writeStatus = 503;
+  fireEvent.click(screen.getByRole("button", { name: "Approve" }));
+  expect(await screen.findByText("Checking saved changes")).toBeVisible();
+  expect(screen.queryByText("Review completed")).toBeNull();
+  expect(screen.getByRole("button", { name: "Approve" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Reject" })).toBeDisabled();
+  expect(readPaths.filter((path) => path.endsWith("/review")).length).toBeGreaterThan(initialReads);
+  expect(requests.map(({ body }) => body)).toEqual([
+    { decision: "approve", version: pendingGroup.version },
+  ]);
+  expect(sdk.push).toHaveBeenCalledExactlyOnceWith("/moderation");
+});

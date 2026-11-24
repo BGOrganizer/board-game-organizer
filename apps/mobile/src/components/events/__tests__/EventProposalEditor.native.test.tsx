@@ -232,12 +232,13 @@ afterEach(() => {
 function Fixture({
   kind = "date",
   eventId = event.id,
+  incompleteRoute = false,
   ...props
-}: Partial<ComponentProps<typeof EventProposalEditor>>) {
+}: Partial<ComponentProps<typeof EventProposalEditor>> & { incompleteRoute?: boolean }) {
   return (
     <QueryClientProvider client={client}>
       <NativeTestProviders>
-        <RouteParams value={{ eventId, kind, ...props }}>
+        <RouteParams value={incompleteRoute ? {} : { eventId, kind, ...props }}>
           <EventProposalScreen />
         </RouteParams>
       </NativeTestProviders>
@@ -590,4 +591,13 @@ it("reconciles same-version server capability revocation and regrant without dis
   await press("Send proposal");
   await waitFor(() => expect(writes).toHaveLength(1));
   expect(writes[0].input).toMatchObject({ eventVersion: 1, payload: proposedDate });
+});
+
+it("shows no actionable proposal UI or authenticated requests when the Expo link has no event or category", async () => {
+  await render(<Fixture incompleteRoute />);
+  expect(screen.queryByRole("button", { name: "Send proposal" })).toBeNull();
+  expect(screen.queryByTestId("game-search-input")).toBeNull();
+  expect(reads).toEqual([]);
+  expect(writes).toEqual([]);
+  expect(boundary.picker.open).not.toHaveBeenCalled();
 });

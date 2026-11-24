@@ -1,3 +1,4 @@
+import { eventRecordKeys } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -23,15 +24,13 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 afterEach(() => vi.unstubAllGlobals());
-async function mount() {
-  renderWithI18n(
-    <QueryClientProvider
-      client={
-        new QueryClient({
-          defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-        })
-      }
-    >
+async function mount(
+  client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  }),
+) {
+  return renderWithI18n(
+    <QueryClientProvider client={client}>
       {await EventInvitePage({ params: Promise.resolve({ eventId, tableId }) })}
     </QueryClientProvider>,
   );
@@ -436,4 +435,53 @@ it("dismisses a guest draft without adding anyone and submits a later guest with
   );
   await waitFor(() => expect(m.back).toHaveBeenCalledOnce());
   expect(screen.queryByRole("button", { name: "Select user: Guest Ada" })).toBeNull();
+});
+
+it("removes cached invitations and guest controls when the event is no longer readable", async () => {
+  const reads: string[] = [];
+  const writes: string[] = [];
+  let allowed = true;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string, init?: RequestInit) => {
+      const url = new URL(input);
+      if (init?.method && init.method !== "GET") writes.push(init.method);
+      reads.push(url.pathname);
+      if (url.pathname === `/api/events/${eventId}`)
+        return allowed
+          ? Response.json({ ...plannedEvent, groupId: optionId, groupType: "PRIVATE" })
+          : Response.json({ error: "Event not available" }, { status: 403 });
+      if (url.pathname.endsWith("/invitations"))
+        return Response.json({
+          items: [
+            { id: "chosen", name: "Previously visible", username: "chosen", avatarUrl: null },
+          ],
+          nextCursor: null,
+        });
+      throw new Error(`Unexpected invite request ${url.pathname}`);
+    }),
+  );
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  try {
+    await mount(client);
+    expect(await screen.findByRole("button", { name: "Select user: @chosen" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Add a guest" })).toBeVisible();
+    const candidateReads = reads.filter((path) => path.endsWith("/invitations")).length;
+    allowed = false;
+    await act(() =>
+      client.invalidateQueries({
+        queryKey: eventRecordKeys.detail({ apiUrl: "https://api.test", userId: "owner" }, eventId),
+        exact: true,
+      }),
+    );
+    expect(
+      await screen.findByText("Invitations are unavailable. Refresh the event."),
+    ).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Select user: @chosen" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Add a guest" })).toBeNull();
+    expect(reads.filter((path) => path.endsWith("/invitations"))).toHaveLength(candidateReads);
+    expect(writes).toEqual([]);
+  } finally {
+    client.clear();
+  }
 });
