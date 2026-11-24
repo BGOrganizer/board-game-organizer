@@ -86,3 +86,11 @@ device, emulator or E2E journey. Test matrices finish their other suites after a
 Verify live GitHub required-check settings against the current workflow contexts and app identity.
 A local YAML edit does not migrate branch protection or activate default-branch controllers;
 settings changes require explicit scope and preservation of reviews and unrelated protections.
+
+## Parallel Netlify deployment
+
+`Deploy Netlify (Development)` and `Deploy Netlify (Production)` run alongside the existing
+Vercel jobs when enabled. The Netlify action verifies the GitHub source and team-owned project
+IDs, deploys API, Web and Site, and records their links in the job summary. It also deploys the
+MCP gateway on Main and for the selected Development PR. Follow the
+[Netlify setup and isolation rules](../docs/organizations-events-operations.md#parallel-netlify-deployment).

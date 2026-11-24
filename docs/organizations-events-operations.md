@@ -472,3 +472,53 @@ the publication first, close an unmerged PR as appropriate, and allow at least 3
 outstanding request lifetimes before any alias reassignment. Current cleanup does not delete these
 aliases; Vercel retention protects currently aliased deployments. Merged PR publications remain
 eligible so links can activate when the Production gateway is first deployed after merge.
+
+## Parallel Netlify deployment
+
+Netlify runs in separate PR and Main jobs alongside Vercel. The PR job is limited to trusted,
+current PRs after quality and build checks. Main deploys from the verified merge or the
+associated release commit when a version was prepared. Neither lane consumes Vercel deployment
+outputs. APK, OTA, GitHub release publication and the existing PR readiness gate retain their
+own dependencies.
+
+The `board-game-organizer` Netlify team owns eight unlinked projects, one each for API, Web,
+Site and MCP in Development and Production. Provision them as `bgo-<api|web|site|mcp>-<development|production>`.
+For API and Web, use Infisical Netlify Secret Sync with the matching source, site and context.
+Specify the site so the sync applies only to that project. The context names below match the
+Netlify CLI build contexts. The first Development deploy must also pass runtime attestation.
+
+| Infisical source | Netlify destination | Context |
+| --- | --- | --- |
+| `staging /api` | `bgo-api-development` | `DeployPreview` |
+| `staging /web` | `bgo-web-development` | `DeployPreview` |
+| `prod /api` | `bgo-api-production` | `Production` |
+| `prod /web` | `bgo-web-production` | `Production` |
+
+Use the usual matching Clerk values and leave Vercel-specific bypass values on Vercel. Netlify's
+CLI builds API, Web and Site with the existing Bun workspace commands and the Next.js adapter.
+Sensitive runtime values are configured on their respective project. Site and gateway do not
+need API or database credentials. In each GitHub environment, set:
+
+- `NETLIFY_AUTH_TOKEN` through Infisical's `/github` sync.
+- `BGO_NETLIFY_ENABLED=true` once the matching Netlify syncs are in place.
+- In Development, `BGO_NETLIFY_MCP_GATEWAY_PR_NUMBER` selects the PR authorized to publish the
+  stable Netlify gateway. Vercel uses its own PR selector.
+
+PR drafts use one alias per PR, run and attempt. The Web build points to that API and the Site
+points to that Web deployment. The API allows that exact Web origin in addition to the existing
+environment configuration. The Main Site sign-in and Production widget links use the canonical
+Web domain for Clerk Production. Browser smoke at `netlify.app` is unauthenticated. Authenticated
+Production acceptance requires a verified BGO subdomain configured for the matching Clerk instance.
+The separate MCP URL is `https://bgo-mcp-<development|production>.netlify.app/mcp`; register that
+exact audience in the matching Clerk instance before using it. The endpoint exposes only MCP
+transport and OAuth discovery and forwards to its own Netlify API without provider bypass.
+
+The Netlify projects use provider hostnames until an operator changes DNS. The existing
+production domains, Clerk webhook URLs and Inngest registration continue to route through
+Vercel. No duplicate webhook or worker registration is created. Check custom-domain auth,
+webhooks, job delivery, and Web Push before a cutover.
+
+The API Vitest suite with a Testcontainers MongoDB replica set runs independently of either host.
+Netlify drafts are ordinary Development deployments with an authenticated configuration check
+and read-only smoke. The isolated E2E fixture and cleanup lane uses Vercel under its existing
+enablement controls.

@@ -163,9 +163,9 @@ or permission. Native cache retention, build requirements and implementation rul
 - [Groups, Events and Tables](docs/groups-events-refactor.md) | current behavior and permissions.
 - [Profiles and BGG collections](docs/profiles.md) and [Community](docs/community.md).
 - [Development reference](docs/development.md) | cache, responsiveness, BGG enrichment and delivery.
-- [Public Site](apps/site/README.md) | local preview, localization and Vercel delivery.
+- [Public Site](apps/site/README.md) | local preview, localization and deployment.
 - [MCP Apps](docs/mcp-apps.md) | OAuth, API tools and HeroUI widgets for compatible chatbots.
-- [Operations](docs/organizations-events-operations.md) | environment isolation, providers and deployment gates.
+- [Operations](docs/organizations-events-operations.md) | environment isolation, deployment gates and [parallel Netlify delivery](docs/organizations-events-operations.md#parallel-netlify-deployment).
 - [Verification requirements](docs/implementation-progress.md) | required checks and evidence limits.
 - [Mascot and app artwork](docs/branding.md) | source assets and platform exports.
 

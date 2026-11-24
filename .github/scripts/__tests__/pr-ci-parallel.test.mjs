@@ -366,12 +366,13 @@ test("watchdog waits for all test suites before cancelling shared failures; inde
 
 test("PR deployment, auth, build and publication secrets use the development GitHub environment", () => {
   const consumers = Object.entries(jobs).filter(([, job]) =>
-    /secrets\.(?:CLERK_SECRET_KEY|EXPO_TOKEN|VERCEL_TOKEN|RELEASE_PAT|TELEGRAM_BOT_TOKEN)\s*}}/.test(
+    /secrets\.(?:CLERK_SECRET_KEY|EXPO_TOKEN|VERCEL_TOKEN|NETLIFY_AUTH_TOKEN|RELEASE_PAT|TELEGRAM_BOT_TOKEN)\s*}}/.test(
       JSON.stringify(job),
     ),
   );
-  assert.equal(consumers.length, 14);
+  assert.equal(consumers.length, 15);
   assert(consumers.some(([name]) => name === "deploy-development-mcp-gateway"));
+  assert(consumers.some(([name]) => name === "deploy-netlify-development"));
   for (const [name, job] of consumers) assert.equal(job.environment, "development", name);
 });
 

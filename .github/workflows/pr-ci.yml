@@ -1218,6 +1218,35 @@ jobs:
           vercel-project-id: ${{ secrets.VERCEL_SITE_PROJECT_ID }}
           extra-env: NEXT_PUBLIC_BGO_WEB_ORIGIN=${{ needs.deploy-development-web.outputs.url }}
 
+  deploy-netlify-development:
+    name: Deploy Netlify (Development)
+    needs: [context, commitlint, lint, typecheck, unit-tests, integration-tests, build-api, build-web, build-site]
+    if: needs.context.outputs.mode == 'pr' && needs.context.outputs.trusted == 'true'
+    runs-on: ubuntu-latest
+    environment: development
+    timeout-minutes: 45
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout verified PR merge
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Deploy to Netlify
+        if: vars.BGO_NETLIFY_ENABLED == 'true'
+        uses: ./.github/actions/netlify-deploy
+        with:
+          target: development
+          source-sha: ${{ github.sha }}
+          netlify-token: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          clerk-secret-key: ${{ secrets.CLERK_SECRET_KEY }}
+          clerk-publishable-key: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          gateway-pr: ${{ vars.BGO_NETLIFY_MCP_GATEWAY_PR_NUMBER }}
+
   build-mobile-development:
     name: Build APK (Development)
     environment: development

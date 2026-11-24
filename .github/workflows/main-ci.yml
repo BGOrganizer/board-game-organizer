@@ -377,6 +377,34 @@ jobs:
     permissions:
       contents: write
 
+  deploy-netlify-production:
+    name: Deploy Netlify (Production)
+    needs: [release, build-site]
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 45
+    concurrency:
+      group: production-netlify
+      cancel-in-progress: false
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout verified Main source or prepared release
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release.outputs.sha || github.sha }}
+          fetch-depth: 0
+      - name: Deploy to Netlify
+        if: vars.BGO_NETLIFY_ENABLED == 'true'
+        uses: ./.github/actions/netlify-deploy
+        with:
+          target: production
+          source-sha: ${{ github.sha }}
+          release-sha: ${{ needs.release.outputs.published == 'true' && needs.release.outputs.sha || '' }}
+          netlify-token: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          clerk-secret-key: ${{ secrets.CLERK_SECRET_KEY }}
+          clerk-publishable-key: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+
   build-apk:
     name: Build APK (Production)
     needs: [release]

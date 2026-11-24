@@ -352,6 +352,10 @@ Verify signatures with:
 git log --show-signature -1
 ```
 
+Netlify and Vercel deployment jobs remain independent. Use the matching GitHub, Infisical and
+provider environments and attest the deployed database before directing traffic. See
+[parallel Netlify deployment](docs/organizations-events-operations.md#parallel-netlify-deployment).
+
 Every job using local GitHub actions must checkout first. CI/workflow files and
 [operational gates](docs/organizations-events-operations.md) govern actual routing, required checks,
 APK provenance, isolated fixture cleanup and publication. Never bypass protection, reuse unverified

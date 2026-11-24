@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { corsJson, corsOptions, getCorsHeaders } from "../cors";
 
 describe("CORS helpers", () => {
@@ -18,6 +18,22 @@ describe("CORS helpers", () => {
     });
     expect(getCorsHeaders(req)["Access-Control-Allow-Origin"]).toBe("https://bgo.example.com");
     delete process.env.ALLOWED_ORIGINS;
+  });
+
+  it("allows only the configured Netlify web origin for credentialed requests", () => {
+    const allowed = "https://pr-34-1234-2--bgo-web-development.netlify.app";
+    vi.stubEnv("BGO_NETLIFY_WEB_ORIGIN", allowed);
+    try {
+      for (const [origin, expected] of [
+        [allowed, allowed],
+        ["https://unrelated.netlify.app", "*"],
+      ]) {
+        const request = new Request("http://api.local/api/x", { headers: { origin } });
+        expect(getCorsHeaders(request)["Access-Control-Allow-Origin"]).toBe(expected);
+      }
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("OPTIONS preflight echoes the request origin (regression: used '*' with no origin)", async () => {
