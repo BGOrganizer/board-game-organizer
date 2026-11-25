@@ -4,6 +4,7 @@ import { useThemeColor } from "heroui-native/hooks";
 import { Menu } from "heroui-native/menu";
 import { Typography } from "heroui-native/text";
 import { ArrowDown, ArrowUp, CalendarDays, ListOrdered } from "lucide-react-native";
+import { memo } from "react";
 import { View } from "react-native";
 import { useT } from "@/lib/i18n";
 
@@ -16,7 +17,7 @@ const face = {
   gap: 4,
 } as const;
 
-export function ListOrdering({
+export const ListOrdering = memo(function ListOrdering({
   order: { sort, direction },
   onChange,
 }: {
@@ -101,4 +102,4 @@ export function ListOrdering({
       </View>
     </View>
   );
-}
+});

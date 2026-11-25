@@ -15,10 +15,12 @@ export function EventRolePopover({
   roles,
   action,
   pending = false,
+  description,
 }: {
   roles: readonly RecordUserRole[];
   action?: PendingAction | null;
   pending?: boolean;
+  description?: string;
 }) {
   const t = useT();
   const { width } = useWindowDimensions();
@@ -39,6 +41,9 @@ export function EventRolePopover({
       width={Math.min(320, width - 32)}
     >
       <View style={{ gap: 8 }}>
+        {description && roles.length > 0 ? (
+          <Typography className="text-foreground">{description}</Typography>
+        ) : null}
         {roles.map((role) => {
           const item = RECORD_USER_ROLES[role],
             Icon = recordUserRoleIcons[item.icon];

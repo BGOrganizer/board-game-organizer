@@ -96,15 +96,20 @@ it("hides Planning game proposals and discloses only the frozen game and tied wi
     />,
   );
   fireEvent.click(screen.getByRole("button", { name: "Terminated" }));
-  const winners = await screen.findByText("@owner, @guest");
+  const winners = await screen.findByText("Winners");
   expect(winners.querySelector("svg.lucide-trophy")?.getAttribute("class")).toContain(
     "text-warning-soft-foreground",
   );
+  expect(
+    within(await screen.findByRole("dialog"))
+      .getAllByRole("listitem")
+      .map((row) => row.textContent),
+  ).toEqual(["@owner", "@guest"]);
   expect(screen.queryByText("Minimum players")).toBeNull();
   await closePopover();
   q.rerender(
     <EventTableCard
-      table={{ ...plannedTable, eventStatus: "TERMINATED", confirmed, gamesDetail: [] }}
+      table={{ ...plannedTable, eventStatus: "CONFIRMED", confirmed, gamesDetail: [] }}
     />,
   );
   fireEvent.click(screen.getByRole("button", { name: "Board games: Table #1" }));

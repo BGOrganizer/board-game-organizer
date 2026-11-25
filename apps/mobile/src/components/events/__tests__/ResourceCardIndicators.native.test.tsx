@@ -548,7 +548,7 @@ it.each([null, ""])("keeps a nameless demonstrator explicit (%j)", async (demons
 });
 
 it.each(["event", "table"] as const)(
-  "renders terminated %s winners inline, normalizes handles, and omits live counts",
+  "renders terminated %s winners with normalized handles and without live counts",
   async (kind) => {
     const result = summary({
       confirmed: true,
@@ -556,6 +556,7 @@ it.each(["event", "table"] as const)(
         { userId: "a", username: "@alice" },
         { userId: "b", username: "bob" },
         { userId: "c", username: null },
+        ...(kind === "table" ? [{ userId: "guest", username: null, guestName: "Guest" }] : []),
       ],
     });
     await render(
@@ -585,20 +586,57 @@ it.each(["event", "table"] as const)(
       </Fixture>,
     );
     await open("Terminated");
-    const winners = screen.getByText("@alice, @bob, Username unavailable");
-    expect(winners).toBeVisible();
     expect(screen.queryByText("Never confirmed")).toBeNull();
     expect(screen.queryByText("@excluded")).toBeNull();
     expect(screen.queryByText("Accepted players")).toBeNull();
     if (kind === "event") {
+      const winners = screen.getByText("@alice, @bob, Username unavailable");
+      expect(winners).toBeVisible();
       const name = screen.getByText("Table #1");
       expect(name).toBeVisible();
       expect(winners.parent?.parent).toBe(name.parent);
       expect(name.parent).toHaveStyle({ flexDirection: "row", flexWrap: "wrap" });
-    } else expect(screen.queryByText("Table #1")).toBeNull();
-    const glyph = nativeGlyphs(winners.parent ?? undefined)[0];
-    expect(glyph).toHaveStyle({ flexShrink: 0 });
-    nativeStroke(glyph);
+      const glyph = nativeGlyphs(winners.parent ?? undefined)[0];
+      expect(glyph).toHaveStyle({ flexShrink: 0 });
+      nativeStroke(glyph);
+    } else {
+      expect(screen.queryByText("Table #1")).toBeNull();
+      expect(screen.getByText("The game has ended.")).toBeVisible();
+      const heading = screen.getByText("Winners");
+      const glyph = nativeGlyphs(heading.parent ?? undefined)[0];
+      expect(glyph).toHaveStyle({ flexShrink: 0 });
+      nativeStroke(glyph);
+      const rows = ["@alice", "@bob", "Username unavailable", "Guest"].map((label) =>
+        screen.getByText(label),
+      );
+      for (const row of rows) {
+        expect(row).toBeVisible();
+        expect(row.parent).toBe(heading.parent?.parent);
+      }
+    }
+  },
+);
+
+it.each([true, false])(
+  "renders the localized finished Table result with winner=%s",
+  async (won) => {
+    await render(
+      <Fixture locale="it">
+        <EventTableCardIndicators
+          table={table({
+            eventStatus: "TERMINATED",
+            confirmed: frozen,
+            cardSummary: summary({ winners: won ? [{ userId: "a", username: "alice" }] : [] }),
+          })}
+        />
+      </Fixture>,
+    );
+    for (const name of [/^Date e Orari:/, /^Luoghi:/, /^Giochi da tavolo:/])
+      expect(screen.queryByRole("button", { name })).toBeNull();
+    await open("Terminata");
+    expect(screen.getByText("La partita è terminata.")).toBeVisible();
+    expect(screen.getByText(won ? "Vincitore" : "Nessun vincitore.")).toBeVisible();
+    expect(screen.queryByText("@alice") !== null).toBe(won);
   },
 );
 
@@ -841,12 +879,14 @@ it("reconciles table authority across account contexts without granting a former
   );
   await open("Roles and participation");
   expect(screen.getByText("Demonstrator")).toBeVisible();
+  expect(screen.getByText("Your roles at this table:")).toBeVisible();
   await view.rerender(
     <Fixture userId="other-account">
       <EventTableCardIndicators table={record} />
     </Fixture>,
   );
   expect(screen.queryByText("Demonstrator")).toBeNull();
+  expect(screen.queryByText("Your roles at this table:")).toBeNull();
   expect(screen.getByText("You are not registered.")).toBeVisible();
 });
 

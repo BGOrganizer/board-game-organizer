@@ -4,8 +4,9 @@ import { type RecordListOrder, recordListSortFields } from "@board-game-organize
 import { Button, Dropdown, Label } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowDown, ArrowUp, CalendarDays, ListOrdered } from "lucide-react";
+import { memo } from "react";
 
-export function ListOrdering({
+export const ListOrdering = memo(function ListOrdering({
   order: { sort, direction },
   onChange,
 }: {
@@ -76,4 +77,4 @@ export function ListOrdering({
       </div>
     </div>
   );
-}
+});

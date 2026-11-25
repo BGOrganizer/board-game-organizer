@@ -147,7 +147,7 @@ it.each([1, 2])(
     for (const row of extra) expect(screen.queryByText(row.name)).toBeNull();
   },
 );
-it("retains selected game, joint winners and disabled Rating in their informational controls", async () => {
+it("retains the selected game title, joint winners and disabled Rating on a finished Table", async () => {
   renderWithI18n(
     <EventTableCard
       context="event"
@@ -182,14 +182,16 @@ it("retains selected game, joint winners and disabled Rating in their informatio
     />,
   );
   expect(screen.getByRole("button", { name: "Roles and participation" })).not.toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Board games: Selected game" }));
-  expect(
-    await within(await screen.findByRole("dialog")).findByText("Selected game"),
-  ).not.toBeNull();
+  expect(screen.getByRole("link", { name: "Open table: Selected game" })).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Board games: Selected game" })).toBeNull();
   expect(screen.queryByText("Chess")).toBeNull();
-  await closePopover();
   fireEvent.click(screen.getByRole("button", { name: "Terminated" }));
-  const winners = await screen.findByText("@owner, @guest");
+  const winners = await screen.findByText("Winners");
+  expect(
+    within(await screen.findByRole("dialog"))
+      .getAllByRole("listitem")
+      .map((row) => row.textContent),
+  ).toEqual(["@owner", "@guest"]);
   expect(winners.querySelector("svg.lucide-trophy")?.getAttribute("class")).toContain(
     "text-warning-soft-foreground",
   );

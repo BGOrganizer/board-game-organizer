@@ -38,7 +38,7 @@ function run(overrides: Record<string, unknown> = {}) {
   if (!context.output.status) throw new Error("Missing built selectors");
   return context.output.status;
 }
-it.each(["en", "it"])("builds exact %s source selectors and comma-separated winners", (locale) => {
+it.each(["en", "it"])("builds exact %s source selectors and separate winner rows", (locale) => {
   const output = run({ STATUS_LOCALE: locale });
   expect(output.scheduled).toBe(locale === "it" ? "^Schedulati$" : "^Scheduled$");
   expect(output.terminated).toBe(locale === "it" ? "^Terminati$" : "^Terminated events$");
@@ -51,7 +51,8 @@ it.each(["en", "it"])("builds exact %s source selectors and comma-separated winn
   expect(output.historyCard).toBe(
     locale === "it" ? "^Apri tavolo: fixture table$" : "^Open table: fixture table$",
   );
-  expect(output.winners).toBe("^@winner\\.one, @winner-two$");
+  expect(output.winnerRows).toEqual(["^@winner\\.one$", "^@winner-two$"]);
+  expect(output.winnerHeading).toBe(locale === "it" ? "^Vincitori$" : "^Winners$");
   expect(output.historyTableName).toBe("^fixture table$");
   expect(output.emptyQuery).toBe("known-unmatched");
 });

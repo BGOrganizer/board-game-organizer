@@ -7200,6 +7200,10 @@ msgstr "The table was excluded from confirmation."
 msgid "The invitation was not accepted before confirmation."
 msgstr "The invitation was not accepted before confirmation."
 
+#: apps/web/src/components/events/EventTableCardIndicatorView.tsx
+msgid "Your roles at this table:"
+msgstr "Your roles at this table:"
+
 #: apps/web/src/lib/eventCardMessages.ts
 msgid "Your votes do not agree with the chosen date and time."
 msgstr "Your votes do not agree with the chosen date and time."
@@ -7840,6 +7844,10 @@ msgstr "For a category with several options, choose at least one Yes or If neede
 
 msgid "Review the event and table settings, then vote in the sections shown."
 msgstr "Review the event and table settings, then vote in the sections shown."
+
+#: apps/web/src/components/events/EventTableCardIndicatorView.tsx
+msgid "The game has ended."
+msgstr "The game has ended."
 
 #: apps/mobile/src/components/events/EventList.tsx
 #: apps/mobile/src/components/groups/GroupList.tsx

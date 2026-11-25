@@ -150,7 +150,7 @@ it.each(["dates", "locations"] as const)(
   },
 );
 it.each(["CONFIRMED", "TERMINATED"] as const)(
-  "shows only actual Table start, chosen venue and chosen game for %s",
+  "makes the chosen date, venue and game accessible only while the Table is confirmed (%s)",
   async (eventStatus) => {
     const start = "2030-06-04T22:30:00Z";
     renderWithI18n(
@@ -167,6 +167,13 @@ it.each(["CONFIRMED", "TERMINATED"] as const)(
         }}
       />,
     );
+    if (eventStatus === "TERMINATED") {
+      expect(
+        screen.queryAllByRole("button", { name: /^Dates and times:|^Locations:|^Board games:/ }),
+      ).toHaveLength(0);
+      expect(screen.getByRole("button", { name: "Terminated" })).toBeVisible();
+      return;
+    }
     fireEvent.click(screen.getByRole("button", { name: "Dates and times: Selected game" }));
     let dialog = await screen.findByRole("dialog");
     expect(dialog.querySelectorAll("li")).toHaveLength(1);

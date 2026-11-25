@@ -197,6 +197,8 @@ Report unavailable kernel limits separately from the application limits actually
 - Use `ListOrdering` for the name/date selector and direction action in Group and Event lists.
   Apply role and ordering parameters before source pagination, and scope the cache key to both.
   See the [list contract](docs/groups-events-tables.md#results-lists-and-transport).
+- Reuse Table card indicators in lists and details. Keep schedule, venue and game popovers on
+  currently confirmed Tables; the finished Table flag presents winners one per row.
 - For every variable-length list, default to paginated data and virtualized rendering: use
   `FlatList` or `SectionList` on mobile and pagination (plus windowing when large) on web. Load
   further pages as the user scrolls; do not render an entire address book, search result set, or

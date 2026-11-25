@@ -108,5 +108,17 @@ output.status = {
   minimum: literal(it ? "Giocatori minimi" : "Minimum players"),
   maximum: literal(it ? "Giocatori massimi" : "Maximum players"),
   waiting: literal(it ? "Lista d'attesa" : "Waiting list"),
-  winners: literal(input.history.winnerHandles.join(", ")),
+  tableRoles: literal(it ? "Ruoli e partecipazione" : "Roles and participation"),
+  rolesIntro: literal(it ? "In questo tavolo, hai i seguenti ruoli:" : "Your roles at this table:"),
+  finished: literal(it ? "La partita è terminata." : "The game has ended."),
+  winnerHeading: literal(
+    input.history.winnerHandles.length === 1
+      ? it
+        ? "Vincitore"
+        : "Winner"
+      : it
+        ? "Vincitori"
+        : "Winners",
+  ),
+  winnerRows: input.history.winnerHandles.map(literal),
 };

@@ -325,7 +325,8 @@ Event, Table and result only. See [Community visibility](community.md) and
   management, accepted participation, pending participation and demonstrator duty are independent
   indicators. One neutral IdCard role popover lists every applicable current role, accepted consent,
   pending invitation, waiting position and demonstrator duty, with the corresponding role icon before
-  each description; Event roles may span different Tables. The neutral trigger keeps its existing geometry.
+  each description; Event roles may span different Tables. The Table popover introduces the roles held
+  at that Table before listing them. The neutral trigger keeps its existing geometry.
   Table seat/queue positions remain mutually exclusive. Current managementRole distinguishes admin and
   moderator without granting capabilities or seats. Unknown cached roles/positions are never invented.
   Planning status uses warning and authoritative readiness: minimum players, pending reservations and
@@ -338,11 +339,13 @@ Event, Table and result only. See [Community visibility](community.md) and
   genuine nonparticipants use muted. Terminated status retains Flag with accent and winner-only Table
   content. Each included Table in a terminated Event's status popover shows its name and winners on
   the same row, with a warning-colored Trophy and comma-separated real @usernames. A terminated Table's
-  status popover uses the same Trophy and comma-separated winners, without placement rows. Missing
+  status popover shows a short completion description, a bold Winner or Winners heading with a
+  warning Trophy, and each winner on a separate row. Missing
   mirror identities are disclosed, never fabricated from display names. The Results tab keeps its
   position badge, ordering and scores without repeating the position below the username.
-  Location/date controls and Table games appear only for confirmed/terminated included outcomes, retaining
-  their definitive choices after completion. Planning proposals remain in the detail voting sections.
+  Event cards retain location and date controls for confirmed or terminated outcomes. On Table cards,
+  the schedule, venue and game popovers appear while confirmed. Planning proposals remain in the
+  detail voting sections.
   Games reuse existing approved metadata, never pending proposals, mutations or per-card detail requests.
   Summary data is projected by the authorized API for lists and details; restricted personal/shared-result
   responses retain only their permitted Tables. Popovers retain bounded presentation and platform-owned

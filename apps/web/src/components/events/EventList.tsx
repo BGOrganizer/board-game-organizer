@@ -165,8 +165,12 @@ export function EventList({
             <EventCard
               event={event}
               context={groupId ? "group" : "personal"}
-              checking={list.isFetching}
-              onVerify={() => void list.refetch({ cancelRefetch: false })}
+              checking={event.optimistic?.phase === "verifying" && list.isFetching}
+              onVerify={
+                event.optimistic?.phase === "verifying"
+                  ? () => void list.refetch({ cancelRefetch: false })
+                  : undefined
+              }
             />
           )}
         />

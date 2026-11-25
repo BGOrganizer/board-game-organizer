@@ -136,8 +136,12 @@ export function GroupList({
           <GroupCard
             key={group.id}
             group={group}
-            checking={list.isFetching}
-            onVerify={() => void list.refetch({ cancelRefetch: false })}
+            checking={group.optimistic?.phase === "verifying" && list.isFetching}
+            onVerify={
+              group.optimistic?.phase === "verifying"
+                ? () => void list.refetch({ cancelRefetch: false })
+                : undefined
+            }
           />
         ))}
         {searchable &&

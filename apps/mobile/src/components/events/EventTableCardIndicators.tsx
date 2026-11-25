@@ -1,6 +1,7 @@
-import type { PlannedTableResponse } from "@board-game-organizer/schemas";
+import type { PlannedTableResponse, TableCardSummary } from "@board-game-organizer/schemas";
 import {
   CARD_STATE_TONES,
+  formatUsername,
   RECORD_USER_ROLES,
   tableCardGames,
   tableCardRoles,
@@ -18,6 +19,7 @@ import {
   Flag,
   ListOrdered,
   Mail,
+  Trophy,
   UserRoundCheck,
   UsersRound,
 } from "lucide-react-native";
@@ -33,6 +35,38 @@ import { EventRolePopover } from "./EventRolePopover";
 import { EventTableGamesPopover } from "./EventTableGamesPopover";
 import { EventTableRatingInfo } from "./EventTableRatingInfo";
 import { EventTableSchedulePopover } from "./EventTableSchedulePopover";
+
+function FinishedTableStatus({ winners }: { winners?: TableCardSummary["winners"] }) {
+  const t = useT();
+  const warning = useThemeColor("warning-soft-foreground");
+  return (
+    <>
+      <Typography className="text-foreground">{t("The game has ended.")}</Typography>
+      {winners === undefined ? (
+        <Skeleton
+          accessibilityLabel={t("Loading…")}
+          style={{ width: 192, height: 20, borderRadius: 4 }}
+        />
+      ) : winners.length > 0 ? (
+        <View style={{ gap: 4 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Trophy size={16} color={warning} accessible={false} style={{ flexShrink: 0 }} />
+            <Typography className="font-bold text-foreground">
+              {winners.length === 1 ? t("Winner") : t("Winners")}
+            </Typography>
+          </View>
+          {winners.map((winner) => (
+            <Typography key={winner.userId} className="text-foreground">
+              {winner.guestName ?? formatUsername(winner.username, t("Username unavailable"))}
+            </Typography>
+          ))}
+        </View>
+      ) : (
+        <Typography className="text-foreground">{t("No winners.")}</Typography>
+      )}
+    </>
+  );
+}
 
 export const EventTableCardIndicators = memo(function EventTableCardIndicators({
   table,
@@ -61,7 +95,11 @@ export const EventTableCardIndicators = memo(function EventTableCardIndicators({
   ];
   return (
     <>
-      <EventRolePopover roles={roles} action={tablePendingAction(table)} />
+      <EventRolePopover
+        roles={roles}
+        action={tablePendingAction(table)}
+        description={t("Your roles at this table:")}
+      />
       <EventTableRatingInfo enabled={table.rankingEnabled} />
       <HelpPopover
         size="compact"
@@ -76,14 +114,7 @@ export const EventTableCardIndicators = memo(function EventTableCardIndicators({
       >
         <View style={{ gap: 8, flexShrink: 1 }}>
           {state === "TERMINATED" ? (
-            summary ? (
-              <EventCardTableSummaries tables={[summary]} mode="results" showNames={false} />
-            ) : (
-              <Skeleton
-                accessibilityLabel={t("Loading…")}
-                style={{ width: 192, height: 20, borderRadius: 4 }}
-              />
-            )
+            <FinishedTableStatus winners={summary?.winners} />
           ) : (
             <>
               {state === "PLANNING" ? (
@@ -171,7 +202,7 @@ export const EventTableCardIndicators = memo(function EventTableCardIndicators({
           )}
         </View>
       </HelpPopover>
-      {table.eventStatus !== "PLANNING" && table.confirmed ? (
+      {table.eventStatus === "CONFIRMED" && table.confirmed ? (
         <>
           <EventTableSchedulePopover table={table} kind="locations" />
           <EventTableSchedulePopover table={table} kind="dates" />

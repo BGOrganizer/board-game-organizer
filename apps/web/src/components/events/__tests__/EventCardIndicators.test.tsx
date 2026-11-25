@@ -402,7 +402,7 @@ it.each(["player", "duty", "observer"] as const)(
     expect(screen.getByText("games")).not.toBeNull();
   },
 );
-it.each([true, false])("keeps only winners in a terminated Table status, loaded=%s", (loaded) => {
+it.each([true, false])("shows the finished Table description, loaded=%s", (loaded) => {
   renderWithI18n(
     <EventTableCardIndicators
       table={{
@@ -414,8 +414,57 @@ it.each([true, false])("keeps only winners in a terminated Table status, loaded=
       }}
     />,
   );
+  expect(screen.getByText("The game has ended.")).toBeVisible();
   expect(loaded ? screen.getByText("@winner") : screen.getByLabelText("Loading…")).not.toBeNull();
+  expect(screen.queryByText("Winner") !== null).toBe(loaded);
   expect(screen.queryByText("Minimum players")).toBeNull();
+  for (const control of ["table-dates", "table-locations", "games"])
+    expect(screen.queryByText(control)).toBeNull();
+});
+
+it("lists tied winners on separate rows beneath a warning trophy in a finished Table popover", () => {
+  renderWithI18n(
+    <EventTableCardIndicators
+      table={{
+        ...finalTable,
+        eventStatus: "TERMINATED",
+        canManage: true,
+        managementRole: "moderator",
+        cardSummary: tableSummary({
+          winners: [
+            { userId: "one", username: "@alice" },
+            { userId: "two", username: null },
+            { userId: "guest", username: null, guestName: "Guest" },
+          ],
+        }),
+      }}
+    />,
+  );
+  const heading = screen.getByText("Winners");
+  expect(heading).toHaveClass("font-bold");
+  expect(heading.querySelector("svg.lucide-trophy")).toHaveClass("text-warning-soft-foreground");
+  expect(Array.from(heading.nextElementSibling?.children ?? [], (row) => row.textContent)).toEqual([
+    "@alice",
+    "Username unavailable",
+    "Guest",
+  ]);
+  expect(screen.getByText("Your roles at this table:").nextElementSibling).toHaveTextContent(
+    "Moderator",
+  );
+});
+
+it("distinguishes a finished Table without winners from one excluded at confirmation", () => {
+  const record = {
+    ...finalTable,
+    eventStatus: "TERMINATED" as const,
+    cardSummary: tableSummary(),
+  };
+  const view = renderWithI18n(<EventTableCardIndicators table={record} />);
+  expect(screen.getByText("No winners.")).toBeVisible();
+  expect(screen.queryByText("Winners")).toBeNull();
+  view.rerender(<EventTableCardIndicators table={{ ...record, confirmed: undefined }} />);
+  expect(screen.getByRole("button", { name: "Table excluded" })).toBeVisible();
+  expect(screen.queryByText("The game has ended.")).toBeNull();
 });
 it.each([true, false])(
   "keeps tied winners comma-separated beside a warning trophy and optional Table name (%s)",

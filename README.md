@@ -35,6 +35,7 @@ the Web app and Android releases.
 Main navigation is **History / Events / Groups / Community / Contacts**:
 
 - **History:** completed, actually confirmed tables where you played, demonstrated, or currently have management authority.
+  The flag on each card opens the winners, with one player per row.
 - **Events:** Scheduled contains your active registrations, invitations, demonstrations and managed Events.
   Available contains other enrollable planning Events: private Events require Group membership; approved public Events do not.
   Terminated contains completed Events where you played, demonstrated, or still have management authority.
