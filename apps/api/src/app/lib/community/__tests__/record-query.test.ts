@@ -63,6 +63,106 @@ describe("unified request boundaries", () => {
     expect(recordQuery(req(), eventSeatsQuery).pending).toBe(false);
     expect(recordQuery(req("x-vercel-protection-bypass=opaque"), emptyRecordQuery)).toEqual({});
   });
+  it("canonicalizes exact and legacy group roles and preserves the name cursor", () => {
+    const nameCursor = `name:Games | Sunday|${id}`;
+    expect(
+      recordQuery(
+        req(
+          new URLSearchParams({
+            roles: "pending,member,moderator,administrator,pending,invited",
+            sort: "name",
+            direction: "asc",
+            cursor: nameCursor,
+          }).toString(),
+        ),
+        groupListQuery,
+      ),
+    ).toEqual({
+      scope: "mine",
+      limit: 20,
+      roles: ["invited", "administrator", "moderator", "member", "pending"],
+      sort: "name",
+      direction: "asc",
+      cursor: nameCursor,
+    });
+    expect(
+      recordQuery(
+        req(`sort=date&direction=desc&cursor=${encodeURIComponent(cursor)}`),
+        groupListQuery,
+      ),
+    ).toMatchObject({ sort: "date", direction: "desc", cursor });
+  });
+  it.each([
+    "roles=member,",
+    "sort=rating",
+    "direction=ascending",
+    "sort=name&sort=date",
+    "scope=public&query=club&sort=name",
+    "scope=moderation&direction=asc",
+    `sort=name&cursor=${encodeURIComponent(cursor)}`,
+    `sort=date&cursor=${encodeURIComponent(`name:Games|${id}`)}`,
+    `sort=name&cursor=${encodeURIComponent(`name:|${id}`)}`,
+    "sort=name&cursor=name:Games%7Cwrong",
+    `sort=name&cursor=${encodeURIComponent(`Games|${id}`)}`,
+  ])("rejects invalid group role, ordering or cursor inputs (%s)", (query) => {
+    expect(() => recordQuery(req(query), groupListQuery)).toThrow("INVALID_QUERY");
+  });
+  it("canonicalizes Scheduled and Terminated roles and accepts sorting for Available", () => {
+    const nameCursor = `name:Games | Sunday|${id}`;
+    expect(
+      recordQuery(
+        req(
+          new URLSearchParams({
+            section: "mine",
+            roles: "pending,participant,moderator,participant,admin",
+            sort: "name",
+            direction: "desc",
+            cursor: nameCursor,
+          }).toString(),
+        ),
+        eventListQuery,
+      ),
+    ).toMatchObject({
+      section: "mine",
+      roles: ["admin", "moderator", "participant", "pending"],
+      sort: "name",
+      direction: "desc",
+      cursor: nameCursor,
+    });
+    expect(
+      recordQuery(req("section=terminated&roles=participant,admin"), eventListQuery).roles,
+    ).toEqual(["admin", "participant"]);
+    expect(recordQuery(req("section=terminated&roles="), eventListQuery).roles).toEqual([]);
+    expect(recordQuery(req("section=mine&roles="), eventListQuery).roles).toEqual([]);
+    expect(
+      recordQuery(
+        req(`section=available&sort=date&direction=asc&cursor=${encodeURIComponent(cursor)}`),
+        eventListQuery,
+      ),
+    ).toMatchObject({ section: "available", sort: "date", direction: "asc", cursor });
+    expect(recordQuery(req("section=mine"), eventListQuery).sort).toBeUndefined();
+  });
+
+  it.each([
+    "section=mine&roles=participant,",
+    "section=mine&roles=demonstrator",
+    "section=mine&sort=rating",
+    "section=mine&direction=ascending",
+    "section=terminated&roles=admin,pending",
+    "section=available&roles=",
+    "section=available&roles=participant",
+    "roles=admin",
+    "sort=date",
+    "direction=asc",
+    `groupId=${id}&roles=participant`,
+    `groupId=${id}&sort=name`,
+    `section=available&sort=name&cursor=${encodeURIComponent(cursor)}`,
+    `section=mine&sort=date&cursor=${encodeURIComponent(`name:Games|${id}`)}`,
+    `section=mine&cursor=${encodeURIComponent(`name:Games|${id}`)}`,
+  ])("rejects disallowed Event role, sorting or cursor parameters (%s)", (query) => {
+    expect(() => recordQuery(req(query), eventListQuery)).toThrow("INVALID_QUERY");
+  });
+
   it("accepts one-character list filters and strict section partitions without weakening discovery", () => {
     for (const query of ["a", "ab", "abc", ".*"]) {
       expect(recordQuery(req(`query=${encodeURIComponent(query)}`), eventListQuery).query).toBe(

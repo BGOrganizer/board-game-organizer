@@ -165,6 +165,70 @@ describe("GroupRecordsRepository bounded Mongo paging contracts", () => {
     ]);
   });
 
+  it("filters exact roles before pagination and accepts only public pending requests", async () => {
+    const fixture = setup();
+    await fixture.repo.list(
+      "user_viewer",
+      "mine",
+      { roles: ["administrator", "moderator", "member", "pending"], limit: 2 },
+      now,
+    );
+    const pipeline = fixture.aggregate.mock.calls[0][1];
+    const nonOwner = { adminUserId: { $ne: "user_viewer" } };
+    const approved = { approved: { $exists: true } };
+    expect(pipeline).toContainEqual({
+      $match: {
+        $or: [
+          { adminUserId: "user_viewer" },
+          {
+            ...nonOwner,
+            viewerRows: { $elemMatch: { status: "ACCEPTED", role: "MODERATOR" } },
+          },
+          {
+            ...nonOwner,
+            ...approved,
+            viewerRows: { $elemMatch: { status: "ACCEPTED", role: { $ne: "MODERATOR" } } },
+          },
+          {
+            ...nonOwner,
+            ...approved,
+            $or: [
+              { viewerRows: { $elemMatch: { status: "PENDING", kind: "INVITATION" } } },
+              {
+                type: "PUBLIC",
+                viewerRows: { $elemMatch: { status: "PENDING", kind: "REQUEST" } },
+              },
+            ],
+          },
+        ],
+      },
+    });
+    expect(pipeline.slice(-4, -1)).toEqual([
+      { $match: { "viewerBans.0": { $exists: false } } },
+      { $sort: { createdAt: -1, id: -1 } },
+      { $limit: 3 },
+    ]);
+  });
+
+  it("pages by the projected group name and groups sharing the same name", async () => {
+    const fixture = setup();
+    const listName = "Games | Sunday";
+    await fixture.repo.list(
+      "user_viewer",
+      "mine",
+      { sort: "name", direction: "asc", cursor: `name:${listName}|${id}`, limit: 2 },
+      now,
+    );
+    const pipeline = fixture.aggregate.mock.calls[0][1];
+    expect(pipeline[0]).toEqual({ $match: { type: { $in: ["PRIVATE", "PUBLIC"] } } });
+    expect(pipeline.slice(-4)).toEqual([
+      { $match: { $or: [{ listName: { $gt: listName } }, { listName, id: { $gt: id } }] } },
+      { $sort: { listName: 1, id: 1 } },
+      { $limit: 3 },
+      { $project: { _id: 0, transactionLock: 0, viewerRows: 0, viewerBans: 0, listName: 0 } },
+    ]);
+  });
+
   it.each(["public", "moderation"] as const)(
     "keeps %s query/cursor inside the selected public-group scope",
     async (scope) => {

@@ -1,10 +1,20 @@
-import { type EventListSection, eventListStatuses } from "@board-game-organizer/schemas";
+import {
+  type EventListFilterRole,
+  type EventListSection,
+  type EventListStatus,
+  eventListDefaultOrder,
+  eventListStatuses,
+  type RecordListOrder,
+  scheduledEventFilterRoles,
+  terminatedEventFilterRoles,
+} from "@board-game-organizer/schemas";
 import {
   communityAccessDenied,
   useEventRecords,
   useGroupRecords,
   useListSearch,
 } from "@board-game-organizer/shared";
+import { useLingui } from "@lingui/react";
 import { useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
@@ -16,15 +26,20 @@ import {
   CalendarClock,
   CalendarDays,
   CalendarSearch,
+  Clock3,
+  Crown,
   Flag,
   Plus,
+  ShieldCheck,
+  UserRoundCheck,
 } from "lucide-react-native";
-import { type ReactNode, useCallback } from "react";
+import { type ReactNode, useCallback, useState } from "react";
 import { View } from "react-native";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { HelpSectionCard } from "@/components/common/ui/HelpSectionCard";
 import { InputFlatList } from "@/components/common/ui/InputFlatList";
+import { ListOrdering } from "@/components/common/ui/ListOrdering";
 import { ListSearch } from "@/components/common/ui/ListSearch";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { useT } from "@/lib/i18n";
@@ -42,24 +57,37 @@ export function EventList({
   section?: EventListSection;
   header?: ReactNode;
 }) {
+  const [order, setOrder] = useState<RecordListOrder>(eventListDefaultOrder[section]);
+  const roles =
+    section === "mine"
+      ? scheduledEventFilterRoles
+      : section === "terminated"
+        ? terminatedEventFilterRoles
+        : [];
   const muted = useThemeColor("muted");
   const t = useT(),
+    { i18n } = useLingui(),
     router = useRouter(),
     o = useCommunityApi(),
     layout = useFloatingActionLayout(canCreate),
     accent = useThemeColor("accent-foreground"),
-    filters = useListSearch(eventListStatuses, 0),
+    filters = useListSearch<EventListStatus | EventListFilterRole>(
+      groupId ? eventListStatuses : roles,
+      0,
+    ),
     list = useEventRecords(o, {
       groupId,
       section: groupId ? undefined : section,
       statuses: groupId
-        ? filters.selected
+        ? eventListStatuses.filter((status) => filters.selected.includes(status))
         : section === "available"
           ? ["PLANNING"]
           : section === "terminated"
             ? ["TERMINATED"]
             : ["CONFIRMED", "PLANNING"],
       query: filters.search,
+      roles: groupId ? undefined : roles.filter((role) => filters.selected.includes(role)),
+      order: groupId ? undefined : order,
     });
   // Warm the same source-filtered first page used by the creation picker; never scan all Groups.
   useGroupRecords({ ...o, enabled: o.enabled !== false && !groupId && canCreate }, "mine", "", [
@@ -103,6 +131,12 @@ export function EventList({
       ),
     },
   }[section];
+  const roleLabels = {
+    admin: { label: i18n._({ id: "list.filter.admin", message: "Admin" }), icon: Crown },
+    moderator: { label: t("Moderator"), icon: ShieldCheck },
+    participant: { label: t("Participant"), icon: UserRoundCheck },
+    pending: { label: t("Pending"), icon: Clock3 },
+  };
   return (
     <NotificationAttentionScope
       options={o}
@@ -149,7 +183,7 @@ export function EventList({
                 onToggle={filters.toggle}
                 options={
                   !groupId
-                    ? []
+                    ? roles.map((key) => ({ key, ...roleLabels[key] }))
                     : [
                         { key: "CONFIRMED", label: t("Confirmed events"), icon: CalendarCheck2 },
                         { key: "PLANNING", label: t("Planning"), icon: CalendarClock },
@@ -157,6 +191,7 @@ export function EventList({
                       ]
                 }
               />
+              {!groupId ? <ListOrdering order={order} onChange={setOrder} /> : null}
             </View>
           }
           renderItem={renderItem}

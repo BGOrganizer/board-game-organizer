@@ -1336,10 +1336,15 @@ export class EventRecordsService {
           : response,
       );
     }
-    const last = items.at(-1);
+    const last = rows[page.limit - 1];
+    const key =
+      last &&
+      (page.sort === "name"
+        ? `name:${last.name}`
+        : (last.listDate?.toISOString() ?? last.createdAt));
     return {
       items,
-      nextCursor: rows.length > page.limit && last ? `${last.createdAt}|${last.id}` : null,
+      nextCursor: rows.length > page.limit && last ? `${key}|${last.id}` : null,
     };
   }
   private tableInterval(...args: Parameters<typeof plannedTableInterval>) {

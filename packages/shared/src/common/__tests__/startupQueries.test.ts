@@ -1,4 +1,4 @@
-import { groupRecordMemberRoles } from "@board-game-organizer/schemas";
+import { eventListDefaultOrder, groupRecordMemberRoles } from "@board-game-organizer/schemas";
 import { QueryClient } from "@tanstack/react-query";
 import { afterEach, expect, it, vi } from "vitest";
 import { eventRecordsQuery, recordTablesQuery } from "../../events/hooks/useEventRecords";
@@ -95,7 +95,7 @@ it("starts only the four priority reads with at most three concurrent requests",
     fetch.mock.calls.find(([url]) => new URL(url).pathname === "/api/groups")?.[0] ?? "",
   );
   expect(groupRead.searchParams.get("type")).toBe("PRIVATE");
-  expect(groupRead.searchParams.get("roles")).toBe("admin,invited,accepted");
+  expect(groupRead.searchParams.get("roles")).toBe("administrator,moderator,member,pending");
   expect(
     client.getQueryData(
       groupRecordsPageQuery(options, "mine", "", groupRecordMemberRoles, "PRIVATE").queryKey,
@@ -234,7 +234,7 @@ it("handles absent, empty and unlinked cached datasets without guessing IDs or s
   );
   for (const query of [
     recordTablesQuery(options, null),
-    eventRecordsQuery(options),
+    eventRecordsQuery(options, { order: eventListDefaultOrder.mine }),
     groupRecordsPageQuery(options, "mine", "", groupRecordMemberRoles, "PRIVATE"),
   ])
     client.setQueryData(query.queryKey, { pages: [], pageParams: [] });

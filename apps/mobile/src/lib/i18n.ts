@@ -36,7 +36,8 @@ const catalogs: Record<AppLocale, typeof messagesEn> = {
 /** Reverse index: English source text → catalog message id (hash). */
 const idByEnglish: Record<string, string> = {};
 for (const [id, [text]] of Object.entries(messagesEn) as [string, string[]][]) {
-  if (typeof text === "string") idByEnglish[text] = id;
+  // List filter labels use scoped IDs so they can be shorter than the same text elsewhere.
+  if (typeof text === "string" && !id.startsWith("list.filter.")) idByEnglish[text] = id;
 }
 
 /** Maps any locale tag to a supported app locale (default: en). */

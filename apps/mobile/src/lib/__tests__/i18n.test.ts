@@ -53,6 +53,11 @@ describe("createAppI18n", () => {
 });
 
 describe("translate (runtime)", () => {
+  it("uses the compact Admin label only when the filter requests its scoped ID", () => {
+    const italian = createAppI18n("it");
+    expect(italian._({ id: "list.filter.admin", message: "Admin" })).toBe("Admin");
+    expect(translate(italian, "Admin")).toBe("Amministratore");
+  });
   it.each([
     ["An update is available", "È disponibile un aggiornamento"],
     ["Update and restart", "Aggiorna e riavvia"],

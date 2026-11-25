@@ -1,9 +1,14 @@
-import { type GroupRecord, groupRecordMemberRoles } from "@board-game-organizer/schemas";
+import {
+  type GroupRecord,
+  groupRecordMemberRoles,
+  type RecordListOrder,
+} from "@board-game-organizer/schemas";
 import {
   communityAccessDenied,
   useGroupRecords,
   useListSearch,
 } from "@board-game-organizer/shared";
+import { useLingui } from "@lingui/react";
 import { useRouter } from "expo-router";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
@@ -11,21 +16,23 @@ import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import {
   Check,
+  Clock3,
   Crown,
   Globe,
   LockKeyhole,
-  Mail,
   Plus,
   Search,
   SearchX,
+  ShieldCheck,
   UsersRound,
 } from "lucide-react-native";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { View } from "react-native";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { HelpSectionCard } from "@/components/common/ui/HelpSectionCard";
 import { InputFlatList } from "@/components/common/ui/InputFlatList";
+import { ListOrdering } from "@/components/common/ui/ListOrdering";
 import { ListPage, listPageContentStyle } from "@/components/common/ui/ListPage";
 import { ListSearch } from "@/components/common/ui/ListSearch";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
@@ -41,14 +48,16 @@ export function GroupList({
   type?: GroupRecord["type"];
 }) {
   const t = useT(),
+    { i18n } = useLingui(),
     router = useRouter(),
     options = useCommunityApi(),
     layout = useFloatingActionLayout(scope === "mine"),
     muted = useThemeColor("muted"),
     accentForeground = useThemeColor("accent-foreground");
   const minimumLength = scope === "public" ? 4 : 0;
+  const [order, setOrder] = useState<RecordListOrder>({ sort: "date", direction: "desc" });
   const filters = useListSearch(groupRecordMemberRoles, minimumLength),
-    list = useGroupRecords(options, scope, filters.search, filters.selected, type);
+    list = useGroupRecords(options, scope, filters.search, filters.selected, type, order);
   const needsQuery = filters.query.trim().length < minimumLength;
   const searchable = !needsQuery && (scope === "mine" || Boolean(filters.search));
   const items = searchable && !communityAccessDenied(list.error) ? list.items : [];
@@ -89,7 +98,7 @@ export function GroupList({
               label: t("Public groups help"),
               icon: Globe,
               description: t(
-                "Public groups you manage, belong to or have a pending invitation to join. Groups you manage may still be awaiting approval.",
+                "Public groups you manage or belong to, and groups with a pending request or invitation. Groups you manage may still be awaiting approval.",
               ),
             }
           : null;
@@ -138,13 +147,19 @@ export function GroupList({
                 options={
                   scope === "mine"
                     ? [
-                        { key: "admin", label: t("Admin"), icon: Crown },
-                        { key: "invited", label: t("Invited"), icon: Mail },
-                        { key: "accepted", label: t("Accepted"), icon: Check },
+                        {
+                          key: "administrator",
+                          label: i18n._({ id: "list.filter.admin", message: "Admin" }),
+                          icon: Crown,
+                        },
+                        { key: "moderator", label: t("Moderator"), icon: ShieldCheck },
+                        { key: "member", label: t("Member"), icon: Check },
+                        { key: "pending", label: t("Pending"), icon: Clock3 },
                       ]
                     : []
                 }
               />
+              {scope === "mine" ? <ListOrdering order={order} onChange={setOrder} /> : null}
             </View>
           }
           renderItem={renderItem}

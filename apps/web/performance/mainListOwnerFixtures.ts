@@ -1,5 +1,6 @@
 import {
   type CommunityActivity,
+  eventListDefaultOrder,
   type GroupRecordResponse,
   groupRecordMemberRoles,
   type NotificationAttentionSnapshot,
@@ -131,16 +132,19 @@ export function seedMainListOwners(client: QueryClient, options: CommunityApiOpt
       .queryKey,
     events: eventRecordsQuery(options, {
       section: "mine",
+      order: eventListDefaultOrder.mine,
       statuses: ["CONFIRMED", "PLANNING"],
       query: "",
     }).queryKey,
     available: eventRecordsQuery(options, {
       section: "available",
+      order: eventListDefaultOrder.available,
       statuses: ["PLANNING"],
       query: "",
     }).queryKey,
     terminated: eventRecordsQuery(options, {
       section: "terminated",
+      order: eventListDefaultOrder.terminated,
       statuses: ["TERMINATED"],
       query: "",
     }).queryKey,

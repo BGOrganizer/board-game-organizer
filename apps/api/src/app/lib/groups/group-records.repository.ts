@@ -1,16 +1,18 @@
-import type {
-  GroupBan,
-  GroupMembership,
-  GroupRecord,
-  GroupRecordListRole,
-  User,
+import {
+  type GroupBan,
+  type GroupMembership,
+  type GroupRecord,
+  type GroupRecordListRole,
+  legacyGroupRecordListRoles,
+  type RecordListOrder,
+  type User,
 } from "@board-game-organizer/schemas";
 import type { ClientSession, Db, Filter } from "mongodb";
 import { COLLECTIONS } from "../db";
 import { EventRecordsRepository } from "../events/event-records.repository";
 import { ProfileActivitiesRepository } from "../profile/profile-activities.repository";
 
-export interface GroupRecordPage {
+export interface GroupRecordPage extends Partial<RecordListOrder> {
   limit: number;
   cursor?: string;
   query?: string;
@@ -451,6 +453,9 @@ export class GroupRecordsRepository {
     page: GroupRecordPage,
     now: string,
   ) {
+    const byName = page.sort === "name";
+    const order = page.direction === "asc" ? 1 : -1;
+    const after = order === 1 ? "$gt" : "$lt";
     const pipeline: Record<string, unknown>[] = [
       { $match: { type: page.type ?? { $in: ["PRIVATE", "PUBLIC"] } } },
     ];
@@ -458,10 +463,12 @@ export class GroupRecordsRepository {
       pipeline.push({ $match: { type: "PUBLIC", approved: { $exists: true } } });
     if (scope === "moderation")
       pipeline.push({ $match: { type: "PUBLIC", reviewStatus: "PENDING" } });
-    if (page.cursor) {
+    if (page.cursor && !byName) {
       const [createdAt, id] = page.cursor.split("|");
       pipeline.push({
-        $match: { $or: [{ createdAt: { $lt: createdAt } }, { createdAt, id: { $lt: id } }] },
+        $match: {
+          $or: [{ createdAt: { [after]: createdAt } }, { createdAt, id: { [after]: id } }],
+        },
       });
     }
     if (page.query) {
@@ -493,30 +500,39 @@ export class GroupRecordsRepository {
         as: "viewerRows",
       },
     });
-    if (scope === "mine")
+    if (scope === "mine") {
+      const roles = page.roles ?? legacyGroupRecordListRoles;
+      const membership = (filter: Filter<GroupMembership>) => ({
+        viewerRows: { $elemMatch: filter },
+      });
+      const owner = { adminUserId: userId };
+      const nonOwner = { adminUserId: { $ne: userId } };
+      const approved = { approved: { $exists: true } };
+      const moderator = membership({ status: "ACCEPTED", role: "MODERATOR" });
+      const invited = membership({ status: "PENDING", kind: "INVITATION" });
+      const roleFilters = {
+        admin: { $or: [owner, moderator] },
+        invited,
+        accepted: membership({ status: "ACCEPTED" }),
+        administrator: owner,
+        moderator: { ...nonOwner, ...moderator },
+        member: {
+          ...nonOwner,
+          ...approved,
+          ...membership({ status: "ACCEPTED", role: { $ne: "MODERATOR" } }),
+        },
+        pending: {
+          ...nonOwner,
+          ...approved,
+          $or: [invited, { type: "PUBLIC", ...membership({ status: "PENDING", kind: "REQUEST" }) }],
+        },
+      } satisfies Record<GroupRecordListRole, Record<string, unknown>>;
       pipeline.push({
         $match: {
-          $or: (page.roles ?? ["admin", "invited", "accepted"]).length
-            ? (page.roles ?? ["admin", "invited", "accepted"]).map((role) =>
-                role === "admin"
-                  ? {
-                      $or: [
-                        { adminUserId: userId },
-                        { viewerRows: { $elemMatch: { status: "ACCEPTED", role: "MODERATOR" } } },
-                      ],
-                    }
-                  : {
-                      viewerRows: {
-                        $elemMatch:
-                          role === "accepted"
-                            ? { status: "ACCEPTED" }
-                            : { status: "PENDING", kind: "INVITATION" },
-                      },
-                    },
-              )
-            : [{ id: { $in: [] } }],
+          $or: roles.length ? roles.map((role) => roleFilters[role]) : [{ id: { $in: [] } }],
         },
       });
+    }
     if (scope !== "moderation")
       pipeline.push(
         {
@@ -538,10 +554,49 @@ export class GroupRecordsRepository {
         },
         { $match: { "viewerBans.0": { $exists: false } } },
       );
+    if (byName) {
+      pipeline.push({
+        $set: {
+          listName: {
+            $cond: [
+              {
+                $or: [
+                  { $eq: ["$adminUserId", userId] },
+                  {
+                    $and: [
+                      { $eq: [{ $arrayElemAt: ["$viewerRows.status", 0] }, "ACCEPTED"] },
+                      { $eq: [{ $arrayElemAt: ["$viewerRows.role", 0] }, "MODERATOR"] },
+                    ],
+                  },
+                ],
+              },
+              { $ifNull: ["$proposal.name", "$approved.name"] },
+              "$approved.name",
+            ],
+          },
+        },
+      });
+      if (page.cursor) {
+        const separator = page.cursor.lastIndexOf("|");
+        const listName = page.cursor.slice(5, separator);
+        const id = page.cursor.slice(separator + 1);
+        pipeline.push({
+          $match: { $or: [{ listName: { [after]: listName } }, { listName, id: { [after]: id } }] },
+        });
+      }
+    }
     pipeline.push(
-      { $sort: { createdAt: -1, id: -1 } },
+      { $sort: { [byName ? "listName" : "createdAt"]: order, id: order } },
       { $limit: page.limit + 1 },
-      { $project: { _id: 0, transactionLock: 0, viewerRows: 0, viewerBans: 0 } },
+      {
+        $project: {
+          _id: 0,
+          transactionLock: 0,
+          viewerRows: 0,
+          viewerBans: 0,
+          ...(byName ? { listName: 0 } : {}),
+        },
+      },
     );
     return this.groups.aggregate<GroupRecord>(pipeline, this.opts).toArray();
   }

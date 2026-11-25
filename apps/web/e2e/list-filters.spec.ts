@@ -1,109 +1,155 @@
+import type { GroupRecordResponse } from "@board-game-organizer/schemas";
 import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
 import { expect, test } from "@playwright/test";
+import { groupRecord } from "../src/test-fixtures/eventRecords";
 import { completeMobileNumberIfNeeded } from "./mobile-number";
 
-const E2E_EMAIL = process.env.E2E_EMAIL ?? "";
+const fixtures = [
+  { name: "Zebra Admin Club", role: "admin", filter: "administrator" },
+  { name: "Orchid Moderator Club", role: "moderator", filter: "moderator" },
+  { name: "Maple Member Club", role: "accepted", filter: "member" },
+  { name: "Alpha Invitation Club", role: "invited", filter: "pending" },
+  { name: "Beta Request Club", role: "requested", filter: "pending" },
+] as const;
 
-async function signIn(page: import("@playwright/test").Page) {
-  if (!E2E_EMAIL) throw new Error("E2E_EMAIL required for list filters E2E");
+test.use({ locale: "en-US" });
+
+test("owned Groups combine role filters with Name and Date ordering in both tabs", async ({
+  page,
+}) => {
+  const email = process.env.E2E_EMAIL;
+  if (!email) throw new Error("E2E_EMAIL required for Group list filters");
   await setupClerkTestingToken({ page });
   await page.goto("/");
-  await clerk.signIn({ page, emailAddress: E2E_EMAIL });
+  await clerk.signIn({ page, emailAddress: email });
   await page.goto("/");
   await completeMobileNumberIfNeeded(page);
   await page.waitForFunction(() => Boolean(Reflect.get(window, "Clerk")?.user?.id));
-  return page.evaluate(() => Reflect.get(window, "Clerk")?.user?.id as string);
-}
+  const userId = await page.evaluate(() => Reflect.get(window, "Clerk")?.user?.id as string);
 
-test("match and group lists search names, union roles and load more on scroll", async ({
-  page,
-}) => {
-  const userId = await signIn(page);
-  for (const kind of ["matches", "groups"] as const) {
-    const rows = Array.from({ length: 23 }, (_, index) => {
-      const role = (["admin", "invited", "accepted"] as const)[index % 3];
-      const id = `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`;
-      const base = {
-        id,
-        name: `Catan ${index + 1}`,
-        adminUserId: role === "admin" ? userId : "someone-else",
-        createdAt: new Date(Date.UTC(2026, 9, 1) - index * 60_000).toISOString(),
-        updatedAt: "2026-10-01T00:00:00.000Z",
-        invitations:
-          role === "admin"
-            ? []
-            : [
-                {
-                  id,
-                  inviteeUserId: userId,
-                  inviterUserId: "someone-else",
-                  status: role === "invited" ? "PENDING" : "ACCEPTED",
-                  createdAt: "2026-10-01T00:00:00.000Z",
-                  updatedAt: "2026-10-01T00:00:00.000Z",
-                },
-              ],
-      };
-      return kind === "groups"
-        ? { ...base, isPublic: false, memberCount: role === "accepted" ? 2 : 1, memberProfiles: [] }
-        : {
-            ...base,
-            status: "PLANNING",
-            dates: ["2026-10-01T20:00:00.000Z"],
-            minPlayers: 2,
-            maxPlayers: 4,
-            gameIds: [1],
-            invitedUserIds: role === "admin" ? [] : [userId],
-          };
-    });
-    await page.route(`**/api/${kind}?**`, (route) => {
-      const params = new URL(route.request().url()).searchParams;
-      const selectedRoles = params.get("roles")?.split(",") ?? ["admin", "invited", "accepted"];
-      const query = params.get("query")?.toLowerCase() ?? "";
-      const filtered = rows.filter(
-        (row, index) =>
-          selectedRoles.includes((["admin", "invited", "accepted"] as const)[index % 3]) &&
-          row.name.toLowerCase().includes(query),
+  await page.route("**/api/groups?**", (route) => {
+    if (route.request().method() !== "GET") return route.fallback();
+    const query = new URL(route.request().url()).searchParams;
+    const discovery = query.get("scope") === "public";
+    const type = discovery ? "PUBLIC" : query.get("type") === "PUBLIC" ? "PUBLIC" : "PRIVATE";
+    const selected = query.get("roles")?.split(",");
+    const name = query.get("query")?.toLowerCase() ?? "";
+    const direction = query.get("direction") === "asc" ? 1 : -1;
+    const items = fixtures
+      .flatMap(({ name: groupName, role, filter }, index): GroupRecordResponse[] => {
+        if (
+          (role === "requested" && type === "PRIVATE") ||
+          (selected && !selected.includes(filter)) ||
+          !groupName.toLowerCase().includes(name)
+        )
+          return [];
+        const id = `00000000-0000-4000-8000-${type === "PUBLIC" ? "1" : "0"}${String(index + 1).padStart(11, "0")}`;
+        const createdAt = new Date(Date.UTC(2026, 9, index + 1)).toISOString();
+        const pending = filter === "pending";
+        const manager = role === "admin" || role === "moderator";
+        return [
+          {
+            ...groupRecord,
+            id,
+            name: groupName,
+            approved: { name: groupName },
+            type,
+            role,
+            adminUserId: role === "admin" ? userId : "user-other",
+            createdAt,
+            updatedAt: createdAt,
+            eventCount: pending ? null : 0,
+            canViewEvents: !pending,
+            canViewRankings: !pending,
+            canSocialInteract: !pending,
+            canInvite: manager,
+            canEdit: manager,
+            myMembership:
+              role === "admin"
+                ? null
+                : {
+                    id,
+                    groupId: id,
+                    userId,
+                    role: role === "moderator" ? "MODERATOR" : undefined,
+                    kind: role === "requested" ? "REQUEST" : "INVITATION",
+                    status: pending ? "PENDING" : "ACCEPTED",
+                    version: 1,
+                    createdAt,
+                    updatedAt: createdAt,
+                  },
+          },
+        ];
+      })
+      .sort(
+        (a, b) =>
+          direction *
+          (query.get("sort") === "name"
+            ? a.name.localeCompare(b.name)
+            : a.createdAt.localeCompare(b.createdAt)),
       );
-      const start = params.has("cursor")
-        ? filtered.findIndex((row) => `${row.createdAt}|${row.id}` === params.get("cursor")) + 1
-        : 0;
-      const size = Number(params.get("limit") ?? 20);
-      const items = filtered.slice(start, start + size);
-      const last = items.at(-1);
-      return route.fulfill({
-        json: {
-          [kind]: items,
-          nextCursor:
-            start + size < filtered.length && last ? `${last.createdAt}|${last.id}` : null,
-        },
-      });
-    });
-    await page.goto(`/${kind}`);
-    const label = kind === "matches" ? "Search matches" : "Search groups";
-    await expect(page.getByRole("searchbox", { name: label })).toHaveAttribute(
-      "placeholder",
-      label,
+    return route.fulfill({ json: { items, nextCursor: null } });
+  });
+
+  await page.goto("/groups");
+  const roles = ["Admin", "Moderator", "Member", "Pending"] as const;
+  const activePanel = () => page.getByRole("tabpanel");
+  const filter = (name: (typeof roles)[number], pressed: boolean) =>
+    activePanel().getByRole("button", { name, exact: true, pressed });
+  const firstGroup = () =>
+    activePanel()
+      .getByRole("link", { name: /^Open group:/ })
+      .first();
+
+  for (const tab of ["Private groups", "Public groups"] as const) {
+    await page.getByRole("tab", { name: tab, exact: true }).click();
+    for (const role of roles) await expect(filter(role, true)).toBeVisible();
+    await expect(firstGroup()).toHaveAccessibleName(
+      tab === "Public groups"
+        ? "Open group: Beta Request Club"
+        : "Open group: Alpha Invitation Club",
     );
-    await page.getByRole("button", { name: `${label}: Search help` }).click();
-    await expect(page.getByText("Type at least 4 characters to search")).toBeVisible();
-    await page.keyboard.press("Escape");
-    const empty =
-      kind === "matches" ? "No matches match your filters" : "No groups match your filters";
-    for (const role of ["Admin", "Invited", "Accepted"])
-      await expect(page.getByRole("button", { name: role, exact: true })).toHaveAttribute(
-        "aria-pressed",
-        "true",
-      );
-    await page.getByText("Catan 20", { exact: true }).scrollIntoViewIfNeeded();
-    await expect(page.getByText("Catan 23", { exact: true })).toBeVisible();
-    await page.getByRole("searchbox", { name: label }).fill("Catan 2");
-    await expect(page.getByText("Catan 22", { exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "Admin", exact: true }).click();
-    await expect(page.getByText("Catan 22", { exact: true })).toHaveCount(0);
-    await expect(page.getByText("Catan 23", { exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "Invited", exact: true }).click();
-    await page.getByRole("button", { name: "Accepted", exact: true }).click();
-    await expect(page.getByText(empty)).toBeVisible();
-    await page.unroute(`**/api/${kind}?**`);
+
+    await activePanel().getByRole("button", { name: "Sort by Date", exact: true }).click();
+    await page.getByRole("menuitemradio", { name: "Name", exact: true }).click();
+    await expect(firstGroup()).toHaveAccessibleName("Open group: Zebra Admin Club");
+    await activePanel().getByRole("button", { name: "Sort ascending", exact: true }).click();
+    await expect(firstGroup()).toHaveAccessibleName("Open group: Alpha Invitation Club");
+    await activePanel().getByRole("button", { name: "Sort by Name", exact: true }).click();
+    await page.getByRole("menuitemradio", { name: "Date", exact: true }).click();
+    await expect(firstGroup()).toHaveAccessibleName("Open group: Zebra Admin Club");
+
+    for (const role of ["Admin", "Moderator", "Member"] as const) await filter(role, true).click();
+    await expect(activePanel().getByRole("link", { name: /^Open group:/ })).toHaveCount(
+      tab === "Public groups" ? 2 : 1,
+    );
+    await expect(firstGroup()).toHaveAccessibleName("Open group: Alpha Invitation Club");
+    await expect(
+      activePanel().getByRole("link", { name: "Open group: Beta Request Club" }),
+    ).toHaveCount(tab === "Public groups" ? 1 : 0);
+    await filter("Pending", true).click();
+    await expect(activePanel().getByText("No groups found", { exact: true })).toBeVisible();
   }
+
+  await page.getByRole("tab", { name: "Search", exact: true }).click();
+  for (const role of roles) await expect(filter(role, true)).toHaveCount(0);
+  await expect(activePanel().getByRole("button", { name: /^Sort by / })).toHaveCount(0);
+  const search = activePanel().getByRole("searchbox", { name: "Search groups", exact: true });
+  await search.fill("Alp");
+  await expect(
+    activePanel().getByText("Enter at least 4 characters to search", { exact: true }),
+  ).toBeVisible();
+  const discoveryResponse = page.waitForResponse((response) => {
+    const { pathname, searchParams } = new URL(response.url());
+    return (
+      pathname === "/api/groups" &&
+      searchParams.get("scope") === "public" &&
+      searchParams.get("query") === "Alpha"
+    );
+  });
+  await search.fill("Alpha");
+  const searchParams = new URL((await discoveryResponse).url()).searchParams;
+  for (const key of ["roles", "type", "sort", "direction"])
+    expect(searchParams.has(key)).toBe(false);
+  await expect(firstGroup()).toHaveAccessibleName("Open group: Alpha Invitation Club");
 });

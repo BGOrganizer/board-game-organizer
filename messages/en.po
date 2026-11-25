@@ -7770,8 +7770,8 @@ msgid "Private groups you manage, belong to or have a pending invitation to join
 msgstr "Private groups you manage, belong to or have a pending invitation to join."
 
 #: apps/web/src/components/groups/GroupList.tsx
-msgid "Public groups you manage, belong to or have a pending invitation to join. Groups you manage may still be awaiting approval."
-msgstr "Public groups you manage, belong to or have a pending invitation to join. Groups you manage may still be awaiting approval."
+msgid "Public groups you manage or belong to, and groups with a pending request or invitation. Groups you manage may still be awaiting approval."
+msgstr "Public groups you manage or belong to, and groups with a pending request or invitation. Groups you manage may still be awaiting approval."
 
 #: apps/web/src/components/events/TableList.tsx
 msgid "Table history help"
@@ -7840,3 +7840,11 @@ msgstr "For a category with several options, choose at least one Yes or If neede
 
 msgid "Review the event and table settings, then vote in the sections shown."
 msgstr "Review the event and table settings, then vote in the sections shown."
+
+#: apps/mobile/src/components/events/EventList.tsx
+#: apps/mobile/src/components/groups/GroupList.tsx
+#: apps/web/src/components/events/EventList.tsx
+#: apps/web/src/components/groups/GroupList.tsx
+#. js-lingui-explicit-id
+msgid "list.filter.admin"
+msgstr "Admin"

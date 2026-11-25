@@ -112,11 +112,22 @@ it("keeps Scheduled, Available and Terminated source pages separate, with Group 
     expect(screen.queryByRole("button", { name: "Confirmed events", pressed: true })).toBeNull();
     expect(screen.queryByRole("button", { name: "Planning", pressed: true })).toBeNull();
     expect(screen.queryByRole("button", { name: "Terminated events", pressed: true })).toBeNull();
+    for (const name of ["Admin", "Moderator", "Participant", "Pending"]) {
+      const chip = screen.queryByRole("button", { name, pressed: true });
+      if (section === "available" || (section === "terminated" && name === "Pending"))
+        expect(chip).toBeNull();
+      else expect(chip).toBeVisible();
+    }
+    expect(screen.getByRole("button", { name: "Sort by Date" })).toBeVisible();
     expect(
       fetcher.mock.calls.some(([url]) => {
         const u = new URL(url);
         return (
-          u.searchParams.get("section") === section && u.searchParams.get("statuses") === statuses
+          u.searchParams.get("section") === section &&
+          u.searchParams.get("statuses") === statuses &&
+          u.searchParams.get("sort") === "date" &&
+          u.searchParams.get("direction") === (section === "terminated" ? "desc" : "asc") &&
+          !u.searchParams.has("roles")
         );
       }),
     ).toBe(true);
@@ -139,12 +150,60 @@ it("keeps Scheduled, Available and Terminated source pages separate, with Group 
   expect(screen.queryByRole("tablist", { name: "Events navigation" })).toBeNull();
   for (const name of ["Confirmed events", "Planning", "Terminated events"])
     expect(screen.getByRole("button", { name, pressed: true })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Sort by Date" })).toBeNull();
   expect(
     fetcher.mock.calls.some(([url]) => {
       const p = new URL(url).searchParams;
       return p.get("groupId") === "club" && !p.has("section");
     }),
   ).toBe(true);
+});
+
+it("keeps Scheduled role filters when changing the source sort and direction", async () => {
+  const reads: URL[] = [];
+  const invited = {
+    ...plannedEvent,
+    name: "Scheduled invitation",
+    canManage: false,
+    adminUserId: "other",
+    role: "invited" as const,
+    myRegistrations: [{ ...seat("owner"), status: "PENDING" as const }],
+  };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string) => {
+      const url = new URL(input);
+      if (url.pathname !== "/api/events")
+        return attention(url) ?? Response.json({ items: [], nextCursor: null });
+      reads.push(url);
+      const roles = url.searchParams.get("roles")?.split(",");
+      return Response.json({
+        items: !roles || roles.includes("pending") ? [invited] : [],
+        nextCursor: null,
+      });
+    }),
+  );
+  render(<Events canCreate={false} />);
+  await screen.findByRole("link", { name: "Open event: Scheduled invitation" });
+  fireEvent.click(screen.getByRole("button", { name: "Pending", pressed: true }));
+  await screen.findByText("No events found");
+  fireEvent.click(screen.getByRole("button", { name: "Sort by Date" }));
+  fireEvent.click(await screen.findByRole("menuitemradio", { name: "Name" }));
+  await waitFor(() => {
+    const params = reads.at(-1)?.searchParams;
+    expect(params?.get("sort")).toBe("name");
+    expect(params?.get("direction")).toBe("asc");
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Sort descending" }));
+  await waitFor(() => {
+    const params = reads.at(-1)?.searchParams;
+    expect(params?.get("section")).toBe("mine");
+    expect(params?.get("roles")).toBe("admin,moderator,participant");
+    expect(params?.get("sort")).toBe("name");
+    expect(params?.get("direction")).toBe("desc");
+    expect(params?.has("cursor")).toBe(false);
+  });
+  expect(screen.getByRole("button", { name: "Pending", pressed: false })).toBeVisible();
 });
 
 it("History shows terminated player, demonstrator and currently managed tables without chips or planning legend", async () => {

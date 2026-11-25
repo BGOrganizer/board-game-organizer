@@ -1,3 +1,4 @@
+import { groupRecordMemberRoles } from "@board-game-organizer/schemas";
 import { groupRecordsPageQuery } from "@board-game-organizer/shared";
 import {
   act,
@@ -16,6 +17,7 @@ import {
 import {
   listApi,
   listBoundary,
+  listChooseSortField,
   listFixture,
   listGroup,
   listId,
@@ -89,15 +91,52 @@ it("passes exact role selection through owned group queries and keeps discovery 
     </MainListFixture>,
   );
   await screen.findByText("Private list group");
-  expect(screen.getByTestId("list-filter-admin")).toBeSelected();
+  for (const role of groupRecordMemberRoles)
+    expect(screen.getByTestId(`list-filter-${role}`)).toBeSelected();
   await userEvent.setup().press(screen.getByRole("button", { name: "Admin", selected: true }));
   expect(await screen.findByText("No groups found")).toBeVisible();
   expect(
-    listFixture.reads.some((url) => url.searchParams.get("roles") === "invited,accepted"),
+    listFixture.reads.some((url) => url.searchParams.get("roles") === "moderator,member,pending"),
   ).toBe(true);
+  await listTab("public");
+  await screen.findByText("Public list group");
+  for (const role of groupRecordMemberRoles)
+    expect(screen.getByTestId(`list-filter-${role}`)).toBeSelected();
   await listTab("search");
-  expect(screen.queryByTestId("list-filter-admin")).toBeNull();
-  expect(screen.queryByTestId("list-filter-invited")).toBeNull();
+  expect(screen.queryByTestId("list-filter-administrator")).toBeNull();
+  expect(screen.queryByTestId("list-filter-pending")).toBeNull();
+  expect(screen.queryByTestId("list-sort-field")).toBeNull();
+});
+
+it("applies Name and direction to the owned Group source, retaining separate tab state", async () => {
+  await render(
+    <MainListFixture>
+      <Groups />
+    </MainListFixture>,
+  );
+  await screen.findByText("Private list group");
+  await listChooseSortField("Name");
+  expect(screen.getByTestId("list-sort-field")).toHaveAccessibleName("Sort by Name");
+  await listPress("Sort ascending");
+  await waitFor(() =>
+    expect(
+      listFixture.reads.some((url) => {
+        const params = url.searchParams;
+        return (
+          params.get("type") === "PRIVATE" &&
+          params.get("sort") === "name" &&
+          params.get("direction") === "asc" &&
+          !params.has("cursor")
+        );
+      }),
+    ).toBe(true),
+  );
+  await listTab("public");
+  await screen.findByText("Public list group");
+  expect(screen.getByTestId("list-sort-field")).toHaveAccessibleName("Sort by Date");
+  await listTab("private");
+  expect(screen.getByTestId("list-sort-field")).toHaveAccessibleName("Sort by Name");
+  expect(screen.getByTestId("list-sort-direction")).toHaveAccessibleName("Sort descending");
 });
 
 it("keeps visited filters isolated by both stable account and API ownership", async () => {
@@ -191,7 +230,7 @@ it("reveals retained pages progressively without mutating or refetching the auth
     { ...listOptions(), getToken: async () => "fixture-list-token" },
     "mine",
     "",
-    ["admin", "invited", "accepted"],
+    groupRecordMemberRoles,
     "PRIVATE",
   ).queryKey;
   const cached = {

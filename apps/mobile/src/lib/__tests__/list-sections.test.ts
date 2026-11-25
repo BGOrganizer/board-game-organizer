@@ -87,36 +87,42 @@ it.each([
   ["available", ["PLANNING"]],
   ["terminated", ["TERMINATED"]],
 ] as const)(
-  "native %s sends fixed source states without chips and preserves Group context",
+  "native %s sends fixed source states and keeps Group context on the existing status filters",
   (section, statuses) => {
     const code = callArgument("events/EventList", "useEventRecords", 1);
     const filters = { selected: ["PLANNING", "TERMINATED"], search: "z" };
-    expect(runInNewContext(code, { section, filters, groupId: undefined })).toEqual({
+    const order = { sort: "date", direction: "asc" };
+    const eventListStatuses = ["CONFIRMED", "PLANNING", "TERMINATED"];
+    const context = { section, filters, order, roles: [], eventListStatuses };
+    expect(runInNewContext(code, { ...context, groupId: undefined })).toEqual({
       groupId: undefined,
       section,
       statuses: [...statuses],
       query: "z",
+      roles: [],
+      order,
     });
-    expect(runInNewContext(code, { section, filters, groupId: "club" })).toEqual({
+    expect(runInNewContext(code, { ...context, groupId: "club" })).toEqual({
       groupId: "club",
       section: undefined,
       statuses: filters.selected,
       query: "z",
+      roles: undefined,
+      order: undefined,
     });
     const options = expression("events/EventList", "ListSearch", "options");
-    const context = {
-      groupId: undefined,
+    const labels = {
+      groupId: "club",
       t: (s: string) => s,
       CalendarCheck2: "confirmed",
       CalendarClock: "planning",
       Flag: "terminated",
     };
-    expect(runInNewContext(options, context)).toEqual([]);
-    expect(
-      runInNewContext(options, { ...context, groupId: "club" }).map(
-        (row: { key: string }) => row.key,
-      ),
-    ).toEqual(["CONFIRMED", "PLANNING", "TERMINATED"]);
+    expect(runInNewContext(options, labels).map((row: { key: string }) => row.key)).toEqual([
+      "CONFIRMED",
+      "PLANNING",
+      "TERMINATED",
+    ]);
   },
 );
 it.each(["mine", "available", "terminated", "foreign", undefined])(

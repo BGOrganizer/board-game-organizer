@@ -7769,8 +7769,8 @@ msgid "Private groups you manage, belong to or have a pending invitation to join
 msgstr "Gruppi privati che gestisci, di cui sei membro o per i quali hai un invito in sospeso."
 
 #: apps/web/src/components/groups/GroupList.tsx
-msgid "Public groups you manage, belong to or have a pending invitation to join. Groups you manage may still be awaiting approval."
-msgstr "Gruppi pubblici che gestisci, di cui sei membro o per i quali hai un invito in sospeso. I gruppi che gestisci possono anche essere in attesa di approvazione."
+msgid "Public groups you manage or belong to, and groups with a pending request or invitation. Groups you manage may still be awaiting approval."
+msgstr "Gruppi pubblici che gestisci o di cui sei membro, e gruppi con una richiesta o un invito in attesa. I gruppi che gestisci possono essere in attesa di approvazione."
 
 #: apps/web/src/components/events/TableList.tsx
 msgid "Table history help"
@@ -7839,3 +7839,11 @@ msgstr "Se una categoria ha più opzioni, scegli almeno un Sì o Se necessario."
 
 msgid "Review the event and table settings, then vote in the sections shown."
 msgstr "Controlla le impostazioni dell’evento e del tavolo, poi vota nelle sezioni mostrate."
+
+#: apps/mobile/src/components/events/EventList.tsx
+#: apps/mobile/src/components/groups/GroupList.tsx
+#: apps/web/src/components/events/EventList.tsx
+#: apps/web/src/components/groups/GroupList.tsx
+#. js-lingui-explicit-id
+msgid "list.filter.admin"
+msgstr "Admin"

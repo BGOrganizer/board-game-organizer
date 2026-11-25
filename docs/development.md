@@ -17,6 +17,11 @@ reserved for the game picker. Existing ownership, privacy and authorization rule
   render batches and its seven-screen window. It reveals cached chunks on scroll or an accessible
   load-more action, not on an automatic initial `onEndReached`. These are picker-specific budgets,
   not universal constants or fixed-height assumptions.
+- **Compact filter controls.** The shared `FilterChips` component in each client gives Group and Event
+  roles, collection and game picker filters a 28 px visible face. Web coarse pointers and native screens
+  retain a 44 px touch target. Filter groups wrap to fit the available width and expose selection
+  and disabled state through their HeroUI buttons. Group and Event ordering uses the shared platform
+  `ListOrdering` control beneath the filters.
 - **Optimistic feedback for explicit remote actions.** Use the shared scoped journal/intent layer
   on web and native: cancel conflicting reads, project owned cached state or pending intent,
   reconcile the real acknowledgment and roll back only the failed operation. Do not invent consent,

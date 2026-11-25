@@ -174,7 +174,10 @@ export class GroupRecordsService {
     const last = items.at(-1);
     return {
       items,
-      nextCursor: rows.length > page.limit && last ? `${last.createdAt}|${last.id}` : null,
+      nextCursor:
+        rows.length > page.limit && last
+          ? `${page.sort === "name" ? `name:${last.name}` : last.createdAt}|${last.id}`
+          : null,
     };
   }
   private async releaseLogos(previous: GroupRecord | undefined, next: GroupRecord) {

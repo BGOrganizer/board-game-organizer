@@ -38,8 +38,9 @@ Main navigation is **History / Events / Groups / Community / Contacts**:
 - **Events:** Scheduled contains your active registrations, invitations, demonstrations and managed Events.
   Available contains other enrollable planning Events: private Events require Group membership; approved public Events do not.
   Terminated contains completed Events where you played, demonstrated, or still have management authority.
-  These lists retain text filtering and infinite scrolling without state-filter chips.
-- **Groups:** Private and Public lists show your groups; use Search to discover approved public groups.
+  All three lists support name or play-date ordering. Scheduled and Terminated also filter by role.
+- **Groups:** Private and Public show your groups with role filters and name or creation-date ordering.
+  Use Search to discover approved public groups.
 - **Community:** Activities from your network, global Rankings, and the Marketplace placeholder.
 - **Contacts:** Connections, Requests, Contacts and Search. Device contacts and remote search have separate lists;
   web shows registered contacts from the synchronized snapshot.
@@ -173,6 +174,7 @@ Clients retain cached data while refreshing and use bounded lists and optimistic
 Web pages scroll as documents beneath the persistent main navigation. Secondary-page Back controls
 and contextual actions share a page toolbar; game collections and pickers retain windowed rendering
 without their own scrolling viewport. Popups and selects keep bounded internal scrolling.
+Group, Event and game collection filters use compact, reusable chips with full-size touch targets.
 Native Query data persists in an account/API-scoped encrypted cache; restoration does not grant authentication
 or permission. Native cache retention, build requirements and implementation rules live in
 [the development reference](docs/development.md#native-cache-and-builds) and

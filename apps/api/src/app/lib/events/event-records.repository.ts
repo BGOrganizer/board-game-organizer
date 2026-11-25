@@ -1,9 +1,11 @@
 import type {
+  EventListFilterRole,
   EventListStatus,
   EventProposal,
   EventRecord,
   EventVoter,
   GroupRecord,
+  RecordListOrder,
   TableRecord,
   TableRegistration,
   User,
@@ -11,19 +13,22 @@ import type {
 import type { ClientSession, Db, Filter } from "mongodb";
 import { COLLECTIONS } from "../db";
 import { ProfileActivitiesRepository } from "../profile/profile-activities.repository";
+import { eventListDate } from "./event-list-date";
 import {
   availableEventExpression,
+  eventListRoleMatch,
   managedEventExpression,
   terminatedEventExpression,
 } from "./event-list-eligibility";
 import { eventPeriodStages } from "./event-periods";
 
-export interface EventRecordPage {
+export interface EventRecordPage extends Partial<RecordListOrder> {
   limit: number;
   cursor?: string;
   query?: string;
   periods?: readonly ("past" | "future")[];
   statuses?: readonly EventListStatus[];
+  roles?: readonly EventListFilterRole[];
   section?: "mine" | "available" | "waiting" | "terminated";
 }
 export class EventRecordsRepository {
@@ -922,7 +927,10 @@ export class EventRecordsRepository {
     ];
   }
   /** Canonical main-list participation; reused by source-scoped notification tab counts. */
-  participationStages(userId: string): Record<string, unknown>[] {
+  participationStages(
+    userId: string,
+    statuses: readonly ("ACCEPTED" | "PENDING")[] = ["PENDING", "ACCEPTED"],
+  ): Record<string, unknown>[] {
     return [
       {
         $lookup: {
@@ -930,7 +938,7 @@ export class EventRecordsRepository {
           localField: "id",
           foreignField: "eventId",
           pipeline: [
-            { $match: { userId, status: { $in: ["PENDING", "ACCEPTED"] } } },
+            { $match: { userId, status: { $in: statuses } } },
             {
               $lookup: {
                 from: COLLECTIONS.EVENT_TABLES,
@@ -998,7 +1006,14 @@ export class EventRecordsRepository {
       ...eventPeriodStages(page.periods, Date.now()),
     ];
     if (!groupId) {
-      pipeline.push(...this.participationStages(userId), {
+      const roles = page.roles;
+      const statuses =
+        roles && page.section === "mine"
+          ? (["PENDING", "ACCEPTED"] as const).filter((status) =>
+              roles.includes(status === "ACCEPTED" ? "participant" : "pending"),
+            )
+          : undefined;
+      pipeline.push(...this.participationStages(userId, statuses), {
         $match:
           page.section === "available"
             ? {
@@ -1018,6 +1033,8 @@ export class EventRecordsRepository {
                   ],
                 },
       });
+      if (roles)
+        pipeline.push({ $match: eventListRoleMatch(userId, roles, page.section === "terminated") });
     }
     if (page.query)
       pipeline.push({
@@ -1025,14 +1042,23 @@ export class EventRecordsRepository {
           name: { $regex: page.query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), $options: "i" },
         },
       });
+    const field = page.sort === "name" ? "name" : page.sort === "date" ? "listDate" : "createdAt";
+    const order = page.direction === "asc" ? 1 : -1;
+    if (field === "listDate") pipeline.push({ $set: { listDate: eventListDate } });
     if (page.cursor) {
-      const [createdAt, id] = page.cursor.split("|");
+      const separator = page.cursor.lastIndexOf("|");
+      const id = page.cursor.slice(separator + 1);
+      const serialized = page.cursor.slice(field === "name" ? 5 : 0, separator);
+      const value = field === "listDate" ? new Date(serialized) : serialized;
+      const after = order === 1 ? "$gt" : "$lt";
       pipeline.push({
-        $match: { $or: [{ createdAt: { $lt: createdAt } }, { createdAt, id: { $lt: id } }] },
+        $match: {
+          $or: [{ [field]: { [after]: value } }, { [field]: value, id: { [after]: id } }],
+        },
       });
     }
     pipeline.push(
-      { $sort: { createdAt: -1, id: -1 } },
+      { $sort: { [field]: order, id: order } },
       { $limit: page.limit + 1 },
       {
         $project: {
@@ -1051,7 +1077,7 @@ export class EventRecordsRepository {
         },
       },
     );
-    return this.events.aggregate<EventRecord>(pipeline, this.opts).toArray();
+    return this.events.aggregate<EventRecord & { listDate?: Date }>(pipeline, this.opts).toArray();
   }
   async personalTables(userId: string, page: EventRecordPage) {
     const pipeline: Record<string, unknown>[] = [

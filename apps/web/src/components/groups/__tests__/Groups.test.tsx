@@ -69,13 +69,16 @@ it("shows three exclusive tabs, with typed member lists distinct from four-chara
   expect(screen.getByRole("tab", { name: "Private groups", selected: true })).toBeTruthy();
   await screen.findByRole("link", { name: "Open group: Friday group" });
   expect(screen.getByRole("link", { name: "Create group" })).toBeTruthy();
-  expect(screen.getByText("Invited")).toBeTruthy();
+  for (const name of ["Admin", "Moderator", "Member", "Pending"])
+    expect(screen.getByRole("button", { name, pressed: true })).toBeVisible();
   expect(new URL(fetcher.mock.calls[0][0]).searchParams.get("type")).toBe("PRIVATE");
   expect(new URL(fetcher.mock.calls[0][0]).searchParams.get("roles")).toBe(
-    "admin,invited,accepted",
+    groupRecordMemberRoles.join(","),
   );
   fireEvent.click(screen.getByRole("tab", { name: "Public groups" }));
   await screen.findByRole("link", { name: "Open group: Public owned group" });
+  for (const name of ["Admin", "Moderator", "Member", "Pending"])
+    expect(screen.getByRole("button", { name, pressed: true })).toBeVisible();
   expect(screen.queryByRole("link", { name: "Open group: Friday group" })).toBeNull();
   expect(screen.getByRole("link", { name: "Create group" })).toBeTruthy();
   expect(screen.queryByText("Enter at least 4 characters to search")).toBeNull();
@@ -98,6 +101,7 @@ it("shows three exclusive tabs, with typed member lists distinct from four-chara
   );
   expect(discovery.searchParams.has("type")).toBe(false);
   expect(discovery.searchParams.has("roles")).toBe(false);
+  expect(screen.queryByRole("button", { name: "Sort by Date" })).toBeNull();
   fireEvent.click(screen.getByRole("tab", { name: "Private groups" }));
   await screen.findByRole("link", { name: "Open group: Friday group" });
 });
@@ -154,7 +158,9 @@ it("keeps public membership paging source-filtered by type and roles, without cr
     const params = new URL(input).searchParams;
     expect(params.get("scope")).toBe("mine");
     expect(params.get("type")).toBe("PUBLIC");
-    expect(params.get("roles")).toBe("admin,invited,accepted");
+    expect(params.get("roles")).toBe(groupRecordMemberRoles.join(","));
+    expect(params.has("sort")).toBe(false);
+    expect(params.has("direction")).toBe(false);
   }
   expect(new URL(fetcher.mock.calls[1][0]).searchParams.get("cursor")).toBe(cursor);
 });
@@ -298,7 +304,7 @@ it("applies and restores a role chip within the current authorized group source"
       reads.push(url);
       const roles = url.searchParams.get("roles")?.split(",") ?? [];
       return Response.json({
-        items: roles.includes("admin") ? [groupRecord] : [],
+        items: roles.includes("administrator") ? [groupRecord] : [],
         nextCursor: null,
       });
     }),
@@ -309,13 +315,13 @@ it("applies and restores a role chip within the current authorized group source"
   fireEvent.click(admin);
   expect(await screen.findByText("No groups found")).toBeVisible();
   expect(screen.queryByRole("link", { name: `Open group: ${groupRecord.name}` })).toBeNull();
-  expect(screen.getByRole("button", { name: "Invited", pressed: true })).toBeVisible();
-  expect(screen.getByRole("button", { name: "Accepted", pressed: true })).toBeVisible();
+  for (const name of ["Moderator", "Member", "Pending"])
+    expect(screen.getByRole("button", { name, pressed: true })).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Admin", pressed: false }));
   expect(
     await screen.findByRole("link", { name: `Open group: ${groupRecord.name}` }),
   ).toBeVisible();
-  expect(reads.map((url) => url.searchParams.get("roles"))).toContain("invited,accepted");
+  expect(reads.map((url) => url.searchParams.get("roles"))).toContain("moderator,member,pending");
   expect(
     reads.every(
       (url) =>
@@ -325,3 +331,38 @@ it("applies and restores a role chip within the current authorized group source"
     ),
   ).toBe(true);
 });
+
+it.each(["private", "public"] as const)(
+  "changes the sort field and direction in %s Groups",
+  async (section) => {
+    const reads: URL[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string) => {
+        reads.push(new URL(input));
+        return Response.json({ items: [], nextCursor: null });
+      }),
+    );
+    renderGroups(section);
+    await screen.findByText("No groups found");
+    expect(reads[0].searchParams.has("sort")).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Sort by Date" }));
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "Name" }));
+    await waitFor(() => {
+      const params = reads.at(-1)?.searchParams;
+      expect(params?.get("sort")).toBe("name");
+      expect(params?.get("direction")).toBe("desc");
+    });
+    expect(screen.getByRole("button", { name: "Sort by Name" })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Sort ascending" }));
+    await waitFor(() => {
+      const params = reads.at(-1)?.searchParams;
+      expect(params?.get("type")).toBe(section === "private" ? "PRIVATE" : "PUBLIC");
+      expect(params?.get("roles")).toBe(groupRecordMemberRoles.join(","));
+      expect(params?.get("sort")).toBe("name");
+      expect(params?.get("direction")).toBe("asc");
+      expect(params?.has("cursor")).toBe(false);
+    });
+    expect(screen.getByRole("button", { name: "Sort descending" })).toBeVisible();
+  },
+);

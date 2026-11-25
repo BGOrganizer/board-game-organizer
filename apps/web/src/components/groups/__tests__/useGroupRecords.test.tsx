@@ -347,7 +347,9 @@ describe("unified group Query ownership", () => {
         fetcher.mock.calls.map(([url]) => new URL(url).searchParams.get("type")).sort(),
       ).toEqual(["PRIVATE", "PUBLIC"]);
       for (const [url] of fetcher.mock.calls)
-        expect(new URL(url).searchParams.get("roles")).toBe("admin,invited,accepted");
+        expect(new URL(url).searchParams.get("roles")).toBe(
+          "administrator,moderator,member,pending",
+        );
       expect(groupRecordsPageQuery(options).queryKey).not.toEqual(
         groupRecordsPageQuery(options, "mine", "", groupRecordMemberRoles, type).queryKey,
       );

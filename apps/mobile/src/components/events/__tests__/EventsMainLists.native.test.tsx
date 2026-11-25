@@ -1,3 +1,4 @@
+import { eventListDefaultOrder, scheduledEventFilterRoles } from "@board-game-organizer/schemas";
 import { eventRecordsQuery } from "@board-game-organizer/shared";
 import { act, fireEvent, render, screen, userEvent, waitFor } from "@testing-library/react-native";
 import { Text } from "react-native";
@@ -9,6 +10,7 @@ import {
 import {
   listApi,
   listBoundary,
+  listChooseSortField,
   listEvent,
   listFixture,
   listId,
@@ -31,10 +33,16 @@ it("retains independently filtered scheduled/available/terminated native list ow
   await fireEvent.changeText(scheduledFilter, "Scheduled");
   await listTab("available");
   expect(await screen.findByText("Available list event")).toBeVisible();
+  expect(screen.getByTestId("list-sort-field")).toHaveAccessibleName("Sort by Date");
+  expect(screen.queryByTestId("list-filter-participant")).toBeNull();
   const availableFilter = screen.getByTestId("list-search-input");
   await fireEvent.changeText(availableFilter, "Available");
   await listTab("terminated");
   expect(await screen.findByText("Terminated list event")).toBeVisible();
+  expect(screen.getByTestId("list-sort-field")).toHaveAccessibleName("Sort by Date");
+  expect(screen.getByTestId("list-sort-direction")).toHaveAccessibleName("Sort ascending");
+  expect(screen.getByTestId("list-filter-participant")).toBeSelected();
+  expect(screen.queryByTestId("list-filter-pending")).toBeNull();
   await listTab("mine");
   expect(screen.getByTestId("list-search-input")).toBe(scheduledFilter);
   expect(scheduledFilter).toHaveDisplayValue("Scheduled");
@@ -43,6 +51,38 @@ it("retains independently filtered scheduled/available/terminated native list ow
   expect(availableFilter).toHaveDisplayValue("Available");
   expect(screen.getAllByRole("tab", { selected: true })).toHaveLength(1);
   expect(screen.queryByTestId("list-filter-PLANNING")).toBeNull();
+});
+
+it("keeps the Scheduled role selection when sorting by Name in either direction", async () => {
+  await render(
+    <MainListFixture>
+      <Events />
+    </MainListFixture>,
+  );
+  await screen.findByText("Scheduled list event");
+  for (const role of scheduledEventFilterRoles)
+    expect(screen.getByTestId(`list-filter-${role}`)).toBeSelected();
+  await listPress("Admin");
+  await screen.findByText("No events found");
+  await listChooseSortField("Name");
+  expect(screen.getByTestId("list-sort-field")).toHaveAccessibleName("Sort by Name");
+  await listPress("Sort descending");
+  await waitFor(() =>
+    expect(
+      listFixture.reads.some((url) => {
+        const params = url.searchParams;
+        return (
+          url.pathname === "/api/events" &&
+          params.get("section") === "mine" &&
+          params.get("roles") === "moderator,participant,pending" &&
+          params.get("sort") === "name" &&
+          params.get("direction") === "desc" &&
+          !params.has("cursor")
+        );
+      }),
+    ).toBe(true),
+  );
+  expect(screen.getByTestId("list-filter-admin")).not.toBeSelected();
 });
 
 it("uses short debounced scoped filters rather than discovery and clears back to its authorized section", async () => {
@@ -184,7 +224,12 @@ it("retains cached event cards on a failed refresh and removes them after an aut
 it("reveals cached event pages without refetching or replacing their authoritative data", async () => {
   const key = eventRecordsQuery(
     { ...listOptions(), getToken: async () => "fixture-list-token" },
-    { section: "mine", statuses: ["CONFIRMED", "PLANNING"], query: "" },
+    {
+      section: "mine",
+      statuses: ["CONFIRMED", "PLANNING"],
+      query: "",
+      order: eventListDefaultOrder.mine,
+    },
   ).queryKey;
   const cached = {
     pages: [

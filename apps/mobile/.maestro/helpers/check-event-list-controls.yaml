@@ -1,0 +1,86 @@
+appId: com.bgo.boardgameorganizer.dev
+---
+- assertVisible:
+    id: list-sort-field
+    text: ${output.status.sortByDate}
+- assertVisible:
+    id: list-sort-direction
+    text: "${SECTION === 'terminated' ? output.status.sortAscending : output.status.sortDescending}"
+- tapOn:
+    id: list-sort-field
+- tapOn: ${output.status.sortName}
+- assertVisible:
+    id: list-sort-field
+    text: ${output.status.sortByName}
+- tapOn:
+    id: list-sort-direction
+- assertVisible:
+    id: list-sort-direction
+    text: "${SECTION === 'terminated' ? output.status.sortDescending : output.status.sortAscending}"
+- tapOn:
+    id: list-sort-field
+- tapOn: ${output.status.sortDate}
+- assertVisible:
+    id: list-sort-field
+    text: ${output.status.sortByDate}
+- tapOn:
+    id: list-sort-direction
+- runFlow:
+    when:
+      true: ${SECTION === 'scheduled'}
+    commands:
+      - assertVisible:
+          id: list-filter-pending
+          selected: true
+      - tapOn:
+          id: list-filter-pending
+- runFlow:
+    when:
+      true: ${SECTION !== 'scheduled'}
+    commands:
+      - assertNotVisible:
+          id: list-filter-pending
+- runFlow:
+    when:
+      true: ${SECTION !== 'available'}
+    commands:
+      - assertVisible:
+          id: list-filter-admin
+          selected: true
+      - assertVisible:
+          id: list-filter-moderator
+          selected: true
+      - assertVisible:
+          id: list-filter-participant
+          selected: true
+      - tapOn:
+          id: list-filter-admin
+      - tapOn:
+          id: list-filter-moderator
+      - tapOn:
+          id: list-filter-participant
+      - extendedWaitUntil:
+          visible: ${output.status.emptyEvents}
+          timeout: 30000
+      - tapOn:
+          id: list-filter-admin
+      - tapOn:
+          id: list-filter-moderator
+      - tapOn:
+          id: list-filter-participant
+- runFlow:
+    when:
+      true: ${SECTION === 'scheduled'}
+    commands:
+      - tapOn:
+          id: list-filter-pending
+- runFlow:
+    when:
+      true: ${SECTION === 'available'}
+    commands:
+      - assertNotVisible:
+          id: list-filter-admin
+      - assertNotVisible:
+          id: list-filter-moderator
+      - assertNotVisible:
+          id: list-filter-participant

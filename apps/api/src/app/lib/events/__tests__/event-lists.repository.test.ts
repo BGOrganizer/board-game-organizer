@@ -287,6 +287,94 @@ describe("EventRecordsRepository main-list and historical-table source guards", 
     },
   );
 
+  it.each([
+    {
+      section: "mine",
+      roles: ["participant"],
+      statuses: ["ACCEPTED"],
+      match: {
+        $or: [
+          { "myRegistration.0": { $exists: true } },
+          { "personalFrozenTable.0": { $exists: true } },
+          { "myDemonstration.0": { $exists: true } },
+        ],
+      },
+    },
+    {
+      section: "mine",
+      roles: ["pending"],
+      statuses: ["PENDING"],
+      match: { $or: [{ "myRegistration.0": { $exists: true } }] },
+    },
+    {
+      section: "mine",
+      roles: [],
+      statuses: [],
+      match: { id: { $in: [] } },
+    },
+    {
+      section: "terminated",
+      roles: ["participant"],
+      statuses: ["PENDING", "ACCEPTED"],
+      match: { $or: [{ "personalFrozenTable.0": { $exists: true } }] },
+    },
+  ] as const)(
+    "source-filters $section using $roles before the page",
+    async ({ section, roles, statuses, match }) => {
+      const fixture = setup();
+      await fixture.repo.list("user_viewer", { section, roles, limit: 2 });
+      const pipeline = fixture.aggregate.mock.calls[0][1];
+      expect(
+        pipeline.find((stage) => stage.$lookup?.as === "myRegistration")?.$lookup.pipeline[0],
+      ).toEqual({ $match: { userId: "user_viewer", status: { $in: statuses } } });
+      expect(pipeline.at(-4)).toEqual({ $match: match });
+      expect(pipeline.at(-2)).toEqual({ $limit: 3 });
+    },
+  );
+
+  it.each([
+    {
+      sort: "name",
+      direction: "asc",
+      field: "name",
+      value: "Games | Sunday",
+      operator: "$gt",
+      order: 1,
+    },
+    {
+      sort: "date",
+      direction: "desc",
+      field: "listDate",
+      value: new Date(now),
+      operator: "$lt",
+      order: -1,
+    },
+  ] as const)(
+    "pages by explicit $sort ordering and an Event ID tie-breaker",
+    async ({ sort, direction, field, value, operator, order }) => {
+      const fixture = setup();
+      const cursor = sort === "name" ? `name:${value}|${id}` : `${now}|${id}`;
+      await fixture.repo.list("user_viewer", {
+        section: "available",
+        sort,
+        direction,
+        cursor,
+        limit: 2,
+      });
+      const pipeline = fixture.aggregate.mock.calls[0][1];
+      expect(pipeline.slice(-4, -1)).toEqual([
+        {
+          $match: {
+            $or: [{ [field]: { [operator]: value } }, { [field]: value, id: { [operator]: id } }],
+          },
+        },
+        { $sort: { [field]: order, id: order } },
+        { $limit: 3 },
+      ]);
+      expect(pipeline.some((stage) => stage.$set?.listDate)).toBe(sort === "date");
+    },
+  );
+
   it("intersects explicit main-list statuses without expanding them and keeps group lists source-scoped", async () => {
     const fixture = setup();
     await fixture.repo.list("user_viewer", {

@@ -38,9 +38,11 @@ Event, Table and result only. See [Community visibility](community.md) and
   and selective rollback. Managers receive Group administration/request notices without inventing
   member attention or broadening global moderation.
 - Main Groups has Private / Public / Search top tabs (Italian: Privati / Pubblici / Ricerca).
-  Private/Public source-filter the viewer's administered Groups, accepted memberships and pending
-  invitations by immutable type before pagination; requests, departed members and active exclusions
-  do not qualify. Pending invitations grant no member-only capabilities. Approved public discovery remains separate in Search with its four-character minimum.
+  Private/Public offer Admin, Moderator, Member and Pending filters before pagination. Pending covers
+  invitations and requests to approved public Groups. Private Groups are invitation-only. Departed
+  members and active exclusions do not qualify. Pending membership grants no member-only capabilities.
+  Name and creation-date ordering are available in both tabs, with newest first by default.
+  Approved public discovery remains separate in Search with its four-character minimum.
   Existing notification/detail invitation consent stays available. Query keys and provisional creation
   rows retain the same type split. Startup warms the exact default Private member page without adding
   a splash-gating dataset or changing the five-second total limit.
@@ -138,11 +140,16 @@ Event, Table and result only. See [Community visibility](community.md) and
   their parent Event. Loss of management preserves only actual player/demonstrator history. Legacy explicit
   mine/waiting API sections retain their existing behavior and distinct caches.
 - Main Event, Group and History lists use section Cards with help that explains what each list
-  contains. Main Events' three sections and History have no state-filter chips. Name filters have an
+  contains. Scheduled Events offer Admin, Moderator, Participant and Pending filters. Participants
+  include accepted players in the waiting list and demonstrators. Pending covers invitations awaiting
+  a response. Terminated Events offer Admin, Moderator and Participant, with participation derived from
+  confirmed tables. Available Events have no role filters. Main Events support name or play-date
+  ordering before pagination. Use the confirmed date or the earliest proposed start in planning.
+  Scheduled and Available default to earliest first, Terminated to latest first.
+  History has no status-filter chips. Name filters have an
   accessible label, a clear action, no character minimum and a 300 ms debounce. Escaped name
   filtering and section eligibility run before source pagination. Group-context Events have
-  Confirmed / Planning / Terminated chips, initially all enabled. Owned Private/Public Groups have
-  role filters.
+  Confirmed / Planning / Terminated chips, initially all enabled.
   Group Search uses a four-character minimum, with centered prompts before searching and when the
   results are empty. Its guidance lives in the section Card. Current lifecycle comes from
   persisted Event state, never guessed from dates. Legacy API period parameters remain supported.

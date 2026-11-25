@@ -1,0 +1,32 @@
+appId: com.bgo.boardgameorganizer.dev
+name: Owned Groups role filters and source ordering
+# Read-only flow for an authenticated Development account.
+tags: [manual, groups]
+---
+- stopApp
+- launchApp:
+    clearState: false
+- openLink: bgo-dev:///groups
+- extendedWaitUntil:
+    visible:
+      id: list-filter-administrator
+    timeout: 120000
+- runFlow: ../helpers/check-group-list-filters.yaml
+- tapOn:
+    id: top-tab-public
+- assertVisible:
+    id: top-tab-public
+    selected: true
+- runFlow: ../helpers/check-group-list-filters.yaml
+- tapOn:
+    id: top-tab-search
+- assertVisible:
+    id: top-tab-search
+    selected: true
+- assertNotVisible:
+    id: list-filter-pending
+- assertNotVisible:
+    id: list-sort-field
+- assertNotVisible:
+    id: list-sort-direction
+- assertVisible: '^(Enter at least 4 characters to search|Inserisci almeno 4 caratteri per cercare)$'

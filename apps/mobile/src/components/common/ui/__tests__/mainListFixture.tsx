@@ -7,11 +7,13 @@ import type {
 import type { CommunityApiOptions } from "@board-game-organizer/shared";
 import { useAppStore } from "@board-game-organizer/store";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { screen, userEvent } from "@testing-library/react-native";
+import { fireEvent, screen, userEvent, waitFor } from "@testing-library/react-native";
 import { createContext, type EffectCallback, type ReactNode, useContext, useEffect } from "react";
-import { afterEach, beforeEach, vi } from "vitest";
+import { Dimensions, StyleSheet } from "react-native";
+import { afterEach, beforeEach, expect, vi } from "vitest";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import { scrollNativeListToEnd } from "@/test/nativeListGeometry";
+import { installNativePopoverMeasurements } from "@/test/nativePopoverGeometry";
 import {
   groupRecord,
   plannedEvent,
@@ -77,6 +79,14 @@ export const listFixture = {
 export const listOptions = () => ({ apiUrl: listBoundary.apiUrl, userId: listBoundary.userId });
 export const listId = (value: number) =>
   `00000000-0000-4000-8000-${String(value).padStart(12, "0")}`;
+const groupFilterRoles = {
+  admin: ["admin", "administrator"],
+  moderator: ["admin", "accepted", "moderator"],
+  accepted: ["accepted", "member"],
+  invited: ["invited", "pending"],
+  requested: ["pending"],
+  none: [],
+} satisfies Record<GroupRecordResponse["role"], readonly string[]>;
 export function listGroup(
   name = "Private list group",
   change: Partial<GroupRecordResponse> = {},
@@ -210,6 +220,7 @@ beforeEach(() => {
       const suspended = listFixture.pending.get(url.pathname);
       if (suspended) return suspended;
       const query = (url.searchParams.get("query") ?? "").toLowerCase();
+      const roles = url.searchParams.get("roles")?.split(",");
       const next = url.searchParams.has("cursor");
       if (url.pathname === "/api/community/leaderboard")
         return listJson({ games: [], players: [], nextCursor: null });
@@ -228,8 +239,7 @@ beforeEach(() => {
           (row) =>
             (!url.searchParams.has("type") || row.type === url.searchParams.get("type")) &&
             (url.searchParams.get("scope") !== "public" || row.type === "PUBLIC") &&
-            (!url.searchParams.has("roles") ||
-              url.searchParams.get("roles")?.split(",").includes(row.role)),
+            (!roles || groupFilterRoles[row.role].some((role) => roles.includes(role))),
         );
       else if (url.pathname === "/api/events") {
         const section = url.searchParams.get("section");
@@ -238,6 +248,13 @@ beforeEach(() => {
           (row) =>
             (!statuses || statuses.includes(row.status)) &&
             (!url.searchParams.has("groupId") || row.groupId === url.searchParams.get("groupId")) &&
+            (!roles ||
+              (row.canManage && roles.includes(row.managementRole ?? "admin")) ||
+              (roles.includes("participant") &&
+                (row.myDemonstrator ||
+                  row.myRegistrations.some((item) => item.status === "ACCEPTED"))) ||
+              (roles.includes("pending") &&
+                row.myRegistrations.some((item) => item.status === "PENDING"))) &&
             (!section || section === "terminated"
               ? !section || row.status === "TERMINATED"
               : section === "available"
@@ -288,6 +305,24 @@ export async function listTab(tab: string) {
 }
 export async function listPress(name: string) {
   await userEvent.setup().press(screen.getByRole("button", { name }));
+}
+export async function listChooseSortField(name: "Name" | "Date") {
+  await installNativePopoverMeasurements();
+  await fireEvent.press(screen.getByTestId("list-sort-field"));
+  const menus = () =>
+    screen.container.queryAll(
+      (node) => node.props.role === "menu" && typeof node.props.onLayout === "function",
+    );
+  await waitFor(() => expect(menus()).toHaveLength(1));
+  const [menu] = menus();
+  // RN's test renderer has no Yoga layout. Deliver the real HeroUI menu's layout passes.
+  for (let pass = 0; pass < 2; pass++) {
+    const style = StyleSheet.flatten(menu.props.style);
+    const x = typeof style?.left === "number" ? style.left : 0;
+    const y = typeof style?.top === "number" ? style.top : Dimensions.get("screen").height;
+    await fireEvent.layout(menu, { x, y, width: 180, height: 120 });
+  }
+  await fireEvent.press(await screen.findByRole("menuitem", { name, includeHiddenElements: true }));
 }
 /** Public native layout/scroll events; no private VirtualizedList callbacks. */
 export async function scrollListEnd(list: ReturnType<typeof screen.getByTestId>, height = 1200) {

@@ -1,6 +1,7 @@
 import type {
   CreatePlannedEventInput,
   EditPlannedEventInput,
+  EventListFilterRole,
   EventListSection,
   EventListStatus,
   GroupRecordResponse,
@@ -14,7 +15,8 @@ import type { EventRecordDraft } from "./eventRecordForm";
 export type CreateEventVariables = CreatePlannedEventInput & {
   clientDraft?: EventRecordDraft;
   clientInitialGroupId?: string;
-  clientGroup?: Pick<GroupRecordResponse, "id" | "name" | "type">;
+  clientGroup?: Pick<GroupRecordResponse, "id" | "name" | "type"> &
+    Partial<Pick<GroupRecordResponse, "role">>;
 };
 export type EditEventVariables = EditPlannedEventInput & { clientDraft?: EventRecordDraft };
 export type ClientEventRecord = ClientRecord<PlannedEventResponse>;
@@ -50,6 +52,11 @@ export function eventCreationRecord(
     groupName: group?.name ?? null,
     groupType: group?.type ?? null,
     role: "admin",
+    ...(group?.role === "moderator" || group?.role === "admin"
+      ? { managementRole: group.role }
+      : !input.groupId
+        ? { managementRole: "admin" }
+        : {}),
     myRegistrations: [],
     tableCount: input.tables.length,
     participantCount: 0,
@@ -73,11 +80,18 @@ export function eventCreationMatches(
     periods?: readonly ("past" | "future")[];
     statuses?: readonly EventListStatus[];
     section?: EventListSection;
+    roles?: readonly EventListFilterRole[];
   },
   now = Date.now(),
 ) {
   if (filters.groupId && filters.groupId !== row.groupId) return false;
   if (filters.statuses && !filters.statuses.includes(row.status)) return false;
+  if (
+    filters.roles &&
+    !filters.roles.includes(row.managementRole ?? "admin") &&
+    !(row.myDemonstrator && filters.roles.includes("participant"))
+  )
+    return false;
   if (
     !filters.groupId &&
     filters.section &&

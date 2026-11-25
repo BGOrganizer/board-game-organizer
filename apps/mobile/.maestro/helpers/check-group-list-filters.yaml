@@ -1,0 +1,50 @@
+appId: com.bgo.boardgameorganizer.dev
+---
+- assertVisible:
+    id: list-filter-administrator
+    selected: true
+- assertVisible:
+    id: list-filter-moderator
+    selected: true
+- assertVisible:
+    id: list-filter-member
+    selected: true
+- assertVisible:
+    id: list-filter-pending
+    selected: true
+- assertVisible:
+    id: list-sort-field
+    text: '^(Sort by Date|Ordina per Data)$'
+- tapOn:
+    id: list-sort-field
+- tapOn: '^(Name|Nome)$'
+- assertVisible:
+    id: list-sort-field
+    text: '^(Sort by Name|Ordina per Nome)$'
+- tapOn:
+    id: list-sort-direction
+- assertVisible:
+    id: list-sort-direction
+    text: '^(Sort descending|Ordina in ordine decrescente)$'
+- tapOn:
+    id: list-sort-field
+- tapOn: '^(Date|Data)$'
+- assertVisible:
+    id: list-sort-field
+    text: '^(Sort by Date|Ordina per Data)$'
+- tapOn:
+    id: list-sort-direction
+- assertVisible:
+    id: list-sort-direction
+    text: '^(Sort ascending|Ordina in ordine crescente)$'
+- tapOn:
+    id: list-filter-administrator
+- tapOn:
+    id: list-filter-moderator
+- tapOn:
+    id: list-filter-member
+- tapOn:
+    id: list-filter-pending
+- extendedWaitUntil:
+    visible: '^(No groups found|Nessun gruppo trovato)$'
+    timeout: 30000

@@ -4,6 +4,7 @@ import type {
   EventProposal,
   EventProposalResponse,
   GroupMembership,
+  GroupRecordListRole,
   JoinTableInput,
 } from "@board-game-organizer/schemas";
 import {
@@ -2297,7 +2298,10 @@ describe("unified groups/events on the real MongoDB replica set", () => {
       "manager",
       "confirmed",
       "planning",
+      "planning-demonstrator",
+      "planning-waiting",
     ];
+    const scheduledKinds = ["confirmed", "planning", "planning-demonstrator", "planning-waiting"];
     const historyGameId = 42;
     await db.collection(COLLECTIONS.BOARD_GAMES).insertOne({
       id: historyGameId,
@@ -2309,7 +2313,11 @@ describe("unified groups/events on the real MongoDB replica set", () => {
         id = randomUUID();
       const createdAt = new Date(Date.now() + index).toISOString();
       const status =
-        kind === "confirmed" ? "CONFIRMED" : kind === "planning" ? "PLANNING" : "TERMINATED";
+        kind === "confirmed"
+          ? "CONFIRMED"
+          : kind.startsWith("planning")
+            ? "PLANNING"
+            : "TERMINATED";
       fixtures.push({ eventId, tableId: id, kind });
       const { confirmed: eventConfirmed, ...eventBase } = base;
       await db.collection(COLLECTIONS.EVENTS).insertOne({
@@ -2318,6 +2326,7 @@ describe("unified groups/events on the real MongoDB replica set", () => {
         name: `History fixture ${kind}`,
         createdAt,
         status,
+        ...(kind === "planning-waiting" ? { planningMode: "MANUAL" } : {}),
         ...(status === "PLANNING" ? {} : { confirmed: eventConfirmed }),
       });
       const { confirmed: originalConfirmed, results: originalResults, ...tableBase } = original;
@@ -2352,15 +2361,16 @@ describe("unified groups/events on the real MongoDB replica set", () => {
                     },
             }
           : {}),
-        ...(kind === "demonstrator" ? { demonstratorUserId: GUEST } : {}),
+        ...(kind.endsWith("demonstrator") ? { demonstratorUserId: GUEST } : {}),
       });
-      if (!["demonstrator", "manager"].includes(kind))
+      if (kind !== "manager" && !kind.endsWith("demonstrator"))
         await db.collection(COLLECTIONS.TABLE_REGISTRATIONS).insertOne({
           ...registration,
           id: randomUUID(),
           eventId,
           tableId: id,
           status: kind === "pending" || kind === "planning" ? "PENDING" : "ACCEPTED",
+          ...(kind === "planning-waiting" ? { seatIndex: null } : {}),
         });
     }
     const managerFixture = fixtures.find((row) => row.kind === "manager")!;
@@ -2373,11 +2383,16 @@ describe("unified groups/events on the real MongoDB replica set", () => {
       name: "History fixture excluded",
       order: 1,
     });
-    const list = async (section: "mine" | "available" | "terminated") =>
+    const list = async (
+      section: "mine" | "available" | "terminated",
+      roles?: EventRecordPage["roles"],
+      userId = GUEST,
+    ) =>
       (
-        await services().plannedEventService.list(GUEST, {
+        await services().plannedEventService.list(userId, {
           limit: 20,
           section,
+          roles,
           query: "History fixture",
         })
       ).items;
@@ -2386,10 +2401,27 @@ describe("unified groups/events on the real MongoDB replica set", () => {
         .filter((row) => kinds.includes(row.kind))
         .map((row) => row.eventId)
         .sort();
-    expect((await list("mine")).map((row) => row.id).sort()).toEqual(
-      ids(["confirmed", "planning"]),
+    expect((await list("mine")).map((row) => row.id).sort()).toEqual(ids(scheduledKinds));
+    expect((await list("mine", ["admin"], OWNER)).map((row) => row.id).sort()).toEqual(
+      ids(scheduledKinds),
+    );
+    expect(await list("mine", ["admin", "moderator"])).toEqual([]);
+    expect(await list("mine", [])).toEqual([]);
+    const participating = await list("mine", ["participant"]);
+    expect(participating.map((row) => row.id).sort()).toEqual(
+      ids(["confirmed", "planning-demonstrator", "planning-waiting"]),
+    );
+    expect(
+      participating.find((row) => row.name.endsWith("planning-waiting"))?.myRegistrations,
+    ).toMatchObject([{ position: "WAITING" }]);
+    expect((await list("mine", ["pending"])).map((row) => row.id)).toEqual(ids(["planning"]));
+    expect((await list("mine", ["participant", "pending"])).map((row) => row.id).sort()).toEqual(
+      ids(scheduledKinds),
     );
     expect((await list("terminated")).map((row) => row.id).sort()).toEqual(
+      ids(["player", "demonstrator"]),
+    );
+    expect((await list("terminated", ["participant"])).map((row) => row.id).sort()).toEqual(
       ids(["player", "demonstrator"]),
     );
     expect(await list("available")).toEqual([]);
@@ -2444,7 +2476,7 @@ describe("unified groups/events on the real MongoDB replica set", () => {
       expect(ownLists).toEqual(
         ["player", "demonstrator"].includes(fixture.kind)
           ? [{ kind: "event-list", id: "terminated" }]
-          : ["confirmed", "planning"].includes(fixture.kind)
+          : scheduledKinds.includes(fixture.kind)
             ? [{ kind: "event-list", id: "mine" }]
             : [],
       );
@@ -2452,12 +2484,21 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     const member = await services().groupRecords.membership(group.id, GUEST);
     if (!member) throw new Error("Missing current member");
     await services().groupRecords.saveMembership({ ...member, role: "MODERATOR" });
-    expect((await list("terminated")).map((row) => row.id).sort()).toEqual(
-      ids(kinds.filter((kind) => !["planning", "confirmed"].includes(kind))),
+    const finishedKinds = kinds.filter((kind) => !scheduledKinds.includes(kind));
+    expect((await list("terminated")).map((row) => row.id).sort()).toEqual(ids(finishedKinds));
+    expect((await list("terminated", ["moderator"])).map((row) => row.id).sort()).toEqual(
+      ids(finishedKinds),
+    );
+    expect((await list("mine", ["moderator"])).map((row) => row.id).sort()).toEqual(
+      ids(scheduledKinds),
+    );
+    expect(await list("terminated", ["admin"])).toEqual([]);
+    expect((await list("terminated", ["participant"])).map((row) => row.id).sort()).toEqual(
+      ids(["player", "demonstrator"]),
     );
     expect(await history()).toEqual(
       fixtures
-        .filter((row) => !["planning", "confirmed"].includes(row.kind))
+        .filter((row) => finishedKinds.includes(row.kind))
         .map((row) => row.tableId)
         .sort(),
     );
@@ -2474,6 +2515,104 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     expect(
       playerEvent.cardSummary?.tables[0].winners.every((row) => typeof row.username === "string"),
     ).toBe(true);
+  });
+
+  it("source-pages main Events by name and chronological play instant in both directions", async () => {
+    const group = await privateGroup();
+    const created = await transaction((s) =>
+      s.plannedEventService.create(OWNER, plannedInput(group.id)),
+    );
+    const base = await services().eventRecords.find(created.id);
+    if (!base) throw new Error("Missing Event source fixture");
+    const fixtures = [
+      {
+        startsAt: "2030-06-03T16:00:00.000Z",
+        name: "Chronology Zeta | Sunday",
+        timeZone: "Europe/Rome",
+        startTime: "20:00",
+        dates: [
+          { id: dateId, day: "2030-06-03", startTime: "21:00" },
+          { id: secondId, day: "2030-06-03", startTime: "18:00" },
+        ],
+      },
+      {
+        startsAt: "2030-06-03T16:00:00.000Z",
+        name: "Chronology Zeta | Sunday",
+        timeZone: "UTC",
+        startTime: "16:00",
+        dates: [{ id: dateId, day: "2030-06-03" }],
+      },
+      {
+        startsAt: "2030-06-03T19:00:00.000Z",
+        name: "Chronology Alpha confirmed",
+        status: "CONFIRMED" as const,
+        timeZone: "America/New_York",
+        startTime: "16:00",
+        dates: [
+          { id: dateId, day: "2030-06-02", startTime: "10:00" },
+          { id: secondId, day: "2030-06-03", startTime: "15:00" },
+        ],
+        confirmed: { dateId: secondId, locationId: venueId, at: "2029-06-01T12:00:00.000Z" },
+      },
+      {
+        startsAt: "2030-06-03T17:00:00.000Z",
+        name: "Chronology Beta planned",
+        timeZone: "UTC",
+        startTime: "17:00",
+        dates: [{ id: dateId, day: "2030-06-03" }],
+      },
+    ].map(({ startsAt, ...event }, index) => ({
+      startsAt,
+      record: {
+        ...base,
+        ...event,
+        id: randomUUID(),
+        createdAt: new Date(Date.UTC(2029, 4, 1, 0, index)).toISOString(),
+      },
+    }));
+    await db.collection(COLLECTIONS.EVENTS).insertMany(fixtures.map(({ record }) => record));
+
+    for (const section of ["mine", "available"] as const) {
+      const actor = section === "mine" ? OWNER : GUEST;
+      const listPage = (page: Pick<EventRecordPage, "sort" | "direction" | "cursor">) =>
+        services().plannedEventService.list(actor, {
+          section,
+          query: "Chronology",
+          roles: section === "mine" ? ["admin"] : undefined,
+          limit: 1,
+          ...page,
+        });
+      const eligible = fixtures.filter(
+        ({ record }) => section === "mine" || record.status !== "CONFIRMED",
+      );
+      const newest = eligible.at(-1)!.record;
+      expect(await listPage({})).toMatchObject({
+        items: [{ id: newest.id }],
+        nextCursor: `${newest.createdAt}|${newest.id}`,
+      });
+      for (const sort of ["name", "date"] as const) {
+        for (const direction of ["asc", "desc"] as const) {
+          const ordered = eligible.toSorted((a, b) => {
+            const left = sort === "name" ? a.record.name : a.startsAt;
+            const right = sort === "name" ? b.record.name : b.startsAt;
+            const order =
+              left < right ? -1 : left > right ? 1 : a.record.id.localeCompare(b.record.id);
+            return direction === "asc" ? order : -order;
+          });
+          let cursor: string | undefined;
+          for (const [index, { startsAt, record }] of ordered.entries()) {
+            const page = await listPage({ sort, direction, cursor });
+            expect(page.items).toMatchObject([{ id: record.id, name: record.name }]);
+            expect(page.nextCursor).toBe(
+              index === ordered.length - 1
+                ? null
+                : `${sort === "name" ? `name:${record.name}` : startsAt}|${record.id}`,
+            );
+            cursor = page.nextCursor ?? undefined;
+          }
+        }
+      }
+    }
   });
 
   it("source-pages History by terminated frozen attendance, demonstration and current management", async () => {
@@ -6260,29 +6399,40 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     expect(repeat.every((result) => result.status === "rejected")).toBe(true);
     expect(await db.collection(COLLECTIONS.RATING_EVENTS).countDocuments()).toBe(4);
   });
-  it("source-pages private/public admin, member and pending invitation roles, excluding requests/left/banned and legacy Groups", async () => {
+  it("source-pages exact private/public group roles by name and date in either direction", async () => {
+    type Filter = (typeof groupRecordMemberRoles)[number];
     const rows: Array<{
       id: string;
       type: "PRIVATE" | "PUBLIC";
-      eligible: boolean;
+      role: string;
+      filter: Filter | null;
       createdAt: string;
+      name: string;
     }> = [];
-    for (const role of [
-      "member",
-      "invited",
-      "admin",
-      "requested",
-      "left",
-      "member",
-      "declined",
-      "banned",
-      "none",
-    ]) {
+    for (const [role, filter] of [
+      ["member", "member"],
+      ["invited", "pending"],
+      ["admin", "administrator"],
+      ["moderator", "moderator"],
+      ["requested", "pending"],
+      ["left", null],
+      ["member", "member"],
+      ["declined", null],
+      ["banned", null],
+      ["banned-invitation", null],
+      ["none", null],
+    ] as const) {
       for (const type of ["PRIVATE", "PUBLIC"] as const) {
-        if (role === "requested" && type === "PRIVATE") continue;
-        const id = randomUUID(),
-          createdAt = new Date(Date.UTC(2030, 0, 1, 0, 0, rows.length)).toISOString();
-        const name = `Tabbed ${type} ${role} ${rows.length}`;
+        const duplicate = type === "PRIVATE" && role === "member";
+        const id = randomUUID();
+        const createdAt = new Date(
+          Date.UTC(2030, 0, 1, 0, 0, duplicate ? 0 : rows.length),
+        ).toISOString();
+        const name = duplicate
+          ? "Tabbed PRIVATE | Member"
+          : `Tabbed ${type} ${role} ${rows.length}`;
+        const proposedName =
+          type === "PUBLIC" && role === "moderator" ? "Tabbed earliest public proposal" : undefined;
         const revision = {
           name,
           ...(type === "PUBLIC"
@@ -6295,6 +6445,9 @@ describe("unified groups/events on the real MongoDB replica set", () => {
             type,
             adminUserId: role === "admin" ? GUEST : OWNER,
             approved: revision,
+            ...(proposedName
+              ? { proposal: { ...revision, name: proposedName }, reviewStatus: "PENDING" }
+              : {}),
             reservedNames: type === "PUBLIC" ? [name.toLowerCase()] : [],
             version: 1,
             createdAt,
@@ -6307,7 +6460,8 @@ describe("unified groups/events on the real MongoDB replica set", () => {
             groupId: id,
             userId: GUEST,
             kind: role === "requested" ? "REQUEST" : "INVITATION",
-            status: ["member", "banned"].includes(role)
+            ...(role === "moderator" ? { role: "MODERATOR" } : {}),
+            status: ["member", "moderator", "banned"].includes(role)
               ? "ACCEPTED"
               : role === "left"
                 ? "LEFT"
@@ -6318,7 +6472,7 @@ describe("unified groups/events on the real MongoDB replica set", () => {
             createdAt,
             updatedAt: createdAt,
           });
-        if (role === "banned")
+        if (role === "banned" || role === "banned-invitation")
           await db.collection(COLLECTIONS.GROUP_BANS).insertOne({
             id: randomUUID(),
             groupId: id,
@@ -6327,7 +6481,14 @@ describe("unified groups/events on the real MongoDB replica set", () => {
             until: null,
             createdAt,
           });
-        rows.push({ id, type, createdAt, eligible: ["admin", "member", "invited"].includes(role) });
+        rows.push({
+          id,
+          type,
+          role,
+          createdAt,
+          name: proposedName ?? name,
+          filter: type === "PRIVATE" && role === "requested" ? null : filter,
+        });
       }
     }
     const proposalId = randomUUID(),
@@ -6349,7 +6510,14 @@ describe("unified groups/events on the real MongoDB replica set", () => {
         updatedAt: at,
       }),
     );
-    rows.push({ id: proposalId, type: "PUBLIC", createdAt: at, eligible: true });
+    rows.push({
+      id: proposalId,
+      type: "PUBLIC",
+      role: "admin",
+      filter: "administrator",
+      name: "Tabbed public proposal",
+      createdAt: at,
+    });
     await db.collection(COLLECTIONS.GROUPS).insertOne({
       id: randomUUID(),
       name: "Tabbed legacy",
@@ -6358,36 +6526,72 @@ describe("unified groups/events on the real MongoDB replica set", () => {
       createdAt: at,
     });
     for (const type of ["PRIVATE", "PUBLIC"] as const) {
-      const expected = rows
-        .filter((row) => row.type === type && row.eligible)
-        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-        .map((row) => row.id);
-      const actual: string[] = [];
-      let cursor: string | undefined;
-      do {
-        const page = await services().unifiedGroupService.list(GUEST, "mine", {
+      const eligible = rows.filter((row) => row.type === type && row.filter !== null);
+      const list = (roles: readonly GroupRecordListRole[]) =>
+        services().unifiedGroupService.list(GUEST, "mine", {
           type,
-          roles: groupRecordMemberRoles,
+          roles,
           query: "Tabbed",
-          limit: 2,
-          cursor,
+          limit: 20,
         });
-        expect(page.items).toHaveLength(Math.min(2, expected.length - actual.length));
-        expect(
-          page.items.every(
-            (row) => row.type === type && ["admin", "accepted", "invited"].includes(row.role),
-          ),
-        ).toBe(true);
-        for (const row of page.items.filter((item) => item.role === "invited")) {
-          expect(row.myMembership?.status).toBe("PENDING");
-          expect(row.canViewEvents).toBe(false);
-          expect(row.canViewRankings).toBe(false);
-          expect(row.canSocialInteract).toBe(false);
+      for (const filter of groupRecordMemberRoles) {
+        const page = await list([filter]);
+        expect(page.items.map((row) => row.id).sort()).toEqual(
+          eligible
+            .filter((row) => row.filter === filter)
+            .map((row) => row.id)
+            .sort(),
+        );
+        if (filter === "pending")
+          for (const row of page.items) {
+            expect(row.myMembership?.status).toBe("PENDING");
+            expect(row.canViewEvents).toBe(false);
+            expect(row.canViewRankings).toBe(false);
+            expect(row.canSocialInteract).toBe(false);
+          }
+      }
+      for (const [legacy, matching] of [
+        ["admin", ["admin", "moderator"]],
+        ["accepted", ["member", "moderator"]],
+        ["invited", ["invited"]],
+      ] as const) {
+        expect((await list([legacy])).items.map((row) => row.id).sort()).toEqual(
+          eligible
+            .filter((row) => matching.some((role) => role === row.role))
+            .map((row) => row.id)
+            .sort(),
+        );
+      }
+      expect((await list([])).items).toEqual([]);
+
+      for (const sort of ["name", "date"] as const) {
+        for (const direction of ["asc", "desc"] as const) {
+          const key = (row: (typeof rows)[number]) => (sort === "name" ? row.name : row.createdAt);
+          const expected = eligible.toSorted((a, b) => {
+            const comparison = Buffer.compare(Buffer.from(key(a)), Buffer.from(key(b)));
+            return (direction === "asc" ? 1 : -1) * (comparison || a.id.localeCompare(b.id));
+          });
+          let cursor: string | undefined;
+          for (const [index, row] of expected.entries()) {
+            const page = await services().unifiedGroupService.list(GUEST, "mine", {
+              type,
+              roles: groupRecordMemberRoles,
+              query: "Tabbed",
+              limit: 1,
+              cursor,
+              sort,
+              direction,
+            });
+            expect(page.items).toMatchObject([{ id: row.id, name: row.name, type }]);
+            expect(page.nextCursor).toBe(
+              index === expected.length - 1
+                ? null
+                : `${sort === "name" ? `name:${row.name}` : row.createdAt}|${row.id}`,
+            );
+            cursor = page.nextCursor ?? undefined;
+          }
         }
-        actual.push(...page.items.map((row) => row.id));
-        cursor = page.nextCursor ?? undefined;
-      } while (cursor);
-      expect(actual).toEqual(expected);
+      }
       expect(
         (
           await services().unifiedGroupService.list(GUEST, "mine", {

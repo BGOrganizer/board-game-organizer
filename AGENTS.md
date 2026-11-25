@@ -192,6 +192,11 @@ Report unavailable kernel limits separately from the application limits actually
   Events instead use Filter inputs with an accessible name, no visible label or inline help, no
   minimum length, a 300 ms debounce and a clear action. Their escaped name query stays inside the
   selected authorized list before paging. Group Search retains its four-character discovery minimum.
+- Use the platform's shared `FilterChips` for compact list filters. Keep the visible chip compact
+  and its native or coarse-pointer touch target at least 44 px.
+- Use `ListOrdering` for the name/date selector and direction action in Group and Event lists.
+  Apply role and ordering parameters before source pagination, and scope the cache key to both.
+  See the [list contract](docs/groups-events-tables.md#results-lists-and-transport).
 - For every variable-length list, default to paginated data and virtualized rendering: use
   `FlatList` or `SectionList` on mobile and pagination (plus windowing when large) on web. Load
   further pages as the user scrolls; do not render an entire address book, search result set, or

@@ -2,15 +2,21 @@
 
 import type {
   CommunityPageResponse,
+  EventListFilterRole,
   EventListSection,
   EventListStatus,
   PlannedEventResponse,
   PlannedTableResponse,
+  RecordListOrder,
   TableInviteesPageResponse,
   TableListSection,
   TableSeatResponse,
 } from "@board-game-organizer/schemas";
-import { eventListStatuses } from "@board-game-organizer/schemas";
+import {
+  eventListStatuses,
+  scheduledEventFilterRoles,
+  terminatedEventFilterRoles,
+} from "@board-game-organizer/schemas";
 import {
   hashKey,
   infiniteQueryOptions,
@@ -44,8 +50,20 @@ type ListFilters = {
   statuses?: readonly EventListStatus[];
   query?: string;
   section?: EventListSection;
+  roles?: readonly EventListFilterRole[];
+  order?: RecordListOrder;
 };
-type TableFilters = Omit<ListFilters, "groupId" | "section"> & { section?: TableListSection };
+type TableFilters = Omit<ListFilters, "groupId" | "section" | "roles" | "order"> & {
+  section?: TableListSection;
+};
+
+function eventRoleSelection(filters: ListFilters) {
+  if (!filters.roles || filters.groupId || filters.section === "available") return undefined;
+  const available =
+    filters.section === "terminated" ? terminatedEventFilterRoles : scheduledEventFilterRoles;
+  const roles = available.filter((role) => filters.roles?.includes(role));
+  return roles.length === available.length ? undefined : roles;
+}
 export const eventRecordKeys = {
   list: (o: KeyOwner, filters: ListFilters = {}) =>
     [
@@ -68,6 +86,8 @@ export const eventRecordKeys = {
             (!filters.statuses || filters.statuses.includes(status)),
         ),
         query: filters.query?.trim() ?? "",
+        ...(eventRoleSelection(filters) ? { roles: eventRoleSelection(filters) } : {}),
+        ...(!filters.groupId && filters.order ? { order: filters.order } : {}),
       },
     ] as const,
   tables: (o: KeyOwner, id: string | null, filters: TableFilters = {}) =>
@@ -109,6 +129,8 @@ function enabled(o: CommunityApiOptions) {
   return Boolean(o.apiUrl && o.userId && o.enabled !== false);
 }
 export function eventRecordsQuery(o: CommunityApiOptions, filters: ListFilters = {}) {
+  const roles = eventRoleSelection(filters);
+  const order = filters.groupId ? undefined : filters.order;
   return infiniteQueryOptions({
     queryKey: eventRecordKeys.list(o, filters),
     queryFn: async ({ pageParam, signal, client, queryKey }) => {
@@ -122,6 +144,9 @@ export function eventRecordsQuery(o: CommunityApiOptions, filters: ListFilters =
             periods: filters.periods?.join(","),
             statuses: filters.statuses?.join(","),
             query: filters.query || undefined,
+            roles: roles?.join(","),
+            sort: order?.sort,
+            direction: order?.direction,
           },
           pageParam,
         ),

@@ -3,6 +3,8 @@ import {
   eventListStatusesSchema,
   groupRecordListRoles,
   groupTypeSchema,
+  recordListSortFields,
+  scheduledEventFilterRoles,
   tableListSections,
   targetUserIdSchema,
 } from "@board-game-organizer/schemas";
@@ -47,21 +49,40 @@ export const eventParticipantsQuery = recordPageQuery.omit({ query: true }).exte
   view: z.enum(["member", "review"]).default("member"),
 });
 const filterQuery = z.string().trim().min(1).max(120).optional();
+const groupRole = groupRecordListRoles.join("|");
+const recordNameCursor = z
+  .string()
+  .max(165)
+  .refine((value) => {
+    const separator = value.lastIndexOf("|");
+    return (
+      value.startsWith("name:") && separator > 5 && id.safeParse(value.slice(separator + 1)).success
+    );
+  });
 export const groupListQuery = recordPageQuery
   .extend({
     query: filterQuery,
     scope: z.enum(["mine", "public", "moderation"]).default("mine"),
     type: groupTypeSchema.optional(),
+    sort: z.enum(recordListSortFields).optional(),
+    direction: z.enum(["asc", "desc"]).optional(),
+    cursor: z.union([cursor, recordNameCursor]).optional(),
     roles: z
       .string()
       .max(80)
-      .regex(/^(admin|invited|accepted)(,(admin|invited|accepted))*$|^$/)
+      .regex(new RegExp(`^(?:(?:${groupRole})(?:,(?:${groupRole}))*)?$`))
       .transform((value) => groupRecordListRoles.filter((role) => value.split(",").includes(role)))
       .optional(),
   })
   .refine(
     (value) =>
-      (value.scope === "mine" || (value.roles === undefined && value.type === undefined)) &&
+      (value.scope === "mine" ||
+        (value.roles === undefined &&
+          value.type === undefined &&
+          value.sort === undefined &&
+          value.direction === undefined)) &&
+      (value.cursor === undefined ||
+        value.cursor.startsWith("name:") === (value.sort === "name")) &&
       (value.scope !== "public" || Boolean(value.query)) &&
       (value.scope === "mine" || value.query === undefined || value.query.length >= 4),
   );
@@ -87,8 +108,27 @@ export const eventListQuery = eventFilterPageQuery
   .extend({
     groupId: id.optional(),
     section: z.enum(eventListSections).optional(),
+    roles: z
+      .string()
+      .max(80)
+      .transform((value) => (value ? value.split(",") : []))
+      .pipe(z.array(z.enum(scheduledEventFilterRoles)))
+      .transform((roles) => scheduledEventFilterRoles.filter((role) => roles.includes(role)))
+      .optional(),
+    sort: z.enum(recordListSortFields).optional(),
+    direction: z.enum(["asc", "desc"]).optional(),
+    cursor: z.union([cursor, recordNameCursor]).optional(),
   })
-  .refine((value) => !value.groupId || value.section === undefined);
+  .refine(
+    (value) =>
+      (!value.groupId || value.section === undefined) &&
+      (value.roles === undefined ||
+        value.section === "mine" ||
+        (value.section === "terminated" && !value.roles.includes("pending"))) &&
+      ((value.sort === undefined && value.direction === undefined) ||
+        value.section !== undefined) &&
+      (value.cursor === undefined || value.cursor.startsWith("name:") === (value.sort === "name")),
+  );
 export const personalTablesQuery = eventFilterPageQuery.extend({
   section: z.enum(tableListSections).optional(),
 });

@@ -1,4 +1,4 @@
-import { groupRecordMemberRoles } from "@board-game-organizer/schemas";
+import { eventListDefaultOrder, groupRecordMemberRoles } from "@board-game-organizer/schemas";
 import { infiniteQueryOptions, type QueryClient } from "@tanstack/react-query";
 import type { CommunityApiOptions } from "../community/communityApi";
 import {
@@ -51,7 +51,10 @@ export function warmStartupPriority(
         client.prefetchInfiniteQuery(
           groupRecordsPageQuery(options, "mine", "", groupRecordMemberRoles, "PRIVATE"),
         ),
-      () => client.prefetchInfiniteQuery(eventRecordsQuery(options)),
+      () =>
+        client.prefetchInfiniteQuery(
+          eventRecordsQuery(options, { order: eventListDefaultOrder.mine }),
+        ),
       () => client.prefetchQuery(profileQueryOptions(options)),
     ],
     3,
@@ -126,7 +129,9 @@ export async function warmStartupBackground(
       ),
     );
   const tables = client.getQueryData(recordTablesQuery(options, null).queryKey);
-  const events = client.getQueryData(eventRecordsQuery(options).queryKey);
+  const events = client.getQueryData(
+    eventRecordsQuery(options, { order: eventListDefaultOrder.mine }).queryKey,
+  );
   const eventIds = [
     ...new Set([
       ...(tables?.pages[0]?.items.map((row) => row.eventId) ?? []),
