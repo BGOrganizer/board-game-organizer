@@ -140,6 +140,43 @@ it("places static unread dots after card titles inside navigation, including per
   }
   expect(screen.queryByRole("button", { name: /Accept invitation|Decline invitation/ })).toBeNull();
 });
+
+it("updates Group unread attention on the same card while keeping an unresolved admin request", async () => {
+  const client = setup();
+  const record = { ...groupRecord, role: "admin" as const, pendingRequestCount: 2 };
+  const card = (data: typeof record) => (
+    <QueryClientProvider client={client}>
+      <NotificationAttentionProvider options={{ ...options, enabled: false }} targets={targets}>
+        <GroupCard group={data} />
+      </NotificationAttentionProvider>
+    </QueryClientProvider>
+  );
+  const view = renderWithI18n(card(record));
+  expect(screen.getByRole("img", { name: "Unread updates" })).toBeVisible();
+  const name = "Admin · Requests to review";
+  fireEvent.click(screen.getByRole("button", { name }));
+  expect(
+    await screen.findByText("Open Members to approve or reject membership requests."),
+  ).toBeVisible();
+  expect(client.getMutationCache().getAll()).toHaveLength(0);
+  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+
+  const snapshot = counts();
+  act(() => {
+    client.setQueryData(notificationAttentionQuery(options, targets).queryKey, {
+      ...snapshot,
+      targets: snapshot.targets.map((row) =>
+        row.target.kind === "group" ? { ...row, count: 0, direct: 0, events: 0 } : row,
+      ),
+    });
+  });
+  await waitFor(() => expect(screen.queryByRole("img", { name: "Unread updates" })).toBeNull());
+  expect(screen.getByRole("button", { name })).toBeVisible();
+  view.rerender(card({ ...record, pendingRequestCount: 0 }));
+  expect(screen.queryByRole("button", { name })).toBeNull();
+  expect(client.getMutationCache().getAll()).toHaveLength(0);
+});
 it("retains Group information and actual Members-tab attention on entry, never Events ancestry", async () => {
   const client = setup();
   client.setQueryData(groupRecordKeys.detail(options, groupRecord.id), groupRecord);
