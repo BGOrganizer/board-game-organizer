@@ -33,7 +33,7 @@ import {
   ShieldCheck,
   UserRoundCheck,
 } from "lucide-react-native";
-import { type ReactNode, useCallback, useState } from "react";
+import { type ReactNode, useCallback, useMemo, useState } from "react";
 import { View } from "react-native";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
@@ -46,6 +46,8 @@ import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
 import { EventCard } from "./EventCard";
+
+const noEventRoles: readonly EventListFilterRole[] = [];
 export function EventList({
   groupId,
   canCreate = true,
@@ -63,10 +65,10 @@ export function EventList({
       ? scheduledEventFilterRoles
       : section === "terminated"
         ? terminatedEventFilterRoles
-        : [];
+        : noEventRoles;
   const muted = useThemeColor("muted");
   const t = useT(),
-    { i18n } = useLingui(),
+    { _: translate } = useLingui(),
     router = useRouter(),
     o = useCommunityApi(),
     layout = useFloatingActionLayout(canCreate),
@@ -105,38 +107,74 @@ export function EventList({
     ),
     [groupId, list.isFetching, verify],
   );
-  const sectionHelp = {
-    mine: {
-      title: t("Scheduled"),
-      label: t("Scheduled events help"),
-      icon: CalendarCheck,
-      description: t(
-        "Planning or confirmed events where you are a manager, registered player or demonstrator. Waiting-list places and pending invitations are included.",
-      ),
-    },
-    available: {
-      title: t("Available"),
-      label: t("Available events help"),
-      icon: CalendarSearch,
-      description: t(
-        "Group events in planning that are open for you to join. Private events require group membership. Public events are open to nonmembers too.",
-      ),
-    },
-    terminated: {
-      title: t("Terminated events"),
-      label: t("Terminated events help"),
-      icon: Flag,
-      description: t(
-        "Finished events where you played or demonstrated at a confirmed table, or that you still manage.",
-      ),
-    },
-  }[section];
-  const roleLabels = {
-    admin: { label: i18n._({ id: "list.filter.admin", message: "Admin" }), icon: Crown },
-    moderator: { label: t("Moderator"), icon: ShieldCheck },
-    participant: { label: t("Participant"), icon: UserRoundCheck },
-    pending: { label: t("Pending"), icon: Clock3 },
-  };
+  const { query, setQuery, selected, toggle } = filters;
+  const listHeader = useMemo(() => {
+    const sectionHelp = {
+      mine: {
+        title: t("Scheduled"),
+        label: t("Scheduled events help"),
+        icon: CalendarCheck,
+        description: t(
+          "Planning or confirmed events where you are a manager, registered player or demonstrator. Waiting-list places and pending invitations are included.",
+        ),
+      },
+      available: {
+        title: t("Available"),
+        label: t("Available events help"),
+        icon: CalendarSearch,
+        description: t(
+          "Group events in planning that are open for you to join. Private events require group membership. Public events are open to nonmembers too.",
+        ),
+      },
+      terminated: {
+        title: t("Terminated events"),
+        label: t("Terminated events help"),
+        icon: Flag,
+        description: t(
+          "Finished events where you played or demonstrated at a confirmed table, or that you still manage.",
+        ),
+      },
+    }[section];
+    const roleLabels = {
+      admin: { label: translate({ id: "list.filter.admin", message: "Admin" }), icon: Crown },
+      moderator: { label: t("Moderator"), icon: ShieldCheck },
+      participant: { label: t("Participant"), icon: UserRoundCheck },
+      pending: { label: t("Pending"), icon: Clock3 },
+    };
+    return (
+      <View style={{ gap: 12 }}>
+        {header === undefined || header === null || header === false ? null : <View>{header}</View>}
+        {groupId ? null : (
+          <HelpSectionCard
+            title={sectionHelp.title}
+            label={sectionHelp.label}
+            icon={sectionHelp.icon}
+          >
+            <Typography className="text-foreground">{sectionHelp.description}</Typography>
+          </HelpSectionCard>
+        )}
+        <ListSearch
+          query={query}
+          onQueryChange={setQuery}
+          label={t("Filter")}
+          placeholder={t("Filter events")}
+          mode="filter"
+          selected={selected}
+          onToggle={toggle}
+          options={
+            !groupId
+              ? roles.map((key) => ({ key, ...roleLabels[key] }))
+              : [
+                  { key: "CONFIRMED", label: t("Confirmed events"), icon: CalendarCheck2 },
+                  { key: "PLANNING", label: t("Planning"), icon: CalendarClock },
+                  { key: "TERMINATED", label: t("Terminated events"), icon: Flag },
+                ]
+          }
+        />
+        {!groupId ? <ListOrdering order={order} onChange={setOrder} /> : null}
+      </View>
+    );
+  }, [header, groupId, section, roles, order, query, selected, setQuery, toggle, t, translate]);
   return (
     <NotificationAttentionScope
       options={o}
@@ -159,41 +197,7 @@ export function EventList({
             flexGrow: 1,
             paddingBottom: layout.paddingBottom,
           }}
-          ListHeaderComponent={
-            <View style={{ gap: 12 }}>
-              {header === undefined || header === null || header === false ? null : (
-                <View>{header}</View>
-              )}
-              {groupId ? null : (
-                <HelpSectionCard
-                  title={sectionHelp.title}
-                  label={sectionHelp.label}
-                  icon={sectionHelp.icon}
-                >
-                  <Typography className="text-foreground">{sectionHelp.description}</Typography>
-                </HelpSectionCard>
-              )}
-              <ListSearch
-                query={filters.query}
-                onQueryChange={filters.setQuery}
-                label={t("Filter")}
-                placeholder={t("Filter events")}
-                mode="filter"
-                selected={filters.selected}
-                onToggle={filters.toggle}
-                options={
-                  !groupId
-                    ? roles.map((key) => ({ key, ...roleLabels[key] }))
-                    : [
-                        { key: "CONFIRMED", label: t("Confirmed events"), icon: CalendarCheck2 },
-                        { key: "PLANNING", label: t("Planning"), icon: CalendarClock },
-                        { key: "TERMINATED", label: t("Terminated events"), icon: Flag },
-                      ]
-                }
-              />
-              {!groupId ? <ListOrdering order={order} onChange={setOrder} /> : null}
-            </View>
-          }
+          ListHeaderComponent={listHeader}
           renderItem={renderItem}
           onEndReached={() => {
             if (list.hasNextPage && !list.isFetching && !list.isFetchNextPageError)

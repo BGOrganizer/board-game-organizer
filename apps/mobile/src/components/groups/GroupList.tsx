@@ -26,7 +26,7 @@ import {
   ShieldCheck,
   UsersRound,
 } from "lucide-react-native";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { View } from "react-native";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
@@ -48,7 +48,7 @@ export function GroupList({
   type?: GroupRecord["type"];
 }) {
   const t = useT(),
-    { i18n } = useLingui(),
+    { _: translate } = useLingui(),
     router = useRouter(),
     options = useCommunityApi(),
     layout = useFloatingActionLayout(scope === "mine"),
@@ -73,35 +73,76 @@ export function GroupList({
     ),
     [list.isFetching, verify],
   );
-  const sectionHelp =
-    scope === "public"
-      ? {
-          title: t("Search"),
-          label: t("Group search help"),
-          icon: Search,
-          description: t(
-            "Search for approved public groups by name. Enter at least four characters.",
-          ),
-        }
-      : type === "PRIVATE"
+  const { query, setQuery, selected, toggle } = filters;
+  const listHeader = useMemo(() => {
+    const sectionHelp =
+      scope === "public"
         ? {
-            title: t("Private groups"),
-            label: t("Private groups help"),
-            icon: LockKeyhole,
+            title: t("Search"),
+            label: t("Group search help"),
+            icon: Search,
             description: t(
-              "Private groups you manage, belong to or have a pending invitation to join.",
+              "Search for approved public groups by name. Enter at least four characters.",
             ),
           }
-        : type === "PUBLIC"
+        : type === "PRIVATE"
           ? {
-              title: t("Public groups"),
-              label: t("Public groups help"),
-              icon: Globe,
+              title: t("Private groups"),
+              label: t("Private groups help"),
+              icon: LockKeyhole,
               description: t(
-                "Public groups you manage or belong to, and groups with a pending request or invitation. Groups you manage may still be awaiting approval.",
+                "Private groups you manage, belong to or have a pending invitation to join.",
               ),
             }
-          : null;
+          : type === "PUBLIC"
+            ? {
+                title: t("Public groups"),
+                label: t("Public groups help"),
+                icon: Globe,
+                description: t(
+                  "Public groups you manage or belong to, and groups with a pending request or invitation. Groups you manage may still be awaiting approval.",
+                ),
+              }
+            : null;
+    return (
+      <View style={{ gap: 12 }}>
+        {sectionHelp ? (
+          <HelpSectionCard
+            title={sectionHelp.title}
+            label={sectionHelp.label}
+            icon={sectionHelp.icon}
+          >
+            <Typography className="text-foreground">{sectionHelp.description}</Typography>
+          </HelpSectionCard>
+        ) : null}
+        <ListSearch
+          query={query}
+          onQueryChange={setQuery}
+          label={scope === "mine" ? t("Filter") : t("Search groups")}
+          placeholder={scope === "mine" ? t("Filter groups") : t("Search groups")}
+          mode={scope === "mine" ? "filter" : "search"}
+          showSearchGuidance={false}
+          selected={selected}
+          onToggle={toggle}
+          options={
+            scope === "mine"
+              ? [
+                  {
+                    key: "administrator",
+                    label: translate({ id: "list.filter.admin", message: "Admin" }),
+                    icon: Crown,
+                  },
+                  { key: "moderator", label: t("Moderator"), icon: ShieldCheck },
+                  { key: "member", label: t("Member"), icon: Check },
+                  { key: "pending", label: t("Pending"), icon: Clock3 },
+                ]
+              : []
+          }
+        />
+        {scope === "mine" ? <ListOrdering order={order} onChange={setOrder} /> : null}
+      </View>
+    );
+  }, [scope, type, order, query, selected, setQuery, toggle, t, translate]);
   return (
     <NotificationAttentionScope
       options={options}
@@ -124,44 +165,7 @@ export function GroupList({
             if (list.hasNextPage && !list.isFetchingNextPage && !list.isFetchNextPageError)
               void list.fetchNextPage();
           }}
-          ListHeaderComponent={
-            <View style={{ gap: 12 }}>
-              {sectionHelp ? (
-                <HelpSectionCard
-                  title={sectionHelp.title}
-                  label={sectionHelp.label}
-                  icon={sectionHelp.icon}
-                >
-                  <Typography className="text-foreground">{sectionHelp.description}</Typography>
-                </HelpSectionCard>
-              ) : null}
-              <ListSearch
-                query={filters.query}
-                onQueryChange={filters.setQuery}
-                label={scope === "mine" ? t("Filter") : t("Search groups")}
-                placeholder={scope === "mine" ? t("Filter groups") : t("Search groups")}
-                mode={scope === "mine" ? "filter" : "search"}
-                showSearchGuidance={false}
-                selected={filters.selected}
-                onToggle={filters.toggle}
-                options={
-                  scope === "mine"
-                    ? [
-                        {
-                          key: "administrator",
-                          label: i18n._({ id: "list.filter.admin", message: "Admin" }),
-                          icon: Crown,
-                        },
-                        { key: "moderator", label: t("Moderator"), icon: ShieldCheck },
-                        { key: "member", label: t("Member"), icon: Check },
-                        { key: "pending", label: t("Pending"), icon: Clock3 },
-                      ]
-                    : []
-                }
-              />
-              {scope === "mine" ? <ListOrdering order={order} onChange={setOrder} /> : null}
-            </View>
-          }
+          ListHeaderComponent={listHeader}
           renderItem={renderItem}
           ListEmptyComponent={
             needsQuery ? (

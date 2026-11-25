@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 /** Local search/filter state only; remote rows remain owned by Query. */
 export function useListSearch<Filter extends string>(available: readonly Filter[], minLength = 4) {
@@ -14,16 +14,20 @@ export function useListSearch<Filter extends string>(available: readonly Filter[
     );
     return () => clearTimeout(timer);
   }, [query, minLength]);
-  return {
-    query,
-    setQuery,
-    search,
-    selected,
-    toggle: (value: Filter) =>
+  const toggle = useCallback(
+    (value: Filter) =>
       setSelected((current) =>
         available.filter((item) =>
           item === value ? !current.includes(item) : current.includes(item),
         ),
       ),
+    [available],
+  );
+  return {
+    query,
+    setQuery,
+    search,
+    selected,
+    toggle,
   };
 }
