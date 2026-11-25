@@ -84,6 +84,61 @@ it("drops restored Available rows that are closed, standalone, managed or alread
   expect(result.result.current.items.map((row) => row.id)).toEqual(["eligible"]);
 });
 
+it("keys and sends the exact roles and ordering supported by each Event list", async () => {
+  const { client, options } = setup();
+  const fetch = vi.fn(async (_url: string) => Response.json({ items: [], nextCursor: null }));
+  vi.stubGlobal("fetch", fetch);
+  const order = { sort: "date", direction: "asc" } as const;
+  const scheduled = eventRecordsQuery(options, { roles: ["pending", "moderator"], order });
+  expect(scheduled.queryKey).toEqual(
+    eventRecordsQuery(options, { roles: ["moderator", "pending"], order }).queryKey,
+  );
+  expect(scheduled.queryKey).not.toEqual(eventRecordsQuery(options, { order }).queryKey);
+  expect(scheduled.queryKey).not.toEqual(
+    eventRecordsQuery(options, {
+      roles: ["pending", "moderator"],
+      order: { ...order, direction: "desc" },
+    }).queryKey,
+  );
+  const available = eventRecordsQuery(options, { section: "available", roles: ["pending"], order });
+  expect(available.queryKey).toEqual(
+    eventRecordsQuery(options, { section: "available", order }).queryKey,
+  );
+  const terminated = eventRecordsQuery(options, {
+    section: "terminated",
+    roles: ["pending", "participant"],
+    order,
+  });
+  expect(terminated.queryKey).toEqual(
+    eventRecordsQuery(options, { section: "terminated", roles: ["participant"], order }).queryKey,
+  );
+  expect(
+    eventRecordsQuery(options, {
+      section: "terminated",
+      roles: ["participant", "moderator", "admin"],
+      order,
+    }).queryKey,
+  ).toEqual(eventRecordsQuery(options, { section: "terminated", order }).queryKey);
+  await client.fetchInfiniteQuery(scheduled);
+  await client.fetchInfiniteQuery(available);
+  await client.fetchInfiniteQuery(terminated);
+  const requests = fetch.mock.calls.map(([url]) => new URL(url).searchParams);
+  expect(requests.map((params) => params.get("roles"))).toEqual([
+    "moderator,pending",
+    null,
+    "participant",
+  ]);
+  expect(requests.map((params) => params.get("section"))).toEqual([
+    "mine",
+    "available",
+    "terminated",
+  ]);
+  expect(requests.map((params) => [params.get("sort"), params.get("direction")])).toEqual(
+    Array(3).fill(["date", "asc"]),
+  );
+  client.clear();
+});
+
 it("reuses cached Event projections across parent renders and equivalent filter arrays", () => {
   vi.useFakeTimers();
   vi.setSystemTime("2030-01-01T12:00:00Z");

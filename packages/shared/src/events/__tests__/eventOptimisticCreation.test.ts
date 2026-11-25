@@ -116,6 +116,33 @@ describe("provisional Event creation", () => {
       optimistic: { draftId: "10", phase: "saving" },
     });
   });
+  it("matches provisional grouped Events to the creator's exact management role", () => {
+    const variables = {
+      ...intent.variables,
+      groupId,
+      clientGroup: { id: groupId, name: "Club group", type: "PRIVATE" as const },
+    };
+    for (const role of ["admin", "moderator"] as const) {
+      const row = eventCreationRecord(
+        { ...intent, variables: { ...variables, clientGroup: { ...variables.clientGroup, role } } },
+        "owner",
+      );
+      expect(row.managementRole).toBe(role);
+      expect(eventCreationMatches(row, { roles: [role] })).toBe(true);
+      expect(eventCreationMatches(row, { roles: [role === "admin" ? "moderator" : "admin"] })).toBe(
+        false,
+      );
+      expect(eventCreationMatches(row, { roles: ["pending", "participant"] })).toBe(false);
+    }
+    const legacy = eventCreationRecord({ ...intent, variables }, "owner");
+    expect(eventCreationMatches(legacy, { roles: ["admin"] })).toBe(true);
+  });
+  it("matches a creation receipt with a demonstration to the Participant filter", () => {
+    const receipt = { ...eventCreationRecord(intent, "owner"), id: cid, myDemonstrator: true };
+    const row = eventCreationRecord({ ...intent, context: { receipt } }, "owner");
+    expect(eventCreationMatches(row, { roles: ["participant"] })).toBe(true);
+    expect(eventCreationMatches(row, { roles: ["pending"] })).toBe(false);
+  });
   it("honors list source scope, text, selected periods and venue-local public day boundaries", () => {
     const row = eventCreationRecord(intent, "owner");
     expect(eventCreationMatches(row, {})).toBe(true);

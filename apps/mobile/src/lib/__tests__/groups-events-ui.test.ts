@@ -5,7 +5,7 @@ import { expect, it } from "vitest";
 // Source contracts only. They do not establish native rendering/gesture acceptance.
 const source = (feature: string, file: string) =>
   readFileSync(new URL(`../../components/${feature}/${file}.tsx`, import.meta.url), "utf8");
-it("owns three top Group tabs, limits owned lists to member roles, and confines edit/create FABs to their contexts", () => {
+it("owns three top Group tabs, scopes list filters, and confines edit/create FABs to their contexts", () => {
   const tabs = source("groups", "Groups");
   expect(tabs).toContain('value="private"');
   expect(tabs).toContain('value="public"');
@@ -14,7 +14,6 @@ it("owns three top Group tabs, limits owned lists to member roles, and confines 
   expect(source("groups", "GroupList")).toContain(
     "useListSearch(groupRecordMemberRoles, minimumLength)",
   );
-  expect(source("groups", "GroupList")).toContain('key: "invited"');
   expect(tabs).toContain('value="search"');
   expect(tabs).toContain('section === "search" ? "public" : "mine"');
   expect(source("groups", "GroupList")).not.toContain('t("Search public groups")');
