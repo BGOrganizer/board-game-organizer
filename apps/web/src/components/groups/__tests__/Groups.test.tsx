@@ -276,6 +276,27 @@ it("keeps the input mounted when focused, searches from one character, and reset
   expect(screen.getByText("No public groups with your friends")).toBeVisible();
 });
 
+it("exits active discovery and clears the search with Escape", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => Response.json({ items: [], nextCursor: null })),
+  );
+  renderGroups("search");
+  const field = screen.getByRole("searchbox", { name: "Search groups" });
+  fireEvent.keyDown(field, { key: "Escape" });
+  expect(screen.getByRole("tab", { name: "Search", selected: true })).toBeVisible();
+  act(() => field.focus());
+  fireEvent.change(field, { target: { value: "Roma" } });
+  fireEvent.keyDown(field, { key: "ArrowLeft" });
+  expect(field).toHaveValue("Roma");
+  expect(field).toHaveFocus();
+  fireEvent.keyDown(field, { key: "Escape" });
+  expect(field).toHaveValue("");
+  expect(field).not.toHaveFocus();
+  expect(screen.getByRole("tab", { name: "Search", selected: true })).toBeVisible();
+  expect(await screen.findByText("No public groups with your friends")).toBeVisible();
+});
+
 it("combines empty and one-character searches with the two independently selectable filters", async () => {
   const fetcher = vi.fn(async (_input: string) => Response.json({ items: [], nextCursor: null }));
   vi.stubGlobal("fetch", fetcher);
@@ -356,6 +377,16 @@ it("requests and caches each distance independently through the anchored distanc
   let form = within(screen.getByRole("dialog"));
   fireEvent.change(form.getByLabelText("Custom distance"), { target: { value: "101" } });
   expect(form.getByRole("button", { name: "Apply" })).toBeDisabled();
+  const customForm = form.getByLabelText("Custom distance").closest("form");
+  if (!customForm) throw new Error("The custom distance requires a form");
+  fireEvent.submit(customForm);
+  expect(form.getByLabelText("Custom distance")).toHaveValue("101");
+  fireEvent.keyDown(form.getByLabelText("Custom distance"), { key: "Escape" });
+  await waitFor(() => expect(screen.queryByRole("dialog", { name: "Distance" })).toBeNull());
+  fireEvent.click(screen.getByRole("button", { name: "Distance, 50 km" }));
+  form = within(await screen.findByRole("dialog", { name: "Distance" }));
+  fireEvent.click(form.getByRole("button", { name: "Custom distance" }));
+  expect(form.getByLabelText("Custom distance")).toHaveValue("50");
   fireEvent.click(form.getByRole("button", { name: "Back" }));
   expect(form.getByRole("button", { name: "50 km", pressed: true })).toBeVisible();
   fireEvent.click(form.getByRole("button", { name: "Custom distance" }));
@@ -370,6 +401,89 @@ it("requests and caches each distance independently through the anchored distanc
   fireEvent.click(nearby);
   expect(await screen.findByRole("button", { name: "Distance, 12 km" })).toBeVisible();
   expect(await screen.findByRole("link", { name: "Open group: Custom radius club" })).toBeVisible();
+});
+
+it("keeps Friends usable on browsers without geolocation", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => Response.json({ items: [], nextCursor: null })),
+  );
+  vi.stubGlobal(
+    "navigator",
+    new Proxy(navigator, {
+      get: (target, key) => (key === "geolocation" ? undefined : Reflect.get(target, key, target)),
+    }),
+  );
+  renderGroups("search");
+  fireEvent.click(screen.getByRole("button", { name: "Near me" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("Location unavailable");
+  expect(screen.getByRole("button", { name: "Friends", pressed: true })).toBeVisible();
+  expect(screen.queryByRole("button", { name: /^Distance,/ })).toBeNull();
+});
+
+it.each(["private", "search"] as const)(
+  "hides cached %s groups on an authorization failure and retries to an empty result",
+  async (section) => {
+    let response = Response.json({ items: [groupRecord], nextCursor: null });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => response.clone()),
+    );
+    const cache = client();
+    renderGroups(section, cache);
+    const group = { name: `Open group: ${groupRecord.name}` };
+    expect(await screen.findByRole("link", group)).toBeVisible();
+    response = Response.json({ error: "FORBIDDEN" }, { status: 403 });
+    await act(() => cache.invalidateQueries({ queryKey: ["groups"] }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Could not load groups");
+    expect(screen.queryByRole("link", group)).toBeNull();
+    response = Response.json({ items: [], nextCursor: null });
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    const empty = section === "search" ? "No public groups with your friends" : "No groups found";
+    expect(await screen.findByText(empty)).toBeVisible();
+  },
+);
+
+it("keeps public discovery results visible while loading and retrying a later page", async () => {
+  let finish: (response: Response) => void = () => {
+    throw new Error("Expected a discovery page request");
+  };
+  const pending = new Promise<Response>((resolve) => {
+    finish = resolve;
+  });
+  const nextGroup = {
+    ...publicGroup,
+    id: "77777777-7777-4777-8777-777777777777",
+    name: "Second discovery page",
+  };
+  let cursorReads = 0;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string) => {
+      const params = new URL(input).searchParams;
+      expect(params.get("scope")).toBe("public");
+      expect(params.get("friends")).toBe("true");
+      if (!params.has("cursor")) {
+        return Response.json({ items: [publicGroup], nextCursor: "discovery-cursor" });
+      }
+      expect(params.get("cursor")).toBe("discovery-cursor");
+      return ++cursorReads === 1
+        ? pending
+        : Response.json({ items: [nextGroup], nextCursor: null });
+    }),
+  );
+  renderGroups("search");
+  const first = await screen.findByRole("link", { name: `Open group: ${publicGroup.name}` });
+  fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+  await waitFor(() => expect(cursorReads).toBe(1));
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+  expect(first).toBeVisible();
+  await act(() => finish(Response.json({ error: "UNAVAILABLE" }, { status: 503 })));
+  const retry = await screen.findByRole("button", { name: "Could not load groups. Retry" });
+  expect(first).toBeVisible();
+  fireEvent.click(retry);
+  expect(await screen.findByRole("link", { name: `Open group: ${nextGroup.name}` })).toBeVisible();
+  expect(cursorReads).toBe(2);
 });
 
 it("reports location denial and ignores a position delivered after closing", async () => {
