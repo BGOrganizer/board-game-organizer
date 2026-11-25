@@ -102,6 +102,8 @@ output.status = {
   historyCard: literal(`${tablePrefix}: ${input.history.name}`),
   historyTableName: literal(input.history.name),
   tableStatus: literal(it ? "Terminata" : "Terminated"),
+  eventDateTime: literal(it ? "Data e Ora:" : "Date and time:"),
+  eventVenue: literal(it ? "Luogo:" : "Location:"),
   dates: literal(`${it ? "Date e Orari" : "Dates and times"}: ${input.history.name}`),
   locations: literal(`${it ? "Luoghi" : "Locations"}: ${input.history.name}`),
   games: literal(`${it ? "Giochi da tavolo" : "Board games"}: ${input.history.name}`),

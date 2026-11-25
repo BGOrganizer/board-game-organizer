@@ -28,6 +28,21 @@ export const groupRecordListRoles = [
 ] as const;
 export type GroupRecordListRole = (typeof groupRecordListRoles)[number];
 
+export const defaultGroupDiscoveryRadiusKm = 25;
+export const groupDiscoveryRadiusPresetsKm = [
+  5,
+  10,
+  defaultGroupDiscoveryRadiusKm,
+  50,
+  100,
+] as const;
+export const groupDiscoveryRadiusInputSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{1,3}$/)
+  .transform(Number)
+  .pipe(z.number().int().min(1).max(100));
+
 // Command validation must not tighten historical approved/proposed revisions.
 const groupRevisionInputSchema = groupRevisionSchema.extend({ name: resourceNameSchema });
 

@@ -54,6 +54,7 @@ export function sharedEventResults(
               .map((summary) => ({
                 ...summary,
                 myParticipation: "NONE" as const,
+                myDemonstrator: false,
                 exclusionReasons: [],
               })),
           },
@@ -110,6 +111,7 @@ export function sharedTableResults(table: PlannedTableResponse): PlannedTableRes
           cardSummary: {
             ...table.cardSummary,
             myParticipation: "NONE" as const,
+            myDemonstrator: false,
             exclusionReasons: [],
           },
         }

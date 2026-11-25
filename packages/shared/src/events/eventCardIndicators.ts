@@ -109,6 +109,15 @@ export function tableCardRoles(
   return roles;
 }
 
+export function confirmedEventCardTables(event: ClientEventRecord) {
+  return event.status === "CONFIRMED"
+    ? (event.cardSummary?.tables.filter(
+        (table) =>
+          table.confirmed && (table.myParticipation === "CONFIRMED" || table.myDemonstrator),
+      ) ?? [])
+    : [];
+}
+
 export function eventCardState(event: ClientEventRecord): CardParticipationState {
   if (event.status === "PLANNING") return "PLANNING";
   if (event.status === "TERMINATED") return "TERMINATED";

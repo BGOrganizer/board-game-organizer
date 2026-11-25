@@ -80,7 +80,11 @@ export function GroupDetailsCard({
         </p>
       ) : null}
       {group.approved && group.reviewStatus ? (
-        <p className="text-sm text-muted">{t`Approved information remains visible while changes are reviewed.`}</p>
+        <p className="text-sm text-muted">
+          {group.reviewStatus === "REJECTED"
+            ? t`The approved version remains visible.`
+            : t`Approved information remains visible while changes are reviewed.`}
+        </p>
       ) : null}
       {children ? <div className="flex flex-wrap justify-end gap-2">{children}</div> : null}
     </div>

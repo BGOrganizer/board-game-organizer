@@ -1,6 +1,7 @@
 import {
   eventListSections,
   eventListStatusesSchema,
+  groupDiscoveryRadiusInputSchema,
   groupRecordListRoles,
   groupTypeSchema,
   recordListSortFields,
@@ -59,9 +60,22 @@ const recordNameCursor = z
       value.startsWith("name:") && separator > 5 && id.safeParse(value.slice(separator + 1)).success
     );
   });
+// A nonempty decimal string avoids coercing a missing coordinate to zero.
+const discoveryCoordinate = z
+  .string()
+  .trim()
+  .max(32)
+  .regex(/^-?(?:\d+(?:\.\d+)?|\.\d+)$/);
 export const groupListQuery = recordPageQuery
   .extend({
-    query: filterQuery,
+    query: z.string().trim().max(120).optional(),
+    friends: z
+      .literal("true")
+      .transform(() => true as const)
+      .optional(),
+    nearLat: discoveryCoordinate.transform(Number).pipe(z.number().min(-90).max(90)).optional(),
+    nearLng: discoveryCoordinate.transform(Number).pipe(z.number().min(-180).max(180)).optional(),
+    radiusKm: groupDiscoveryRadiusInputSchema.optional(),
     scope: z.enum(["mine", "public", "moderation"]).default("mine"),
     type: groupTypeSchema.optional(),
     sort: z.enum(recordListSortFields).optional(),
@@ -83,8 +97,12 @@ export const groupListQuery = recordPageQuery
           value.direction === undefined)) &&
       (value.cursor === undefined ||
         value.cursor.startsWith("name:") === (value.sort === "name")) &&
-      (value.scope !== "public" || Boolean(value.query)) &&
-      (value.scope === "mine" || value.query === undefined || value.query.length >= 4),
+      (value.nearLat === undefined) === (value.nearLng === undefined) &&
+      (value.radiusKm === undefined || value.nearLat !== undefined) &&
+      (value.scope === "public" ||
+        (value.friends === undefined &&
+          value.nearLat === undefined &&
+          (value.query === undefined || value.query.length >= (value.scope === "mine" ? 1 : 4)))),
   );
 export const groupPeopleQuery = recordPageQuery
   .extend({

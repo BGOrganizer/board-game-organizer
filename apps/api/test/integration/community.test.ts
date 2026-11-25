@@ -6611,6 +6611,171 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     expect(discovery.items.some((row) => row.id === proposalId)).toBe(false);
   });
 
+  it("discovers approved groups by venue or name, intersecting friends and radius before paging", async () => {
+    const blocked = "discovery_blocked";
+    const oneSided = "discovery_one_sided";
+    const labels = [
+      "admin",
+      "member",
+      "moderator",
+      "pending",
+      "blocked",
+      "one-sided",
+      "viewer-banned",
+      "distant",
+      "proposal-only",
+      "unpublished",
+      "private",
+      "no-venue",
+    ] as const;
+    const candidates = new Map(
+      labels.map((label, index) => [
+        label,
+        { id: randomUUID(), createdAt: new Date(Date.UTC(2030, 6, index + 1)).toISOString() },
+      ]),
+    );
+    const id = (label: (typeof labels)[number]) => candidates.get(label)!.id;
+    await db.collection(COLLECTIONS.GROUPS).insertMany(
+      labels.map((label) => {
+        const candidate = candidates.get(label)!;
+        const name = `Discovery ${label}${label === "moderator" ? " A[7]" : ""}`;
+        const revision = {
+          name,
+          logoAssetId: randomUUID(),
+          ...(label !== "no-venue"
+            ? {
+                location: {
+                  ...location,
+                  address: ["moderator", "proposal-only"].includes(label) ? "Via A7" : "Via A[7]",
+                  latitude: location.latitude + (label === "distant" ? 0.3 : 0.2),
+                },
+              }
+            : {}),
+        };
+        return {
+          ...candidate,
+          type: label === "private" ? "PRIVATE" : "PUBLIC",
+          adminUserId: [
+            "admin",
+            "viewer-banned",
+            "distant",
+            "proposal-only",
+            "unpublished",
+            "private",
+            "no-venue",
+          ].includes(label)
+            ? OWNER
+            : label === "blocked"
+              ? blocked
+              : label === "one-sided"
+                ? oneSided
+                : OUTSIDER,
+          ...(label !== "unpublished" ? { approved: revision } : {}),
+          ...(["unpublished", "proposal-only"].includes(label)
+            ? {
+                proposal: { ...revision, location: { ...location, address: "Only draft A[7]" } },
+                reviewStatus: "PENDING",
+              }
+            : {}),
+          reservedNames: [name.toLowerCase()],
+          version: 1,
+          updatedAt: candidate.createdAt,
+        };
+      }),
+    );
+    await db.collection(COLLECTIONS.FRIEND_REQUESTS).insertMany(
+      [
+        ...[OWNER, OTHER, DEMO, blocked].flatMap((friend) => [
+          { fromUserId: GUEST, toUserId: friend },
+          { fromUserId: friend, toUserId: GUEST },
+        ]),
+        { fromUserId: oneSided, toUserId: GUEST },
+      ].map((edge) => ({
+        ...edge,
+        status: "accepted",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })),
+    );
+    await db.collection(COLLECTIONS.BLOCKS).insertOne({
+      fromUserId: blocked,
+      toUserId: GUEST,
+      createdAt: new Date(),
+    });
+    await db.collection<GroupMembership>(COLLECTIONS.GROUP_MEMBERSHIPS).insertMany(
+      (["member", "moderator", "pending"] as const).map((label) => {
+        const candidate = candidates.get(label)!;
+        return {
+          id: randomUUID(),
+          groupId: candidate.id,
+          userId: label === "moderator" ? DEMO : OTHER,
+          kind: "INVITATION",
+          status: label === "pending" ? "PENDING" : "ACCEPTED",
+          role: label === "moderator" ? "MODERATOR" : "MEMBER",
+          version: 1,
+          createdAt: candidate.createdAt,
+          updatedAt: candidate.createdAt,
+        };
+      }),
+    );
+    await db.collection(COLLECTIONS.GROUP_BANS).insertOne({
+      id: randomUUID(),
+      groupId: id("viewer-banned"),
+      userId: GUEST,
+      adminUserId: OWNER,
+      until: null,
+      createdAt: candidates.get("viewer-banned")!.createdAt,
+    });
+
+    const { unifiedGroupService } = services();
+    const defaultPage = await unifiedGroupService.list(GUEST, "public", {
+      friends: true,
+      limit: 50,
+    });
+    expect(defaultPage.items.map((group) => group.id)).toEqual(
+      (["no-venue", "proposal-only", "distant", "moderator", "member", "admin"] as const).map(id),
+    );
+
+    const nearby = { nearLat: location.latitude, nearLng: location.longitude };
+    const criteria = { query: "a[7]", friends: true as const, ...nearby, limit: 2 };
+    const first = await unifiedGroupService.list(GUEST, "public", criteria);
+    expect(first.items.map((group) => group.id)).toEqual([id("moderator"), id("member")]);
+    expect(first.nextCursor).toBe(`${candidates.get("member")!.createdAt}|${id("member")}`);
+    const second = await unifiedGroupService.list(GUEST, "public", {
+      ...criteria,
+      cursor: first.nextCursor!,
+    });
+    expect(second.items.map((group) => group.id)).toEqual([id("admin")]);
+    expect(second.nextCursor).toBeNull();
+    await expect(
+      unifiedGroupService.list(GUEST, "public", { ...criteria, radiusKm: 10 }),
+    ).resolves.toMatchObject({ items: [], nextCursor: null });
+    const wider = await unifiedGroupService.list(GUEST, "public", { ...criteria, radiusKm: 50 });
+    expect(wider.items.map((group) => group.id)).toEqual([id("distant"), id("moderator")]);
+    expect(wider.nextCursor).toBe(`${candidates.get("moderator")?.createdAt}|${id("moderator")}`);
+    if (!wider.nextCursor) throw new Error("Expected the next page of groups within 50 km");
+    const widerSecond = await unifiedGroupService.list(GUEST, "public", {
+      ...criteria,
+      radiusKm: 50,
+      cursor: wider.nextCursor,
+    });
+    expect(widerSecond.items.map((group) => group.id)).toEqual([id("member"), id("admin")]);
+    expect(widerSecond.nextCursor).toBeNull();
+    for (const group of [...first.items, ...second.items]) {
+      expect(group).not.toHaveProperty("friendMembership");
+      expect(group).not.toHaveProperty("discoveryCoordinates");
+      expect(group).not.toHaveProperty("proposal");
+    }
+    const nearbyPublic = await unifiedGroupService.list(GUEST, "public", {
+      ...nearby,
+      query: "a[7]",
+      limit: 50,
+    });
+    expect(nearbyPublic.items.map((group) => group.id)).toEqual(
+      (["one-sided", "blocked", "pending", "moderator", "member", "admin"] as const).map(id),
+    );
+  });
+
   it("source-searches accepted, pending and excluded people without injecting an unrelated owner", async () => {
     await db
       .collection(COLLECTIONS.USERS)

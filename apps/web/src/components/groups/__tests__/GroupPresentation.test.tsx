@@ -41,10 +41,10 @@ describe("unified group presentation", () => {
   it("explains accepted membership beside artwork without entering the group", async () => {
     renderWithI18n(<GroupCard group={{ ...base, role: "accepted" }} />);
     const badge = screen.getByRole("button", { name: "Accepted member" });
-    expect(badge.className).toContain("text-success-soft-foreground");
+    expect(badge.className).toContain("text-muted");
     expect(badge.parentElement?.className).toContain("flex-nowrap");
     expect(badge.parentElement?.className).not.toContain("absolute");
-    expect(badge.querySelector("svg.lucide-user-round-check")).not.toBeNull();
+    expect(badge.querySelector("svg.lucide-id-card")).not.toBeNull();
     expect(screen.getByRole("link").contains(badge)).toBe(false);
     expect(screen.queryByRole("button", { name: "Admin" })).toBeNull();
     fireEvent.click(badge);

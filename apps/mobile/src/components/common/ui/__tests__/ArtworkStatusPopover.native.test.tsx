@@ -40,7 +40,9 @@ it.each([
       wrapper: NativeTestProviders,
     });
     await pressMeasuredPopover(screen.getByRole("button", { name: title }));
-    expect(screen.getByRole("heading", { name: title })).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: kind === "manager" ? "Role" : title }),
+    ).toBeVisible();
     expect(screen.getByText(information)).toBeVisible();
   },
 );

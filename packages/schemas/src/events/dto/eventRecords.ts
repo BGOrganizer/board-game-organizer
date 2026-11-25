@@ -343,6 +343,7 @@ export type TableCardSummary = {
   ready: boolean;
   blockers: EventPlanningBlocker[];
   myParticipation: "CONFIRMED" | "EXCLUDED" | "NONE";
+  myDemonstrator?: boolean;
   exclusionReasons: EventExclusionReason[];
   winners: Array<{ userId: string; username: string | null; guestName?: string }>;
 };

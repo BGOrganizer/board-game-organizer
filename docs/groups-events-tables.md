@@ -42,7 +42,12 @@ Event, Table and result only. See [Community visibility](community.md) and
   invitations and requests to approved public Groups. Private Groups are invitation-only. Departed
   members and active exclusions do not qualify. Pending membership grants no member-only capabilities.
   Name and creation-date ordering are available in both tabs, with newest first by default.
-  Approved public discovery remains separate in Search with its four-character minimum.
+  Search discovers approved public Groups by name or approved venue address from one character.
+  Friends starts selected. It matches a confirmed BGO friend who administers the Group or holds an
+  accepted membership, including moderators. Both chips work without search text. Near me requests
+  the user's location on tap and matches approved venues within 25 km by default. Apply all active
+  criteria before pagination. Public discovery accepts an optional integer `radiusKm` from 1 to
+  100 only with both coordinates. Omitting the radius preserves the 25 km default.
   Existing notification/detail invitation consent stays available. Query keys and provisional creation
   rows retain the same type split. Startup warms the exact default Private member page without adding
   a splash-gating dataset or changing the five-second total limit.
@@ -150,8 +155,15 @@ Event, Table and result only. See [Community visibility](community.md) and
   accessible label, a clear action, no character minimum and a 300 ms debounce. Escaped name
   filtering and section eligibility run before source pagination. Group-context Events have
   Confirmed / Planning / Terminated chips, initially all enabled.
-  Group Search uses a four-character minimum, with centered prompts before searching and when the
-  results are empty. Its guidance lives in the section Card. Current lifecycle comes from
+  Group Search starts with its section guide, filters and the results for Friends. The focused
+  search field takes over the native header or sits below the fixed web navigation, with the guide
+  and top tabs hidden. Back closes the search and restores the initial filters. Returning from
+  a Group detail preserves query and filters. Empty results use the centered list state.
+  Friends comes before Near me. While Near me is active, the distance button appears after it
+  and opens an anchored menu on web and mobile. Presets are 5, 10, 25, 50 and 100 km. Custom
+  distance accepts a whole number from 1 to 100 km. The choice persists in the current search
+  session when toggling Near me off and on.
+  Current lifecycle comes from
   persisted Event state, never guessed from dates. Legacy API period parameters remain supported.
   Retained Query pages remain authoritative while local presentation reveals bounded pages progressively.
   Main Event/Group tab strips and Group detail contents retain compact platform-owned spacing and a single
@@ -307,12 +319,12 @@ Event, Table and result only. See [Community visibility](community.md) and
   there is no screen-local persisted copy. External cards navigate only; invitation decisions remain
   in details. One Table list / Lista Tavoli heading and count legend remain outside the cards.
   Saved/edit/review artwork and draft game previews keep their existing behavior. Event status help
-  keeps its planning/confirmation explanation and player counter; separate date/time and location
-  popovers show authorized alternatives or selected immutable facts, without extra requests.
+  keeps its planning and confirmation explanations. Confirmed and terminated status popovers show the
+  chosen date, time and venue from authorized data on both list and detail cards.
   Group/Event/Table titles retain shared typography and leading identity icons. Group list
-  invitation/request/admin indicators retain their existing explanatory actions. Accepted members also receive a success check
-  with a Group member explanation; pending applicants/invitees and discovery-only viewers never receive
-  that member indicator. Compact picker/detail overlays remain unchanged.
+  invitation/request indicators retain their explanatory actions. Admins, moderators and accepted members
+  use a neutral ID-card trigger. Its Role heading introduces the role with its corresponding colored icon.
+  Pending applicants, invitees and discovery-only viewers never receive an accepted role. Compact picker/detail overlays remain unchanged.
   Generated Group Landscape artwork uses the Group ID, never its mutable name. Uploaded logos remain
   untouched; unsaved Table artwork retains its existing local key until a server ID exists.
 - Main and Group-context Event lists share the horizontal Card frame: stable-ID Constellation artwork
@@ -325,15 +337,16 @@ Event, Table and result only. See [Community visibility](community.md) and
   management, accepted participation, pending participation and demonstrator duty are independent
   indicators. One neutral IdCard role popover lists every applicable current role, accepted consent,
   pending invitation, waiting position and demonstrator duty, with the corresponding role icon before
-  each description; Event roles may span different Tables. The Table popover introduces the roles held
-  at that Table before listing them. The neutral trigger keeps its existing geometry.
+  each description; Event roles may span different Tables. The Event and Table popovers introduce
+  the roles held in the current Event or Table before listing them. The neutral trigger keeps its existing geometry.
   Table seat/queue positions remain mutually exclusive. Current managementRole distinguishes admin and
   moderator without granting capabilities or seats. Unknown cached roles/positions are never invented.
   Planning status uses warning and authoritative readiness: minimum players, pending reservations and
   date/location/game agreement categories, with a combined-constraints explanation when appropriate.
   At least one valid Table can make an Event ready; excluded sibling Tables do not block that readiness.
   Ready Events still require explicit manager confirmation. Confirmed personal participation is success;
-  Event summaries list confirmed own Tables by name, one per row, and disclose other own exclusions. Actual exclusion takes
+  Confirmed Event summaries list Tables where the viewer has a frozen seat or is the assigned
+  demonstrator, one name per row, and disclose other own exclusions. Actual exclusion takes
   precedence over duty/management: a physically excluded Table is danger, an included Table excluding the
   actor is danger-soft. Current management/duty without a player seat uses accent with an explanation;
   genuine nonparticipants use muted. Terminated status retains Flag with accent and winner-only Table
@@ -343,8 +356,8 @@ Event, Table and result only. See [Community visibility](community.md) and
   warning Trophy, and each winner on a separate row. Missing
   mirror identities are disclosed, never fabricated from display names. The Results tab keeps its
   position badge, ordering and scores without repeating the position below the username.
-  Event cards retain location and date controls for confirmed or terminated outcomes. On Table cards,
-  the schedule, venue and game popovers appear while confirmed. Planning proposals remain in the
+  The Event status popover groups date/time and venue under separate labels. On Table cards, the
+  schedule, venue and game popovers appear while confirmed. Planning proposals remain in the
   detail voting sections.
   Games reuse existing approved metadata, never pending proposals, mutations or per-card detail requests.
   Summary data is projected by the authorized API for lists and details; restricted personal/shared-result
@@ -356,8 +369,10 @@ Event, Table and result only. See [Community visibility](community.md) and
   client-side scan or extra admin/moderator increment is allowed. Unavailable Event counts remain
   undisclosed, never invented as zero. Current admin/moderator/member/invitation/request controls
   retain explicit consent and source-complete request attention. Public/Private has its own icon/help;
-  only PUBLIC Groups show approval/review status, retaining rejection reasons and the distinction
-  between pending changes and an already approved revision. Local drafts do not fabricate server roles.
+  only PUBLIC Groups show approval/review status. Rejected changes use a danger-soft exclamation icon
+  and explain that the approved version stays visible. A rejected first approval uses a solid danger
+  X and explains that the Group has not been published. Both popovers display the reason when present.
+  Local drafts do not fabricate server roles.
 - Event Details, Participants and Tables use the same section Card as leaderboards. Their help
   explains registration and roster eligibility during planning, and confirmed seats after
   confirmation. Details also explains the active planning mode, player-count priority and enabled

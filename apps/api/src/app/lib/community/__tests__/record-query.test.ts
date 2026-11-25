@@ -63,6 +63,57 @@ describe("unified request boundaries", () => {
     expect(recordQuery(req(), eventSeatsQuery).pending).toBe(false);
     expect(recordQuery(req("x-vercel-protection-bypass=opaque"), emptyRecordQuery)).toEqual({});
   });
+  it("accepts empty public discovery and combines text, friends and paired coordinates", () => {
+    expect(recordQuery(req("scope=public"), groupListQuery)).toEqual({
+      scope: "public",
+      limit: 20,
+    });
+    expect(recordQuery(req("scope=public&query=%20"), groupListQuery).query).toBe("");
+    expect(
+      recordQuery(
+        req("scope=public&query=%20C%20&friends=true&nearLat=0&nearLng=-179.5"),
+        groupListQuery,
+      ),
+    ).toEqual({
+      scope: "public",
+      limit: 20,
+      query: "C",
+      friends: true,
+      nearLat: 0,
+      nearLng: -179.5,
+    });
+  });
+  it.each([1, 25, 100])("accepts an explicit radius of %i km for public discovery", (radiusKm) => {
+    expect(
+      recordQuery(req(`scope=public&nearLat=0&nearLng=0&radiusKm=${radiusKm}`), groupListQuery)
+        .radiusKm,
+    ).toBe(radiusKm);
+  });
+  it.each([
+    "scope=mine&query=%20",
+    "scope=mine&friends=true",
+    "scope=mine&nearLat=10&nearLng=20",
+    "scope=moderation&friends=true",
+    "scope=moderation&nearLat=10&nearLng=20",
+    "scope=public&friends=false",
+    "scope=public&friends=true&friends=true",
+    "scope=public&nearLat=10",
+    "scope=public&nearLng=20",
+    "scope=public&nearLat=&nearLng=20",
+    "scope=public&nearLat=NaN&nearLng=20",
+    "scope=public&nearLat=10&nearLng=Infinity",
+    "scope=public&nearLat=90.1&nearLng=20",
+    "scope=public&nearLat=10&nearLng=-181",
+    "scope=public&radiusKm=50",
+    "scope=public&nearLat=10&radiusKm=50",
+    "scope=mine&nearLat=10&nearLng=20&radiusKm=50",
+    "scope=moderation&nearLat=10&nearLng=20&radiusKm=50",
+    ...["", "0", "-1", "1.5", "101", "1e2", "Infinity", "25&radiusKm=50"].map(
+      (radius) => `scope=public&nearLat=10&nearLng=20&radiusKm=${radius}`,
+    ),
+  ])("rejects invalid or non-discovery search filters (%s)", (query) => {
+    expect(() => recordQuery(req(query), groupListQuery)).toThrow("INVALID_QUERY");
+  });
   it("canonicalizes exact and legacy group roles and preserves the name cursor", () => {
     const nameCursor = `name:Games | Sunday|${id}`;
     expect(
@@ -174,8 +225,11 @@ describe("unified request boundaries", () => {
       expect(
         recordQuery(req(`scope=mine&query=${encodeURIComponent(query)}`), groupListQuery).query,
       ).toBe(query);
+      expect(
+        recordQuery(req(`scope=public&query=${encodeURIComponent(query)}`), groupListQuery).query,
+      ).toBe(query);
       expect(() =>
-        recordQuery(req(`scope=public&query=${encodeURIComponent(query)}`), groupListQuery),
+        recordQuery(req(`scope=moderation&query=${encodeURIComponent(query)}`), groupListQuery),
       ).toThrow("INVALID_QUERY");
     }
     expect(recordQuery(req("section=mine"), eventListQuery).section).toBe("mine");
@@ -259,12 +313,7 @@ describe("unified request boundaries", () => {
     expect(() => recordQuery(req(query), recordPageQuery)).toThrow("INVALID_QUERY");
   });
   it("rejects invalid scopes, role leakage, member-feed sentinels and malformed priority cursors", () => {
-    for (const query of [
-      "scope=private",
-      "scope=public",
-      "scope=moderation&roles=admin",
-      "roles=owner",
-    ])
+    for (const query of ["scope=private", "scope=moderation&roles=admin", "roles=owner"])
       expect(() => recordQuery(req(query), groupListQuery)).toThrow("INVALID_QUERY");
     expect(() => recordQuery(req("mode=pending&cursor=owner"), groupPeopleQuery)).toThrow(
       "INVALID_QUERY",

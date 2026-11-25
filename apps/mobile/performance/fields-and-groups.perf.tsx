@@ -224,11 +224,11 @@ it("GroupStatusBadge: authoritative public review changes and private omission",
     scenario: async () => {
       expect(screen.getByText("Awaiting review")).toBeOnTheScreen();
       await act(() => update.current?.({ type: "PUBLIC", reviewStatus: "REJECTED" }));
-      expect(screen.getByText("Changes rejected")).toBeOnTheScreen();
+      expect(screen.getByText("Approval rejected")).toBeOnTheScreen();
       expect(screen.queryByText("Awaiting review")).toBeNull();
       await act(() => update.current?.({ type: "PUBLIC", approved: groupRecord.approved }));
       expect(screen.getByText("Approved")).toBeOnTheScreen();
-      expect(screen.queryByText("Changes rejected")).toBeNull();
+      expect(screen.queryByText("Approval rejected")).toBeNull();
       await act(() => update.current?.({ type: "PRIVATE", approved: groupRecord.approved }));
       expect(screen.queryByText("Approved")).toBeNull();
     },

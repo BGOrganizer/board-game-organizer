@@ -191,14 +191,22 @@ Report unavailable kernel limits separately from the application limits actually
   button; do not add a submit button. Main Events/Tables, owned Private/Public Groups and Group-context
   Events instead use Filter inputs with an accessible name, no visible label or inline help, no
   minimum length, a 300 ms debounce and a clear action. Their escaped name query stays inside the
-  selected authorized list before paging. Group Search retains its four-character discovery minimum.
+  selected authorized list before paging. Group Search starts with Friends selected, accepts one
+  character or an empty filter-only request, and matches approved names and venue addresses.
+  Apply discovery filters before pagination. Request Nearby location on tap and keep discovery
+  text and coordinates out of native persistence. Use an anchored distance menu after the Nearby
+  chip and scope the active proximity query to its selected radius.
 - Use the platform's shared `FilterChips` for compact list filters. Keep the visible chip compact
   and its native or coarse-pointer touch target at least 44 px.
 - Use `ListOrdering` for the name/date selector and direction action in Group and Event lists.
   Apply role and ordering parameters before source pagination, and scope the cache key to both.
   See the [list contract](docs/groups-events-tables.md#results-lists-and-transport).
-- Reuse Table card indicators in lists and details. Keep schedule, venue and game popovers on
-  currently confirmed Tables; the finished Table flag presents winners one per row.
+- Reuse Group, Event and Table card indicators in lists and details. Group roles use a neutral
+  ID-card trigger with the colored role icon inside. Public Group review uses a danger-soft
+  exclamation for rejected edits and a solid danger X for a rejected first approval.
+  The Event status popover shows the chosen schedule and venue, and lists the viewer's confirmed
+  seats and demonstrations while confirmed. Confirmed Tables retain their schedule, venue and game
+  popovers. The finished Table flag lists winners one per row.
 - For every variable-length list, default to paginated data and virtualized rendering: use
   `FlatList` or `SectionList` on mobile and pagination (plus windowing when large) on web. Load
   further pages as the user scrolls; do not render an entire address book, search result set, or

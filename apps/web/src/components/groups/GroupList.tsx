@@ -18,8 +18,6 @@ import {
   Globe,
   LockKeyhole,
   Plus,
-  Search,
-  SearchX,
   ShieldCheck,
   UsersRound,
 } from "lucide-react";
@@ -34,58 +32,41 @@ import { NotificationAttentionScope } from "@/components/notifications/Notificat
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 import { GroupCard } from "./GroupCard";
-export function GroupList({
-  scope = "mine",
-  type,
-}: {
-  scope?: "mine" | "public";
-  type?: GroupRecord["type"];
-}) {
-  const { t } = useLingui(),
-    options = useCommunityApi();
-  const minimumLength = scope === "public" ? 4 : 0;
+export function GroupList({ type }: { type?: GroupRecord["type"] }) {
+  const { t } = useLingui();
+  const options = useCommunityApi();
   const [order, setOrder] = useState<RecordListOrder>({ sort: "date", direction: "desc" });
-  const filters = useListSearch(groupRecordMemberRoles, minimumLength),
-    list = useGroupRecords(options, scope, filters.search, filters.selected, type, order);
-  const needsQuery = filters.query.trim().length < minimumLength;
-  const searchable = !needsQuery && (scope === "mine" || Boolean(filters.search));
-  const items = searchable && !communityAccessDenied(list.error) ? list.items : [];
-  const EmptyIcon = scope === "public" ? SearchX : UsersRound;
+  const filters = useListSearch(groupRecordMemberRoles, 0);
+  const list = useGroupRecords(options, "mine", filters.search, filters.selected, type, order);
+  const items = communityAccessDenied(list.error) ? [] : list.items;
   const sentinel = useInfiniteScroll({
-    hasNextPage: searchable && Boolean(list.hasNextPage),
+    hasNextPage: Boolean(list.hasNextPage),
     isFetchingNextPage: list.isFetchingNextPage,
     fetchNextPage: list.fetchNextPage,
     isFetchNextPageError: list.isFetchNextPageError,
   });
   const sectionHelp =
-    scope === "public"
+    type === "PRIVATE"
       ? {
-          title: t`Search`,
-          label: t`Group search help`,
-          icon: Search,
-          description: t`Search for approved public groups by name. Enter at least four characters.`,
+          title: t`Private groups`,
+          label: t`Private groups help`,
+          icon: LockKeyhole,
+          description: t`Private groups you manage, belong to or have a pending invitation to join.`,
         }
-      : type === "PRIVATE"
+      : type === "PUBLIC"
         ? {
-            title: t`Private groups`,
-            label: t`Private groups help`,
-            icon: LockKeyhole,
-            description: t`Private groups you manage, belong to or have a pending invitation to join.`,
+            title: t`Public groups`,
+            label: t`Public groups help`,
+            icon: Globe,
+            description: t`Public groups you manage or belong to, and groups with a pending request or invitation. Groups you manage may still be awaiting approval.`,
           }
-        : type === "PUBLIC"
-          ? {
-              title: t`Public groups`,
-              label: t`Public groups help`,
-              icon: Globe,
-              description: t`Public groups you manage or belong to, and groups with a pending request or invitation. Groups you manage may still be awaiting approval.`,
-            }
-          : null;
+        : null;
   return (
     <NotificationAttentionScope
       options={options}
       targets={items.filter((row) => !row.optimistic).map((row) => ({ kind: "group", id: row.id }))}
     >
-      <ListPage hasFloatingActions={scope === "mine"}>
+      <ListPage hasFloatingActions>
         {sectionHelp ? (
           <HelpSectionCard
             title={sectionHelp.title}
@@ -98,34 +79,25 @@ export function GroupList({
         <ListSearch
           query={filters.query}
           onQueryChange={filters.setQuery}
-          label={scope === "mine" ? t`Filter` : t`Search groups`}
-          placeholder={scope === "mine" ? t`Filter groups` : t`Search groups`}
-          mode={scope === "mine" ? "filter" : "search"}
+          label={t`Filter`}
+          placeholder={t`Filter groups`}
+          mode="filter"
           showSearchGuidance={false}
           selected={filters.selected}
           onToggle={filters.toggle}
-          options={
-            scope === "mine"
-              ? [
-                  {
-                    key: "administrator",
-                    label: t({ id: "list.filter.admin", message: "Admin" }),
-                    icon: Crown,
-                  },
-                  { key: "moderator", label: t`Moderator`, icon: ShieldCheck },
-                  { key: "member", label: t`Member`, icon: Check },
-                  { key: "pending", label: t`Pending`, icon: Clock3 },
-                ]
-              : []
-          }
+          options={[
+            {
+              key: "administrator",
+              label: t({ id: "list.filter.admin", message: "Admin" }),
+              icon: Crown,
+            },
+            { key: "moderator", label: t`Moderator`, icon: ShieldCheck },
+            { key: "member", label: t`Member`, icon: Check },
+            { key: "pending", label: t`Pending`, icon: Clock3 },
+          ]}
         />
-        {scope === "mine" ? <ListOrdering order={order} onChange={setOrder} /> : null}
-        {needsQuery ? (
-          <EmptyList icon={<Search className="size-7" />}>
-            {t`Enter at least 4 characters to search`}
-          </EmptyList>
-        ) : null}
-        {searchable && list.isPending ? (
+        <ListOrdering order={order} onChange={setOrder} />
+        {list.isPending ? (
           <div className="space-y-3">
             {[1, 2, 3].map((key) => (
               <Skeleton key={key} className="h-24 w-full rounded-xl" />
@@ -144,32 +116,26 @@ export function GroupList({
             }
           />
         ))}
-        {searchable &&
-        !list.isPending &&
-        !list.isError &&
-        !list.hasNextPage &&
-        !list.items.length ? (
-          <EmptyList icon={<EmptyIcon className="size-7" />}>{t`No groups found`}</EmptyList>
+        {!list.isPending && !list.isError && !list.hasNextPage && !list.items.length ? (
+          <EmptyList icon={<UsersRound className="size-7" />}>{t`No groups found`}</EmptyList>
         ) : null}
-        {searchable && list.isError ? (
+        {list.isError ? (
           <div role="alert" className="space-y-2">
             <p className="text-danger">{t`Could not load groups`}</p>
             <Button variant="outline" onPress={() => void list.refetch()}>{t`Try again`}</Button>
           </div>
         ) : null}
         <div ref={sentinel} />
-        {searchable && list.isFetchingNextPage ? (
+        {list.isFetchingNextPage ? (
           <Skeleton className="h-24 w-full rounded-xl" />
-        ) : searchable && list.hasNextPage ? (
+        ) : list.hasNextPage ? (
           <Button variant="outline" onPress={() => void list.fetchNextPage()}>
             {list.isFetchNextPageError ? t`Could not load groups. Retry` : t`Load more`}
           </Button>
         ) : null}
-        {scope === "mine" ? (
-          <FloatingActions href="/groups/new" label={t`Create group`}>
-            <Plus className="size-6" aria-hidden />
-          </FloatingActions>
-        ) : null}
+        <FloatingActions href="/groups/new" label={t`Create group`}>
+          <Plus className="size-6" aria-hidden />
+        </FloatingActions>
       </ListPage>
     </NotificationAttentionScope>
   );

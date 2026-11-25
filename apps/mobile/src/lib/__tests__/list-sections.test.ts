@@ -134,19 +134,20 @@ it.each(["mine", "available", "terminated", "foreign", undefined])(
     );
   },
 );
-it.each(["mine", "public"])(
-  "native Group %s keeps its filter or discovery mode and minimum",
-  (scope) => {
-    const mode = runInNewContext(expression("groups/GroupList", "ListSearch", "mode"), { scope });
-    expect(mode).toBe(scope === "mine" ? "filter" : "search");
-    const text = readFileSync(
-      new URL("../../components/groups/GroupList.tsx", import.meta.url),
-      "utf8",
-    );
-    expect(text).toContain('const minimumLength = scope === "public" ? 4 : 0');
-    expect(text).toContain("useListSearch(groupRecordMemberRoles, minimumLength)");
-  },
-);
+it("native owned Groups keep source filters independent from discovery", () => {
+  const owned = readFileSync(
+    new URL("../../components/groups/GroupList.tsx", import.meta.url),
+    "utf8",
+  );
+  const discovery = readFileSync(
+    new URL("../../components/groups/GroupSearch.tsx", import.meta.url),
+    "utf8",
+  );
+  expect(owned).toContain('mode="filter"');
+  expect(owned).toContain("useListSearch(groupRecordMemberRoles, 0)");
+  expect(discovery).toContain("usePublicGroupSearch");
+  expect(discovery).not.toContain("groupRecordMemberRoles");
+});
 it("native History has one terminated source list, no section tabs or chips", () => {
   const wrapper = readFileSync(
     new URL("../../components/events/Tables.tsx", import.meta.url),

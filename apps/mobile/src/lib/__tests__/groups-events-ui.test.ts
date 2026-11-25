@@ -11,11 +11,9 @@ it("owns three top Group tabs, scopes list filters, and confines edit/create FAB
   expect(tabs).toContain('value="public"');
   expect(tabs.indexOf('value="private"')).toBeLessThan(tabs.indexOf('value="public"'));
   expect(tabs.indexOf('value="public"')).toBeLessThan(tabs.indexOf('value="search"'));
-  expect(source("groups", "GroupList")).toContain(
-    "useListSearch(groupRecordMemberRoles, minimumLength)",
-  );
+  expect(source("groups", "GroupList")).toContain("useListSearch(groupRecordMemberRoles, 0)");
   expect(tabs).toContain('value="search"');
-  expect(tabs).toContain('section === "search" ? "public" : "mine"');
+  expect(tabs).toContain("<GroupSearch onActiveChange={setSearchActive}");
   expect(source("groups", "GroupList")).not.toContain('t("Search public groups")');
   expect(source("groups", "GroupDetail")).toContain('group.canEdit && tab === "info"');
   expect(source("events", "Events")).not.toContain("left={Boolean(groupId)}");

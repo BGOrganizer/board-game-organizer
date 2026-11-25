@@ -1,6 +1,12 @@
 import type { GroupBan, GroupMembership, GroupRecord } from "@board-game-organizer/schemas";
 import { describe, expect, it } from "vitest";
-import { canReadGroup, groupBanIsActive, groupCapabilities, groupViewerRole } from "../groupPolicy";
+import {
+  canReadGroup,
+  groupBanIsActive,
+  groupCapabilities,
+  groupReviewState,
+  groupViewerRole,
+} from "../groupPolicy";
 
 const at = "2027-01-01T00:00:00Z";
 const now = Date.parse(at);
@@ -33,6 +39,22 @@ const ban: GroupBan = {
   createdAt: at,
   updatedAt: at,
 };
+
+it.each([
+  [true, undefined, "approved"],
+  [true, "PENDING", "pending"],
+  [false, undefined, "pending"],
+  [false, "PENDING", "pending"],
+  [true, "REJECTED", "changesRejected"],
+  [false, "REJECTED", "approvalRejected"],
+] as const)(
+  "derives public review state for approved=%s and review=%s",
+  (approved, reviewStatus, state) => {
+    expect(
+      groupReviewState({ approved: approved ? group.approved : undefined, reviewStatus }),
+    ).toBe(state);
+  },
+);
 
 describe("group bans", () => {
   it("uses exact server instants and revocation, without restoring any membership", () => {

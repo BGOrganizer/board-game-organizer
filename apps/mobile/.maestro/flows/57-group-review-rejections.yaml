@@ -1,0 +1,30 @@
+appId: com.bgo.boardgameorganizer.dev
+name: Distinguish rejected first approvals and rejected edits in public groups
+# Read-only. Use two owned Development groups that already have moderator feedback.
+tags: [manual, groups]
+---
+- assertTrue: ${GROUP_REVIEW_ACK === 'owned-development-rejected-groups'}
+- assertTrue: ${/^[a-f0-9-]{36}$/i.test(GROUP_FIRST_REJECTION_ID) && /^[a-f0-9-]{36}$/i.test(GROUP_CHANGES_REJECTION_ID) && GROUP_FIRST_REJECTION_ID !== GROUP_CHANGES_REJECTION_ID}
+- openLink: bgo-dev:///groups/${GROUP_FIRST_REJECTION_ID}
+- extendedWaitUntil:
+    visible:
+      id: record-identity-controls
+    timeout: 120000
+- tapOn:
+    text: '^(Approval rejected|Approvazione rifiutata)$'
+    childOf:
+      id: record-identity-controls
+- assertVisible: '^(The approval request was rejected\. This group has not been published\.|La richiesta di approvazione è stata rifiutata\. Il gruppo non è stato pubblicato\.)$'
+- assertVisible: '^(Rejection reason|Motivo del rifiuto)$'
+- back
+- openLink: bgo-dev:///groups/${GROUP_CHANGES_REJECTION_ID}
+- extendedWaitUntil:
+    visible:
+      id: record-identity-controls
+    timeout: 120000
+- tapOn:
+    text: '^(Changes rejected|Modifiche rifiutate)$'
+    childOf:
+      id: record-identity-controls
+- assertVisible: '^(The approved version remains visible\.|La versione approvata resta visibile\.)$'
+- assertVisible: '^(Rejection reason|Motivo del rifiuto)$'

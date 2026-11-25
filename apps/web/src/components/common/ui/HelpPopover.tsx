@@ -7,6 +7,7 @@ import type { ComponentProps, ReactNode } from "react";
 export function HelpPopover({
   label,
   title,
+  titleClassName,
   titleIcon,
   className,
   triggerClassName = "",
@@ -21,6 +22,7 @@ export function HelpPopover({
 }: {
   label: string;
   title?: string;
+  titleClassName?: string;
   titleIcon?: ReactNode;
   icon?: LucideIcon;
   tone?: "muted" | "warning" | "success" | "accent" | "danger";
@@ -86,7 +88,11 @@ export function HelpPopover({
           className="whitespace-normal break-words p-3 text-sm"
         >
           {title ? (
-            <Popover.Heading className={titleIcon ? "flex items-center gap-2" : undefined}>
+            <Popover.Heading
+              className={
+                titleIcon ? `flex items-center gap-2 ${titleClassName ?? ""}` : titleClassName
+              }
+            >
               {titleIcon}
               {title}
             </Popover.Heading>

@@ -84,6 +84,7 @@ export * from "./groups/hooks/useGroupPeopleFeed";
 export * from "./groups/hooks/useGroupRecords";
 export * from "./groups/hooks/useGroupSocialActions";
 export * from "./groups/hooks/useLeaderboard";
+export * from "./groups/hooks/usePublicGroupSearch";
 export * from "./invites/hooks/useInviteClaim";
 export * from "./invites/hooks/useInvites";
 export { useTableInviteForm } from "./invites/hooks/useTableInviteForm";

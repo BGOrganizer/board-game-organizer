@@ -18,6 +18,7 @@ import {
 } from "../../common/optimisticOperation";
 import { CommunityApiError } from "../../community/communityApi";
 import { useRecordListWindow } from "../../events/hooks/useRecordListWindow";
+import { isGroupDiscoveryKey } from "../../groups/hooks/useGroupRecords";
 import { globalLeaderboardKey } from "../../groups/hooks/useLeaderboard";
 import { contactRelationshipIds } from "../contactRelationshipIds";
 import { contactRequestContext } from "../contactRequestContext";
@@ -505,7 +506,8 @@ export function useContactActions(
       });
       void queryClient.invalidateQueries({
         queryKey: ["groups", apiUrl, currentUserId],
-        predicate: ({ queryKey }) => queryKey[3] === "people" || queryKey[3] === "invitees",
+        predicate: ({ queryKey }) =>
+          queryKey[3] === "people" || queryKey[3] === "invitees" || isGroupDiscoveryKey(queryKey),
       });
       // Search/suggestions may be observed by another hook instance or a retained tab.
       // Refetch eligibility from the source; a former connection is not automatically a device contact.

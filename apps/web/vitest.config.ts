@@ -194,7 +194,7 @@ export default defineConfig({
           branches: 93,
           statements: 93,
         },
-        "src/components/events/{EventRolePopover,EventCardTableSummaries,EventSchedulePopover}.tsx":
+        "src/components/events/{EventRolePopover,EventCardTableSummaries,EventScheduleSummary}.tsx":
           {
             lines: 93,
             functions: 93,

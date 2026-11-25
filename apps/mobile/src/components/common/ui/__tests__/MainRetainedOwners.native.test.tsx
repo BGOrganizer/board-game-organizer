@@ -82,6 +82,7 @@ it("evicts a visited discovery owner on account and API changes without reusing 
   await fireEvent.changeText(originalFilter, "Public");
   await screen.findByText("Public list group");
   const originalList = screen.getByTestId("groups-scroll");
+  listFixture.groups = [listGroup("New owner discovery", { id: listId(9), type: "PUBLIC" })];
   await view.rerender(
     <MainListFixture userId="other-owner">
       <SearchGroupsScreen />
@@ -91,11 +92,12 @@ it("evicts a visited discovery owner on account and API changes without reusing 
   expect(otherFilter).not.toBe(originalFilter);
   expect(otherFilter).toHaveDisplayValue("");
   expect(screen.queryByText("Public list group")).toBeNull();
-  listFixture.groups = [listGroup("New owner discovery", { id: listId(9), type: "PUBLIC" })];
-  await fireEvent.changeText(otherFilter, "New owner");
   expect(await screen.findByText("New owner discovery")).toBeVisible();
+  expect(screen.getByTestId("list-filter-friends")).toBeSelected();
+  await fireEvent.changeText(otherFilter, "New owner");
   const otherList = screen.getByTestId("groups-scroll");
   expect(otherList).not.toBe(originalList);
+  listFixture.groups = [listGroup("New API discovery", { id: listId(10), type: "PUBLIC" })];
   await view.rerender(
     <MainListFixture userId="other-owner" apiUrl="https://other-main-list-fixtures.test">
       <SearchGroupsScreen />
@@ -104,6 +106,7 @@ it("evicts a visited discovery owner on account and API changes without reusing 
   expect(screen.getByTestId("list-search-input")).not.toBe(otherFilter);
   expect(screen.getByTestId("list-search-input")).toHaveDisplayValue("");
   expect(screen.queryByText("New owner discovery")).toBeNull();
+  expect(await screen.findByText("New API discovery")).toBeVisible();
   expect(screen.getByTestId("top-tab-search")).toBeSelected();
 });
 

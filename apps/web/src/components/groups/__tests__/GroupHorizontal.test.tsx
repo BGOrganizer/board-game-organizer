@@ -36,13 +36,24 @@ it.each([
   ["requested", "Member with pending request", "clock-3", "warning"],
 ] as const)(
   "uses the current %s role with a compact semantic icon, not another membership",
-  (role, label, icon, color) => {
+  async (role, label, icon, color) => {
     const fetcher = vi.fn();
     vi.stubGlobal("fetch", fetcher);
     renderWithI18n(<GroupCard group={{ ...groupRecord, role }} />);
     const button = screen.getByRole("button", { name: label });
-    expect(button.className).toContain(`text-${color}-soft-foreground`);
-    expect(button.querySelector(`svg.lucide-${icon}.size-4`)).not.toBeNull();
+    const hasRole = role === "admin" || role === "moderator" || role === "accepted";
+    expect(button.className).toContain(hasRole ? "text-muted" : `text-${color}-soft-foreground`);
+    expect(button.querySelector(`svg.lucide-${hasRole ? "id-card" : icon}.size-4`)).not.toBeNull();
+    fireEvent.click(button);
+    if (hasRole) {
+      expect(await screen.findByRole("heading", { name: "Role" })).toHaveClass("font-bold");
+      const roleLabel = screen.getByText(label);
+      expect(roleLabel.parentElement?.querySelector(`svg.lucide-${icon}`)).toHaveClass(
+        `text-${color}-soft-foreground`,
+      );
+    } else {
+      expect(await screen.findByRole("heading", { name: label })).toBeVisible();
+    }
     expect(button.querySelector(".size-7.bg-default")).not.toBeNull();
     expect(button.className).toContain("min-h-11 min-w-11");
     expect(button.closest("a")).toBeNull();
@@ -101,6 +112,17 @@ it.each(["PRIVATE", "PUBLIC"] as const)(
     expect(Boolean(screen.queryByRole("button", { name: "Approved" }))).toBe(type === "PUBLIC");
   },
 );
+it("labels an approved public group in Italian", async () => {
+  const i18n = setupI18n({ locale: "it", messages: { it: itMessages, en } });
+  renderWithI18n(
+    <I18nProvider i18n={i18n}>
+      <GroupCard group={{ ...groupRecord, type: "PUBLIC", approved: groupRecord.approved }} />
+    </I18nProvider>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Approvato" }));
+  const popover = await screen.findByRole("dialog", { name: "Approvato" });
+  expect(within(popover).getByText("Questo gruppo pubblico è approvato.")).toBeVisible();
+});
 it.each([
   {
     approved: groupRecord.approved,
@@ -131,16 +153,16 @@ it.each([
     reviewStatus: "REJECTED" as const,
     label: "Changes rejected",
     color: "danger",
-    icon: "circle-x",
+    icon: "circle-alert",
     body: "These changes were rejected.",
   },
   {
     approved: undefined,
     reviewStatus: "REJECTED" as const,
-    label: "Changes rejected",
+    label: "Approval rejected",
     color: "danger",
     icon: "circle-x",
-    body: "These changes were rejected.",
+    body: "The approval request was rejected. This group has not been published.",
   },
 ])(
   "retains public $label status, approved revision and rejection truth",
@@ -156,7 +178,16 @@ it.each([
       />,
     );
     const button = screen.getByRole("button", { name: label });
-    expect(button.className).toContain(`text-${color}-soft-foreground`);
+    const firstApprovalRejected = label === "Approval rejected";
+    expect(button.className).toContain(
+      firstApprovalRejected ? "text-danger-foreground" : `text-${color}-soft-foreground`,
+    );
+    const triggerSurface = firstApprovalRejected
+      ? "bg-danger"
+      : label === "Changes rejected"
+        ? "bg-danger-soft"
+        : "bg-default";
+    expect(button.querySelector(`span.${triggerSurface}`)).not.toBeNull();
     expect(button.querySelector(`svg.lucide-${icon}`)).not.toBeNull();
     fireEvent.click(button);
     const dialog = await screen.findByRole("dialog");
@@ -168,8 +199,12 @@ it.each([
         ),
       ),
     ).toBe(Boolean(state.approved && state.reviewStatus === "PENDING"));
-    expect(Boolean(within(dialog).queryByText("Verify venue"))).toBe(
-      Boolean(state.approved && state.reviewStatus === "REJECTED"),
+    expect(Boolean(within(dialog).queryByText("The approved version remains visible."))).toBe(
+      label === "Changes rejected",
+    );
+    expect(Boolean(within(dialog).queryByText("Verify venue"))).toBe(label === "Changes rejected");
+    expect(Boolean(within(dialog).queryByText("Rejection reason"))).toBe(
+      label === "Changes rejected",
     );
   },
 );

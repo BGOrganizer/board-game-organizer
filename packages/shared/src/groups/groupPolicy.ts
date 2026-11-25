@@ -53,6 +53,12 @@ export function ownGroupActions(
   return group.type === "PUBLIC" && group.approved ? ["request"] : [];
 }
 
+export function groupReviewState(group: Pick<GroupRecord, "approved" | "reviewStatus">) {
+  if (group.reviewStatus === "REJECTED")
+    return group.approved ? "changesRejected" : "approvalRejected";
+  return !group.approved || group.reviewStatus === "PENDING" ? "pending" : "approved";
+}
+
 export function groupBanIsActive(ban: GroupBan | null, now: number): boolean {
   return Boolean(ban && !ban.revokedAt && (ban.until === null || Date.parse(ban.until) > now));
 }

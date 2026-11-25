@@ -9,6 +9,7 @@ import { NotificationTabBadge } from "@/components/notifications/NotificationTab
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { GroupList } from "./GroupList";
+import { GroupSearch } from "./GroupSearch";
 
 const MemoizedGroupList = memo(GroupList);
 
@@ -20,6 +21,7 @@ export function Groups({
   const t = useT();
   const options = useCommunityApi();
   const [selectedSection, setSection] = useState<string>(initialSection);
+  const [searchActive, setSearchActive] = useState(false);
   return (
     <NotificationAttentionScope
       options={options}
@@ -30,29 +32,32 @@ export function Groups({
       ]}
     >
       <Tabs value={selectedSection} onValueChange={setSection} style={{ flex: 1 }}>
-        <MainTabBar>
-          <TabTrigger icon={LockKeyhole} value="private" style={{ flexDirection: "row", gap: 6 }}>
-            <Tabs.Label>{t("Private groups")}</Tabs.Label>
-            <NotificationTabBadge target={{ kind: "group-list", id: "PRIVATE" }} />
-          </TabTrigger>
-          <TabTrigger icon={Globe} value="public" style={{ flexDirection: "row", gap: 6 }}>
-            <Tabs.Label>{t("Public groups")}</Tabs.Label>
-            <NotificationTabBadge target={{ kind: "group-list", id: "PUBLIC" }} />
-          </TabTrigger>
-          <TabTrigger icon={Search} value="search" style={{ flexDirection: "row", gap: 6 }}>
-            <Tabs.Label>{t("Search")}</Tabs.Label>
-            <NotificationTabBadge target={{ kind: "group-list", id: "search" }} />
-          </TabTrigger>
-        </MainTabBar>
+        {!searchActive ? (
+          <MainTabBar>
+            <TabTrigger icon={LockKeyhole} value="private" style={{ flexDirection: "row", gap: 6 }}>
+              <Tabs.Label>{t("Private groups")}</Tabs.Label>
+              <NotificationTabBadge target={{ kind: "group-list", id: "PRIVATE" }} />
+            </TabTrigger>
+            <TabTrigger icon={Globe} value="public" style={{ flexDirection: "row", gap: 6 }}>
+              <Tabs.Label>{t("Public groups")}</Tabs.Label>
+              <NotificationTabBadge target={{ kind: "group-list", id: "PUBLIC" }} />
+            </TabTrigger>
+            <TabTrigger icon={Search} value="search" style={{ flexDirection: "row", gap: 6 }}>
+              <Tabs.Label>{t("Search")}</Tabs.Label>
+              <NotificationTabBadge target={{ kind: "group-list", id: "search" }} />
+            </TabTrigger>
+          </MainTabBar>
+        ) : null}
         {(["private", "public", "search"] as const).map((section) => (
           <RetainedTabPanel
             key={JSON.stringify([options.apiUrl, options.userId, section])}
             active={selectedSection === section}
           >
-            <MemoizedGroupList
-              scope={section === "search" ? "public" : "mine"}
-              type={section === "private" ? "PRIVATE" : section === "public" ? "PUBLIC" : undefined}
-            />
+            {section === "search" ? (
+              <GroupSearch onActiveChange={setSearchActive} />
+            ) : (
+              <MemoizedGroupList type={section === "private" ? "PRIVATE" : "PUBLIC"} />
+            )}
           </RetainedTabPanel>
         ))}
       </Tabs>

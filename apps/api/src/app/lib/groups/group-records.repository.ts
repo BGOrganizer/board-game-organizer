@@ -1,4 +1,5 @@
 import {
+  defaultGroupDiscoveryRadiusKm,
   type GroupBan,
   type GroupMembership,
   type GroupRecord,
@@ -19,6 +20,15 @@ export interface GroupRecordPage extends Partial<RecordListOrder> {
   roles?: readonly GroupRecordListRole[];
   type?: GroupRecord["type"];
 }
+export interface GroupRecordListPage extends GroupRecordPage {
+  friends?: true;
+  nearLat?: number;
+  nearLng?: number;
+  radiusKm?: number;
+}
+
+const earthRadiusKm = 6371.0088;
+
 export class GroupRecordsRepository {
   private groups;
   private memberships;
@@ -450,9 +460,17 @@ export class GroupRecordsRepository {
   async list(
     userId: string,
     scope: "mine" | "public" | "moderation",
-    page: GroupRecordPage,
+    page: GroupRecordListPage,
     now: string,
+    friendIds?: readonly string[],
   ) {
+    const friends = scope === "public" ? friendIds : undefined;
+    const nearby =
+      scope === "public" && page.nearLat !== undefined && page.nearLng !== undefined
+        ? [page.nearLng, page.nearLat]
+        : undefined;
+    if (friends?.length === 0) return [];
+
     const byName = page.sort === "name";
     const order = page.direction === "asc" ? 1 : -1;
     const after = order === 1 ? "$gt" : "$lt";
@@ -473,18 +491,65 @@ export class GroupRecordsRepository {
     }
     if (page.query) {
       const $regex = page.query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const field = scope === "public" ? "approved.location.address" : "proposal.name";
       pipeline.push({
-        $match:
-          scope === "public"
-            ? { "approved.name": { $regex, $options: "i" } }
-            : {
-                $or: [
-                  { "approved.name": { $regex, $options: "i" } },
-                  { "proposal.name": { $regex, $options: "i" } },
-                ],
-              },
+        $match: {
+          $or: [
+            { "approved.name": { $regex, $options: "i" } },
+            { [field]: { $regex, $options: "i" } },
+          ],
+        },
       });
     }
+    if (nearby)
+      pipeline.push(
+        {
+          $match: {
+            "approved.location.latitude": { $gte: -90, $lte: 90 },
+            "approved.location.longitude": { $gte: -180, $lte: 180 },
+            $expr: {
+              $and: [
+                { $isNumber: "$approved.location.latitude" },
+                { $isNumber: "$approved.location.longitude" },
+              ],
+            },
+          },
+        },
+        {
+          $set: {
+            discoveryCoordinates: ["$approved.location.longitude", "$approved.location.latitude"],
+          },
+        },
+        {
+          $match: {
+            discoveryCoordinates: {
+              $geoWithin: {
+                $centerSphere: [
+                  nearby,
+                  (page.radiusKm ?? defaultGroupDiscoveryRadiusKm) / earthRadiusKm,
+                ],
+              },
+            },
+          },
+        },
+      );
+    if (friends)
+      pipeline.push(
+        {
+          $lookup: {
+            from: COLLECTIONS.GROUP_MEMBERSHIPS,
+            localField: "id",
+            foreignField: "groupId",
+            pipeline: [{ $match: { userId: { $in: friends }, status: "ACCEPTED" } }, { $limit: 1 }],
+            as: "friendMembership",
+          },
+        },
+        {
+          $match: {
+            $or: [{ adminUserId: { $in: friends } }, { "friendMembership.0": { $exists: true } }],
+          },
+        },
+      );
     pipeline.push({
       $lookup: {
         from: COLLECTIONS.GROUP_MEMBERSHIPS,
@@ -594,6 +659,8 @@ export class GroupRecordsRepository {
           transactionLock: 0,
           viewerRows: 0,
           viewerBans: 0,
+          ...(friends ? { friendMembership: 0 } : {}),
+          ...(nearby ? { discoveryCoordinates: 0 } : {}),
           ...(byName ? { listName: 0 } : {}),
         },
       },

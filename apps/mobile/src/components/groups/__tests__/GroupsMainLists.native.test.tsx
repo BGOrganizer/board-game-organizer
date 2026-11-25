@@ -9,7 +9,8 @@ import {
   waitFor,
   within,
 } from "@testing-library/react-native";
-import { expect, it } from "vitest";
+import { BackHandler, Keyboard } from "react-native";
+import { expect, it, vi } from "vitest";
 import {
   installNativePopoverMeasurements,
   pressMeasuredPopover,
@@ -56,7 +57,7 @@ it("retains independent private/public filter and native list owners while prese
   expect(screen.getAllByRole("tab", { selected: true })).toHaveLength(1);
 });
 
-it("keeps owned filtering independent of discovery's four-character minimum and clears it deliberately", async () => {
+it("keeps owned filtering separate and finds public groups by one character of the approved address", async () => {
   await render(
     <MainListFixture>
       <Groups />
@@ -73,12 +74,30 @@ it("keeps owned filtering independent of discovery's four-character minimum and 
   );
   await listPress("Clear filter");
   expect(screen.getByTestId("list-search-input")).toHaveDisplayValue("");
+  listFixture.groups = [
+    listFixture.groups[0],
+    listGroup("Public list group", {
+      id: listId(2),
+      type: "PUBLIC",
+      approved: {
+        name: "Public list group",
+        location: {
+          id: listId(4),
+          name: "Venue",
+          address: "X Street",
+          latitude: 41.9,
+          longitude: 12.5,
+        },
+      },
+    }),
+  ];
   await listTab("search");
-  await fireEvent.changeText(screen.getByTestId("list-search-input"), "Pub");
-  expect(
-    listFixture.reads.filter((url) => url.searchParams.get("scope") === "public"),
-  ).toHaveLength(0);
-  await fireEvent.changeText(screen.getByTestId("list-search-input"), "Public");
+  expect(screen.getByRole("button", { name: "Friends" })).toBeSelected();
+  expect(await screen.findByText("Public list group")).toBeVisible();
+  await fireEvent.changeText(screen.getByTestId("list-search-input"), "X");
+  await waitFor(() =>
+    expect(listFixture.reads.some((url) => url.searchParams.get("query") === "X")).toBe(true),
+  );
   expect(await screen.findByText("Public list group")).toBeVisible();
   expect(screen.queryByText("Private list group")).toBeNull();
   expect(screen.queryByRole("button", { name: "Create group" })).toBeNull();
@@ -275,7 +294,12 @@ it("pages from actual native end geometry and retains a scoped retry after next-
 it.each([
   ["private", "Private groups", "Private groups help", /Private groups you manage/],
   ["public", "Public groups", "Public groups help", /may still be awaiting approval/],
-  ["search", "Search", "Group search help", /Search for approved public groups by name/],
+  [
+    "search",
+    "Group search",
+    "Group search help",
+    /Search approved public groups by name or venue address/,
+  ],
 ] as const)(
   "describes the %s Group list in the section popover",
   async (initialSection, title, label, description) => {
@@ -294,30 +318,141 @@ it.each([
   },
 );
 
-it("centers both discovery empty states and keeps the input accessible", async () => {
+it("keeps the focused input mounted, restores the native header and resets to Friends on Back", async () => {
+  const dismiss = vi.spyOn(Keyboard, "dismiss");
+  const remove = vi.fn();
+  const back = vi.spyOn(BackHandler, "addEventListener").mockReturnValue({ remove });
   await render(
     <MainListFixture>
       <Groups initialSection="search" />
     </MainListFixture>,
   );
-  const prompt = "Enter at least 4 characters to search";
   const input = screen.getByLabelText("Search groups");
+  expect(screen.getByRole("heading", { name: "Group search" })).toBeVisible();
+  await fireEvent(input, "focus", { nativeEvent: { target: 1 } });
+  expect(screen.getByLabelText("Search groups")).toBe(input);
+  expect(screen.queryByTestId("top-tab-search")).toBeNull();
+  expect(screen.queryByRole("heading", { name: "Group search" })).toBeNull();
+  expect(listBoundary.setOptions).toHaveBeenLastCalledWith({ headerShown: false });
+  expect(dismiss).not.toHaveBeenCalled();
+  await fireEvent.changeText(input, "Public");
+  await listPress("Friends");
+  expect(screen.getByRole("button", { name: "Friends" })).not.toBeSelected();
+  expect(await screen.findByText("Public list group")).toBeVisible();
+  await listPress("Open group: Public list group");
+  expect(listBoundary.push).toHaveBeenCalledWith({
+    pathname: "/group/[groupId]",
+    params: { groupId: listId(2) },
+  });
+  expect(input).toHaveDisplayValue("Public");
+  const handleBack = back.mock.calls.at(-1)?.[1];
+  expect(handleBack).toBeDefined();
+  await act(() => {
+    expect(handleBack?.({} as Parameters<NonNullable<typeof handleBack>>[0])).toBe(true);
+  });
+  expect(remove).toHaveBeenCalled();
+  expect(dismiss).toHaveBeenCalled();
   expect(input).toHaveDisplayValue("");
-  expect(screen.queryByText("Search groups")).toBeNull();
-  expect(screen.queryByRole("button", { name: "Search groups: Search help" })).toBeNull();
-  expect(screen.getByText(prompt).parent).toHaveStyle({ alignItems: "center" });
-  await fireEvent.changeText(input, "abc");
-  expect(screen.getAllByText(prompt)).toHaveLength(1);
-  expect(
-    listFixture.reads.filter((url) => url.searchParams.get("scope") === "public"),
-  ).toHaveLength(0);
-  await fireEvent.changeText(input, "missing");
-  const empty = await screen.findByText("No groups found");
-  expect(empty.parent).toHaveStyle({ alignItems: "center" });
-  expect(screen.queryByText(prompt)).toBeNull();
-  await listPress("Clear search");
-  expect(screen.getByText(prompt)).toBeVisible();
+  expect(listBoundary.setOptions).toHaveBeenLastCalledWith({ headerShown: true });
+  expect(screen.getByRole("button", { name: "Friends" })).toBeSelected();
+  expect(screen.getByTestId("top-tab-search")).toBeSelected();
+  await fireEvent(input, "focus", { nativeEvent: { target: 1 } });
+  await listPress("Back");
+  expect(screen.getByTestId("top-tab-search")).toBeSelected();
+});
+
+it("uses Nearby with an empty query, applies both chips, and keeps Friends when location is unavailable", async () => {
+  listBoundary.locationPermission
+    .mockResolvedValueOnce({ granted: false, canAskAgain: true })
+    .mockResolvedValueOnce({ granted: false, canAskAgain: true });
+  await render(
+    <MainListFixture>
+      <Groups initialSection="search" />
+    </MainListFixture>,
+  );
+  expect(listBoundary.locationPermission).not.toHaveBeenCalled();
+  await listPress("Near me");
+  expect(await screen.findByText("Location unavailable")).toBeVisible();
+  expect(listBoundary.requestLocationPermission).toHaveBeenCalledOnce();
+  expect(listBoundary.position).not.toHaveBeenCalled();
+  expect(screen.getByRole("button", { name: "Friends" })).toBeSelected();
+  expect(screen.getByRole("button", { name: "Near me" })).not.toBeSelected();
+  expect(screen.queryByTestId("top-tab-search")).toBeNull();
+  await listPress("Near me");
+  await waitFor(() =>
+    expect(
+      listFixture.reads.some(
+        ({ searchParams }) =>
+          searchParams.get("scope") === "public" &&
+          searchParams.get("friends") === "true" &&
+          Number(searchParams.get("nearLat")) === 41.9 &&
+          Number(searchParams.get("nearLng")) === 12.5 &&
+          searchParams.get("radiusKm") === "25" &&
+          !searchParams.has("query"),
+      ),
+    ).toBe(true),
+  );
+  expect(screen.getByLabelText("Search groups")).toHaveDisplayValue("");
+  expect(screen.getByRole("button", { name: "Near me" })).toBeSelected();
+  await listPress("Back");
+  expect(screen.getByRole("button", { name: "Friends" })).toBeSelected();
+  expect(screen.getByRole("button", { name: "Near me" })).not.toBeSelected();
+});
+
+it("changes the distance with the anchored HeroUI popover and keeps it when Nearby is toggled", async () => {
+  await installNativePopoverMeasurements();
+  await render(
+    <MainListFixture>
+      <Groups initialSection="search" />
+    </MainListFixture>,
+  );
+  expect(screen.queryByTestId("group-search-distance")).toBeNull();
+  await listPress("Near me");
+  const trigger = await screen.findByRole("button", { name: "Distance, 25 km" });
+  await pressMeasuredPopover(trigger);
+  expect(screen.getByTestId("group-distance-25")).toBeSelected();
+  await fireEvent.press(screen.getByTestId("group-distance-50"));
+  await waitFor(() =>
+    expect(listFixture.reads.some((url) => url.searchParams.get("radiusKm") === "50")).toBe(true),
+  );
+  expect(listBoundary.position).toHaveBeenCalledOnce();
+  await pressMeasuredPopover(screen.getByRole("button", { name: "Distance, 50 km" }));
+  await fireEvent.press(screen.getByTestId("group-distance-custom"));
+  const field = screen.getByTestId("group-custom-distance");
+  expect(field).toHaveDisplayValue("50");
+  await fireEvent.changeText(field, "0");
+  expect(screen.getByTestId("group-custom-distance-apply")).toBeDisabled();
+  await fireEvent.press(screen.getByTestId("group-custom-distance-back"));
+  expect(screen.getByTestId("group-distance-50")).toBeSelected();
+  await fireEvent.press(screen.getByTestId("group-distance-custom"));
+  await fireEvent.changeText(screen.getByTestId("group-custom-distance"), "12");
+  await fireEvent.press(screen.getByTestId("group-custom-distance-apply"));
+  await waitFor(() =>
+    expect(listFixture.reads.some((url) => url.searchParams.get("radiusKm") === "12")).toBe(true),
+  );
+  await listPress("Near me");
+  expect(screen.queryByTestId("group-search-distance")).toBeNull();
+  await listPress("Near me");
+  expect(await screen.findByRole("button", { name: "Distance, 12 km" })).toBeVisible();
+});
+
+it("shows distinct discovery empty and retry paths with the filters always available", async () => {
+  listFixture.groups = [];
+  await render(
+    <MainListFixture>
+      <Groups initialSection="search" />
+    </MainListFixture>,
+  );
+  expect((await screen.findByText("No public groups with your friends")).parent).toHaveStyle({
+    alignItems: "center",
+  });
+  listFixture.statuses.set("/api/groups", 503);
+  await listPress("Friends");
+  expect(await screen.findByText("Could not load groups")).toBeVisible();
   expect(screen.queryByText("No groups found")).toBeNull();
+  listFixture.statuses.delete("/api/groups");
+  await listPress("Try again");
+  expect((await screen.findByText("No groups found")).parent).toHaveStyle({ alignItems: "center" });
 });
 
 it("keeps the first group page usable while suppressing repeated requests for the pending next cursor", async () => {

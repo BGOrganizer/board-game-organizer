@@ -6,6 +6,7 @@ import {
   Clock3,
   Crown,
   Eye,
+  IdCard,
   ListOrdered,
   Mail,
   Presentation,
@@ -94,29 +95,45 @@ export function ArtworkStatusPopover({
     },
   };
   const state = states[kind ?? "invitation"];
+  const RoleIcon = state.icon;
+  const roleTone =
+    kind === "admin"
+      ? "warning"
+      : kind === "manager"
+        ? "accent"
+        : kind === "member"
+          ? "success"
+          : null;
   const title = label ?? state.label;
   const actionLabel = action === "review" ? t`Requests to review` : t`Reply required`;
+  const roleColors = {
+    warning: "text-warning-soft-foreground",
+    accent: "text-accent-soft-foreground",
+    success: "text-success-soft-foreground",
+  };
   const ActionIcon = action === "review" ? UserRoundPlus : Mail;
   return (
     <HelpPopover
       label={action ? `${title} · ${actionLabel}` : title}
-      title={title}
+      title={roleTone ? t`Role` : title}
+      titleClassName={roleTone ? "font-bold" : undefined}
       triggerClassName="bg-default"
       size={size}
-      icon={state.icon}
+      icon={roleTone ? IdCard : state.icon}
       tone={
-        kind === "confirmed" || kind === "member" || kind === "accepted"
-          ? "success"
-          : action ||
-              kind === "request" ||
-              kind === "invitation" ||
-              kind === "waiting" ||
-              kind === "pending" ||
-              kind === "admin"
-            ? "warning"
-            : size === "compact" && (kind === "manager" || kind === "demonstrator")
-              ? "accent"
-              : "muted"
+        roleTone
+          ? "muted"
+          : kind === "confirmed" || kind === "accepted"
+            ? "success"
+            : action ||
+                kind === "request" ||
+                kind === "invitation" ||
+                kind === "waiting" ||
+                kind === "pending"
+              ? "warning"
+              : size === "compact" && kind === "demonstrator"
+                ? "accent"
+                : "muted"
       }
       indicator={
         action && state.icon !== ActionIcon ? (
@@ -129,6 +146,12 @@ export function ArtworkStatusPopover({
         ) : undefined
       }
     >
+      {roleTone ? (
+        <p className="mb-2 flex items-center gap-2">
+          <RoleIcon aria-hidden className={`size-4 shrink-0 ${roleColors[roleTone]}`} />
+          <span>{title}</span>
+        </p>
+      ) : null}
       <p>{state.description}</p>
       {action ? (
         <p className="mt-2">

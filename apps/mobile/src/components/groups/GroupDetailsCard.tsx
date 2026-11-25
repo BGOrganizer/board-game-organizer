@@ -114,7 +114,9 @@ export function GroupDetailsCard({
       ) : null}
       {group.approved && group.reviewStatus ? (
         <Typography className="text-muted">
-          {t("Approved information remains visible while changes are reviewed.")}
+          {group.reviewStatus === "REJECTED"
+            ? t("The approved version remains visible.")
+            : t("Approved information remains visible while changes are reviewed.")}
         </Typography>
       ) : null}
       {children ? (

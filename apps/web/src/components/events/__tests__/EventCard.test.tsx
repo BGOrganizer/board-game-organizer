@@ -7,6 +7,7 @@ import { renderWithI18n } from "@/test-utils";
 import { messages as en } from "../../../../../../messages/en.js";
 import { messages as itMessages } from "../../../../../../messages/it.js";
 import { EventCard } from "../EventCard";
+import { EventDetailsCard } from "../EventDetailsCard";
 
 afterEach(() => vi.unstubAllGlobals());
 async function close() {
@@ -74,6 +75,8 @@ it("keeps all own states cumulative, compact, informational and outside navigati
     fireEvent.click(button);
     const dialog = await screen.findByRole("dialog");
     if (name === "Roles and participation") {
+      const intro = within(dialog).getByText("Your roles in this event:");
+      expect(intro.nextElementSibling).toBe(within(dialog).getByRole("list"));
       for (const role of [
         "Admin",
         "Demonstrator",
@@ -100,6 +103,9 @@ it.each(["moderator", undefined] as const)(
     renderWithI18n(<EventCard event={{ ...plannedEvent, canManage: true, managementRole }} />);
     fireEvent.click(screen.getByRole("button", { name: "Roles and participation" }));
     const dialog = await screen.findByRole("dialog");
+    expect(Boolean(within(dialog).queryByText("Your roles in this event:"))).toBe(
+      Boolean(managementRole),
+    );
     expect(Boolean(within(dialog).queryByText("Moderator"))).toBe(Boolean(managementRole));
     expect(within(dialog).queryByText("Admin")).toBeNull();
     expect(within(dialog).queryByText("Management")).toBeNull();
@@ -172,81 +178,76 @@ it("keeps Group identity loading instead of inventing a name", () => {
   expect(screen.getByLabelText("Loading…")).not.toBeNull();
   expect(screen.getByText("1 Table")).not.toBeNull();
 });
-it.each(["PLANNING", "CONFIRMED", "TERMINATED"] as const)(
-  "separates %s state from authorized dates and locations",
-  async (status) => {
-    const planning = status === "PLANNING",
-      label = planning ? "Planning" : status === "CONFIRMED" ? "Confirmed" : "Terminated";
-    renderWithI18n(
-      <EventCard
-        event={{
-          ...plannedEvent,
-          status,
-          participantCount: 3,
-          locations: [
-            ...plannedEvent.locations,
-            {
-              ...plannedEvent.locations[0],
-              id: "second",
-              name: "Second venue",
-              address: "Second address",
-            },
-          ],
-          dates: [...plannedEvent.dates, { id: "second", day: "2030-06-04", startTime: "21:30" }],
-          confirmed: planning
-            ? undefined
-            : {
-                dateId: "second",
-                locationId: plannedEvent.locations[0].id,
-                at: plannedEvent.createdAt,
-              },
-        }}
-      />,
-    );
-    const button = screen.getByRole("button", { name: label });
-    expect(
-      button.querySelector(
-        planning
-          ? ".lucide-calendar-clock"
-          : status === "CONFIRMED"
-            ? ".lucide-calendar-check"
-            : ".lucide-flag",
-      ),
-    ).not.toBeNull();
-    expect(button.className).toContain(
-      planning ? "text-warning" : status === "CONFIRMED" ? "text-muted" : "text-accent",
-    );
-    fireEvent.click(button);
-    const state = await screen.findByRole("dialog");
-    expect(within(state).queryByText("Players: 3")).toBeNull();
-    expect(state.querySelector("time")).toBeNull();
-    expect(within(state).queryByText("Via Roma 1")).toBeNull();
-    await close();
-    if (planning) {
-      expect(screen.queryByRole("button", { name: "Dates and times: Friday games" })).toBeNull();
-      expect(screen.queryByRole("button", { name: "Locations: Friday games" })).toBeNull();
-      return;
-    }
-    fireEvent.click(screen.getByRole("button", { name: "Dates and times: Friday games" }));
-    const dates = await screen.findByRole("dialog");
-    expect(within(dates).getByText("June 4, 2030")).not.toBeNull();
-    expect(Boolean(within(dates).queryByText("June 3, 2030"))).toBe(planning);
-    expect(dates.querySelectorAll("time")).toHaveLength(planning ? 4 : 2);
-    await close();
-    fireEvent.click(screen.getByRole("button", { name: "Locations: Friday games" }));
-    const locations = await screen.findByRole("dialog");
-    expect(within(locations).getByText("Via Roma 1")).not.toBeNull();
-    expect(Boolean(within(locations).queryByText("Second address"))).toBe(planning);
-  },
-);
-it("shows empty schedule options explicitly without inventing facts", async () => {
+it.each([
+  ["PLANNING", EventCard],
+  ["CONFIRMED", EventCard],
+  ["TERMINATED", EventCard],
+  ["CONFIRMED", EventDetailsCard],
+  ["TERMINATED", EventDetailsCard],
+] as const)("keeps the %s schedule inside the status popover of %s", async (status, Card) => {
+  const planning = status === "PLANNING",
+    label = planning ? "Planning" : status === "CONFIRMED" ? "Confirmed" : "Terminated";
   renderWithI18n(
-    <EventCard event={{ ...plannedEvent, status: "CONFIRMED", dates: [], locations: [] }} />,
+    <Card
+      event={{
+        ...plannedEvent,
+        status,
+        participantCount: 3,
+        locations: [
+          ...plannedEvent.locations,
+          {
+            ...plannedEvent.locations[0],
+            id: "second",
+            name: "Second venue",
+            address: "Second address",
+          },
+        ],
+        dates: [...plannedEvent.dates, { id: "second", day: "2030-06-04", startTime: "21:30" }],
+        confirmed: planning
+          ? undefined
+          : {
+              dateId: "second",
+              locationId: plannedEvent.locations[0].id,
+              at: plannedEvent.createdAt,
+            },
+      }}
+    />,
   );
-  fireEvent.click(screen.getByRole("button", { name: "Dates and times: Friday games" }));
-  expect(await screen.findByText("No date selected")).not.toBeNull();
+  const button = screen.getByRole("button", { name: label });
+  expect(
+    button.querySelector(
+      planning
+        ? ".lucide-calendar-clock"
+        : status === "CONFIRMED"
+          ? ".lucide-calendar-check"
+          : ".lucide-flag",
+    ),
+  ).not.toBeNull();
+  expect(button.className).toContain(
+    planning ? "text-warning" : status === "CONFIRMED" ? "text-muted" : "text-accent",
+  );
+  fireEvent.click(button);
+  const state = await screen.findByRole("dialog");
+  expect(within(state).queryByText("Players: 3")).toBeNull();
+  expect(state.querySelectorAll("time")).toHaveLength(planning ? 0 : 2);
+  expect(Boolean(within(state).queryByText("Via Roma 1"))).toBe(!planning);
+  expect(within(state).queryByText("Second address")).toBeNull();
+  expect(within(state).queryByText("June 3, 2030")).toBeNull();
+  if (!planning) {
+    expect(within(state).getByText("Date and time:")).toHaveClass("font-bold");
+    expect(within(state).getByText("Location:")).toHaveClass("font-bold");
+    expect(within(state).getByText("June 4, 2030")).not.toBeNull();
+    expect(state.querySelector('time[datetime="2030-06-04T21:30Z"]')).not.toBeNull();
+  }
   await close();
-  expect(screen.queryByRole("button", { name: "Locations: Friday games" })).toBeNull();
+  expect(screen.queryByRole("button", { name: /^Dates and times:/ })).toBeNull();
+  expect(screen.queryByRole("button", { name: /^Locations:/ })).toBeNull();
+});
+it("shows absent finalized schedule options without using an unselected alternative", async () => {
+  renderWithI18n(<EventCard event={{ ...plannedEvent, status: "CONFIRMED" }} />);
+  fireEvent.click(screen.getByRole("button", { name: "Confirmed" }));
+  expect(await screen.findByText("No date selected")).not.toBeNull();
+  expect(screen.getByText("No location selected")).not.toBeNull();
 });
 it("retains known draft information while hiding unverified roles and locking its controls", () => {
   renderWithI18n(

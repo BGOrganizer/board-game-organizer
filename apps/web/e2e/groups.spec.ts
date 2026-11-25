@@ -1,5 +1,6 @@
 import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
 import { expect, test } from "@playwright/test";
+import { groupRecord } from "../src/test-fixtures/eventRecords";
 import { completeMobileNumberIfNeeded } from "./mobile-number";
 import { selectMatchLocation } from "./select-match-location";
 
@@ -16,6 +17,61 @@ async function signIn(page: import("@playwright/test").Page) {
   await completeMobileNumberIfNeeded(page);
   await page.waitForFunction(() => Boolean(Reflect.get(window, "Clerk")?.user?.id));
   return page.evaluate(() => Reflect.get(window, "Clerk")?.user?.id as string);
+}
+
+for (const scenario of [
+  {
+    approved: groupRecord.approved,
+    title: "Changes rejected",
+    icon: "circle-alert",
+    surface: "bg-danger-soft",
+    description: "The approved version remains visible.",
+  },
+  {
+    approved: undefined,
+    title: "Approval rejected",
+    icon: "circle-x",
+    surface: "bg-danger",
+    description: "The approval request was rejected. This group has not been published.",
+  },
+]) {
+  test(`shows ${scenario.title} on public group list and detail cards`, async ({ page }) => {
+    const adminUserId = await signIn(page);
+    const group = {
+      ...groupRecord,
+      adminUserId,
+      type: "PUBLIC",
+      approved: scenario.approved,
+      proposal: { name: groupRecord.name },
+      reviewStatus: "REJECTED",
+      rejectionReason: "Verify the venue before resubmitting.",
+      canViewEvents: Boolean(scenario.approved),
+      eventCount: scenario.approved ? 0 : null,
+    };
+    await page.route("**/api/groups?**", (route) => {
+      const { searchParams } = new URL(route.request().url());
+      return route.fulfill({
+        json: { items: searchParams.get("type") === "PUBLIC" ? [group] : [], nextCursor: null },
+      });
+    });
+    await page.route(`**/api/groups/${group.id}*`, (route) => route.fulfill({ json: group }));
+    await page.goto("/groups");
+    await page.getByRole("tab", { name: "Public groups", exact: true }).click();
+    const link = page.getByRole("link", { name: `Open group: ${group.name}`, exact: true });
+    const listCard = link.locator("..");
+    const detailCard = page.getByTestId("record-identity-card");
+    for (const surface of [listCard, detailCard]) {
+      const trigger = surface.getByRole("button", { name: scenario.title, exact: true });
+      await expect(trigger.locator(`.${scenario.surface} .lucide-${scenario.icon}`)).toBeVisible();
+      await trigger.click();
+      const popover = page.getByRole("dialog", { name: scenario.title, exact: true });
+      await expect(popover.getByText(scenario.description, { exact: true })).toBeVisible();
+      await expect(popover.getByText("Rejection reason", { exact: true })).toBeVisible();
+      await expect(popover.getByText(group.rejectionReason, { exact: true })).toBeVisible();
+      await page.keyboard.press("Escape");
+      if (surface === listCard) await link.click();
+    }
+  });
 }
 
 test("group and match lifecycle notifications appear in inbox", async ({ page }) => {

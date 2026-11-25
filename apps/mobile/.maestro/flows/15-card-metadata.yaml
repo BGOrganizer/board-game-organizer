@@ -18,7 +18,9 @@ tags: [manual, cards]
 - back
 - tapOn:
     id: top-tab-search
-- assertVisible: ${output.groupSearchPrompt}
+- assertVisible:
+    id: list-filter-friends
+    selected: true
 - assertNotVisible: ${output.groupSearchFieldHelp}
 - tapOn: ${output.groupSearchListHelp}
 - assertVisible: ${output.groupSearchListRule}
@@ -41,12 +43,24 @@ tags: [manual, cards]
 - assertVisible: ${output.cardGroupEvents}
 - assertVisible: ${output.cardPrivate}
 - takeScreenshot: card-group-metadata
+- tapOn:
+    text: ${output.cardGroupRoleTrigger}
+    childOf:
+      id: card-controls
+- assertVisible: ${output.cardGroupRoleHelp}
+- back
 - tapOn: ${output.cardGroup}
 - extendedWaitUntil:
     visible: ${output.cardGroupTitle}
     timeout: 120000
 - assertVisible: ${output.cardPrivate}
 - takeScreenshot: card-group-background-identity
+- tapOn:
+    text: ${output.cardGroupRoleTrigger}
+    childOf:
+      id: record-identity-controls
+- assertVisible: ${output.cardGroupRoleHelp}
+- back
 - assertVisible: ${output.cardOverview}
 - assertVisible: ${output.cardRankingTab}
 - tapOn: ${output.groupDetailsHelp}
@@ -89,6 +103,7 @@ tags: [manual, cards]
     text: ${output.cardRoles}
     childOf:
       id: card-controls
+- assertVisible: ${output.cardEventRolesIntro}
 - assertVisible: ${output.cardEventAccepted}
 - takeScreenshot: card-event-roles-popover
 - back
@@ -105,6 +120,19 @@ tags: [manual, cards]
     visible: ${output.cardEventTitle}
     timeout: 120000
 - takeScreenshot: card-event-background-identity
+- scrollUntilVisible:
+    element:
+      text: ${output.cardRoles}
+      childOf:
+        id: record-identity-controls
+    direction: LEFT
+    timeout: 20000
+- tapOn:
+    text: ${output.cardRoles}
+    childOf:
+      id: record-identity-controls
+- assertVisible: ${output.cardEventRolesIntro}
+- back
 - tapOn: ${output.cardParticipantsTab}
 - scrollUntilVisible:
     element:

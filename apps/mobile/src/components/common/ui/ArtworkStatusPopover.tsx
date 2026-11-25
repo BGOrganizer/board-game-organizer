@@ -6,6 +6,7 @@ import {
   Clock3,
   Crown,
   Eye,
+  IdCard,
   ListOrdered,
   Mail,
   Presentation,
@@ -39,7 +40,11 @@ export function ArtworkStatusPopover({
   size?: "default" | "compact";
 }) {
   const t = useT();
-  const warning = useThemeColor("warning-soft-foreground");
+  const [warning, accent, success] = useThemeColor([
+    "warning-soft-foreground",
+    "accent-soft-foreground",
+    "success-soft-foreground",
+  ]);
   if (kind === undefined && !action)
     return (
       <Skeleton
@@ -105,29 +110,40 @@ export function ArtworkStatusPopover({
     },
   };
   const state = states[kind ?? "invitation"];
+  const RoleIcon = state.icon;
+  const roleTone =
+    kind === "admin"
+      ? "warning"
+      : kind === "manager"
+        ? "accent"
+        : kind === "member"
+          ? "success"
+          : null;
   const title = label ?? state.label;
   const actionLabel = action === "review" ? t("Requests to review") : t("Reply required");
   const ActionIcon = action === "review" ? UserRoundPlus : Mail;
   return (
     <HelpPopover
       label={action ? `${title} · ${actionLabel}` : title}
-      title={title}
+      title={roleTone ? t("Role") : title}
+      titleClassName={roleTone ? "font-bold" : undefined}
       triggerClassName="bg-default"
       size={size}
-      icon={state.icon}
+      icon={roleTone ? IdCard : state.icon}
       tone={
-        kind === "confirmed" || kind === "member" || kind === "accepted"
-          ? "success"
-          : action ||
-              kind === "request" ||
-              kind === "invitation" ||
-              kind === "waiting" ||
-              kind === "pending" ||
-              kind === "admin"
-            ? "warning"
-            : size === "compact" && (kind === "manager" || kind === "demonstrator")
-              ? "accent"
-              : "muted"
+        roleTone
+          ? "muted"
+          : kind === "confirmed" || kind === "accepted"
+            ? "success"
+            : action ||
+                kind === "request" ||
+                kind === "invitation" ||
+                kind === "waiting" ||
+                kind === "pending"
+              ? "warning"
+              : size === "compact" && kind === "demonstrator"
+                ? "accent"
+                : "muted"
       }
       indicator={
         action && state.icon !== ActionIcon ? (
@@ -150,6 +166,14 @@ export function ArtworkStatusPopover({
         ) : undefined
       }
     >
+      {roleTone ? (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
+          <RoleIcon size={16} color={{ warning, accent, success }[roleTone]} accessible={false} />
+          <Typography className="text-foreground" style={{ flexShrink: 1 }}>
+            {title}
+          </Typography>
+        </View>
+      ) : null}
       <Typography className="text-foreground">{state.description}</Typography>
       {action ? (
         <Typography className="text-foreground" style={{ marginTop: 8 }}>

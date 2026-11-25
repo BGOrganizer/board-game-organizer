@@ -15,6 +15,7 @@ const fixtures = [
 test.use({ locale: "en-US" });
 
 test("owned Groups combine role filters with Name and Date ordering in both tabs", async ({
+  context,
   page,
 }) => {
   const email = process.env.E2E_EMAIL;
@@ -135,21 +136,66 @@ test("owned Groups combine role filters with Name and Date ordering in both tabs
   for (const role of roles) await expect(filter(role, true)).toHaveCount(0);
   await expect(activePanel().getByRole("button", { name: /^Sort by / })).toHaveCount(0);
   const search = activePanel().getByRole("searchbox", { name: "Search groups", exact: true });
-  await search.fill("Alp");
+  await expect(activePanel().getByRole("button", { name: "Friends", pressed: true })).toBeVisible();
   await expect(
-    activePanel().getByText("Enter at least 4 characters to search", { exact: true }),
+    activePanel().getByRole("button", { name: "Near me", pressed: false }),
   ).toBeVisible();
   const discoveryResponse = page.waitForResponse((response) => {
     const { pathname, searchParams } = new URL(response.url());
     return (
       pathname === "/api/groups" &&
       searchParams.get("scope") === "public" &&
-      searchParams.get("query") === "Alpha"
+      searchParams.get("query") === "l"
     );
   });
-  await search.fill("Alpha");
+  await search.fill("l");
   const searchParams = new URL((await discoveryResponse).url()).searchParams;
+  expect(searchParams.get("friends")).toBe("true");
   for (const key of ["roles", "type", "sort", "direction"])
     expect(searchParams.has(key)).toBe(false);
-  await expect(firstGroup()).toHaveAccessibleName("Open group: Alpha Invitation Club");
+  await expect(page.getByRole("tab", { name: "Search", exact: true })).toHaveCount(0);
+  await expect(activePanel().getByRole("heading", { name: "Group search" })).toHaveCount(0);
+  await expect(
+    activePanel().getByRole("link", { name: "Open group: Alpha Invitation Club" }),
+  ).toBeVisible();
+  await activePanel().getByRole("button", { name: "Back", exact: true }).click();
+  await expect(search).toHaveValue("");
+  await expect(page.getByRole("tab", { name: "Search", selected: true })).toBeVisible();
+
+  await context.grantPermissions(["geolocation"], { origin: new URL(page.url()).origin });
+  await context.setGeolocation({ latitude: 41.9, longitude: 12.5 });
+  const nearby = activePanel().getByRole("button", { name: "Near me", exact: true });
+  const waitForRadius = (radius: string | null) =>
+    page.waitForResponse((response) => {
+      const { pathname, searchParams } = new URL(response.url());
+      return (
+        pathname === "/api/groups" &&
+        searchParams.get("scope") === "public" &&
+        searchParams.get("friends") === "true" &&
+        searchParams.get("radiusKm") === radius &&
+        searchParams.has("nearLat") === Boolean(radius)
+      );
+    });
+  const initialRadius = waitForRadius("25");
+  await nearby.click();
+  await initialRadius;
+  const menu = page.getByRole("dialog", { name: "Distance" });
+  await activePanel().getByRole("button", { name: "Distance, 25 km" }).click();
+  await expect(menu.getByRole("button", { name: "25 km", pressed: true })).toBeVisible();
+  const preset = waitForRadius("50");
+  await menu.getByRole("button", { name: "50 km" }).click();
+  await preset;
+  await expect(menu).toBeHidden();
+  await activePanel().getByRole("button", { name: "Distance, 50 km" }).click();
+  await menu.getByRole("button", { name: "Custom distance" }).click();
+  await menu.getByLabel("Custom distance").fill("101");
+  await expect(menu.getByRole("button", { name: "Apply" })).toBeDisabled();
+  await menu.getByLabel("Custom distance").fill("12");
+  const custom = waitForRadius("12");
+  await menu.getByRole("button", { name: "Apply" }).click();
+  await custom;
+  await nearby.click();
+  await expect(activePanel().getByRole("button", { name: /^Distance,/ })).toHaveCount(0);
+  await nearby.click();
+  await expect(activePanel().getByRole("button", { name: "Distance, 12 km" })).toBeVisible();
 });

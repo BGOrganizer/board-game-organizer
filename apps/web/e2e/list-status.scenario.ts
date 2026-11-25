@@ -366,7 +366,8 @@ for (const width of [390, 1280])
       if (current.section === "mine") {
         const source = rows.items.find((row) => row.id === current.fixture.id);
         const confirmed = source?.cardSummary?.tables.filter(
-          (table) => table.myParticipation === "CONFIRMED",
+          (table) =>
+            table.confirmed && (table.myParticipation === "CONFIRMED" || table.myDemonstrator),
         );
         if (source?.status === "CONFIRMED" && confirmed?.length) {
           const card = main.getByRole("listitem").filter({ has: link });
@@ -374,10 +375,9 @@ for (const width of [390, 1280])
             .getByRole("button", { name: it ? "Confermata" : "Confirmed", exact: true })
             .click();
           const popup = page.getByRole("dialog");
-          const heading = popup.getByText(
-            it ? "Tavoli in cui sei confermato:" : "Tables where you are confirmed:",
-            { exact: true },
-          );
+          await expect(popup.getByText(it ? "Data e Ora:" : "Date and time:")).toBeVisible();
+          await expect(popup.getByText(it ? "Luogo:" : "Location:")).toBeVisible();
+          const heading = popup.getByText(it ? "Tavoli:" : "Tables:", { exact: true });
           await expect(heading).toBeVisible();
           await expect(
             heading.locator("xpath=following-sibling::ul[1]").getByRole("listitem"),
@@ -403,6 +403,9 @@ for (const width of [390, 1280])
           exact: true,
         });
         await expect(popup).toBeVisible();
+        await expect(popup.getByText(it ? "Data e Ora:" : "Date and time:")).toBeVisible();
+        await expect(popup.getByText(it ? "Luogo:" : "Location:")).toBeVisible();
+        await expect(popup.getByText(it ? "Tavoli:" : "Tables:", { exact: true })).toHaveCount(0);
         expect(await popup.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
         const summary = rows.items.find((row) => row.id === current.fixture.id)?.cardSummary;
         if (!summary) throw new Error("Actual terminated Event summary required");
@@ -426,6 +429,18 @@ for (const width of [390, 1280])
             await expect(line.locator(".lucide-trophy.text-warning-soft-foreground")).toBeVisible();
         }
         await page.keyboard.press("Escape");
+        await link.click();
+        const identity = page.getByTestId("record-identity-card");
+        await expect(
+          identity.getByRole("heading", { name: current.fixture.name, exact: true }),
+        ).toBeVisible();
+        await identity
+          .getByRole("button", { name: it ? "Terminata" : "Terminated", exact: true })
+          .click();
+        await expect(popup.getByText(it ? "Data e Ora:" : "Date and time:")).toBeVisible();
+        await expect(popup.getByText(it ? "Luogo:" : "Location:")).toBeVisible();
+        await page.keyboard.press("Escape");
+        await page.goBack();
       }
       if (current.section === "history") {
         await filter.fill(current.fixture.name);

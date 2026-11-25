@@ -1,4 +1,4 @@
-import { type ContactUser, useContacts } from "@board-game-organizer/shared";
+import { type ContactUser, groupRecordKeys, useContacts } from "@board-game-organizer/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
@@ -135,7 +135,7 @@ it("optimistically marks contact sync and rolls it back on failure", async () =>
   expect(feedback.onError).toHaveBeenCalledWith(expect.any(Error), "verify_saved_changes");
 });
 
-it("revalidates friend-only result detail grants on graph changes without touching unrelated Events or another account/API", async () => {
+it("revalidates friend-scoped results and group discovery after changes by the same account", async () => {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
@@ -147,6 +147,28 @@ it("revalidates friend-only result detail grants on graph changes without touchi
   for (const key of [shared, table, other, otherApi])
     client.setQueryData(key, { sharedResultsOnly: true });
   client.setQueryData(unrelated, { sharedResultsOnly: false });
+  const groupOwner = { apiUrl, userId: "viewer" };
+  const ownSearch = groupRecordKeys.list(
+    groupOwner,
+    "public",
+    "",
+    undefined,
+    undefined,
+    undefined,
+    { friends: true },
+  );
+  const otherSearch = groupRecordKeys.list(
+    { ...groupOwner, userId: "other" },
+    "public",
+    "",
+    undefined,
+    undefined,
+    undefined,
+    { friends: true },
+  );
+  const ownedGroups = groupRecordKeys.list(groupOwner, "mine");
+  for (const key of [ownSearch, otherSearch, ownedGroups])
+    client.setQueryData(key, { pages: [], pageParams: [] });
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string | URL | Request, init?: RequestInit) =>
@@ -167,7 +189,8 @@ it("revalidates friend-only result detail grants on graph changes without touchi
   fireEvent.click(screen.getByRole("button", { name: "Unfriend" }));
   await waitFor(() => expect(client.getQueryState(shared)?.isInvalidated).toBe(true));
   expect(client.getQueryState(table)?.isInvalidated).toBe(true);
-  for (const key of [unrelated, other, otherApi])
+  expect(client.getQueryState(ownSearch)?.isInvalidated).toBe(true);
+  for (const key of [unrelated, other, otherApi, otherSearch, ownedGroups])
     expect(client.getQueryState(key)?.isInvalidated).toBe(false);
   expect(feedback.onOptimisticUpdate).toHaveBeenCalledWith("unfriend");
 });

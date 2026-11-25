@@ -27,13 +27,13 @@ it.each([
     "list-ordered",
     "text-warning",
   ],
-  ["admin", "Administrator", "You administer this item.", "crown", "text-warning"],
-  ["member", "Group member", "You are a member of this group.", "user-round-check", "text-success"],
+  ["admin", "Administrator", "You administer this item.", "id-card", "text-muted"],
+  ["member", "Group member", "You are a member of this group.", "id-card", "text-muted"],
   [
     "manager",
     "Management",
     "Your current permissions allow managing this item.",
-    "shield-check",
+    "id-card",
     "text-muted",
   ],
   [
@@ -104,13 +104,15 @@ it("keeps the compact loading face at the existing card dimensions", () => {
 });
 
 it.each(["manager", "demonstrator"] as const)(
-  "retains the compact %s accent face and accessible touch target",
+  "retains the compact %s accessible touch target",
   (kind) => {
     renderWithI18n(<ArtworkStatusPopover kind={kind} size="compact" />);
     const trigger = screen.getByRole("button", {
       name: kind === "manager" ? "Management" : "Demonstrator",
     });
-    expect(trigger.className).toContain("text-accent-soft-foreground");
+    expect(trigger.className).toContain(
+      kind === "manager" ? "text-muted" : "text-accent-soft-foreground",
+    );
     expect(trigger.className).toContain("min-h-11");
     expect(trigger.querySelector("span.size-7.rounded-lg svg.size-4")).not.toBeNull();
   },

@@ -1,11 +1,16 @@
 import type { NotificationAttentionTarget } from "@board-game-organizer/schemas";
 import { measureRenders } from "@callstack/reassure-measure";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, screen } from "@testing-library/react-native";
-import type { ReactNode } from "react";
+import { fireEvent, screen, waitFor } from "@testing-library/react-native";
+import { type ReactNode, useState } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 import SearchGroupsScreen from "@/app/group/search";
+import { GroupSearchDistance } from "@/components/groups/GroupSearchDistance";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
+import {
+  installNativePopoverMeasurements,
+  pressMeasuredPopover,
+} from "@/test/nativePopoverGeometry";
 import { assertRenderMeasurement } from "./assertRenderMeasurement";
 
 const API = "https://group-routes-render.test";
@@ -26,6 +31,7 @@ vi.mock("@clerk/expo", () => ({
 vi.mock("expo-router", () => ({
   useRouter: () => boundary,
   useLocalSearchParams: () => ({}),
+  useFocusEffect: () => {},
   useNavigation: () => ({ getState: () => ({ type: "stack" }) }),
   Stack: { Screen: () => null },
 }));
@@ -55,6 +61,8 @@ function fixture() {
         targets: targets.map((target) => ({ target, count: 0, direct: 0, events: 0, sections })),
       });
     }
+    if (url.pathname === "/api/groups" && url.searchParams.get("scope") === "public")
+      return Response.json({ items: [], nextCursor: null });
     throw new Error(`Unexpected group route fixture request ${url.pathname}`);
   });
   vi.stubGlobal("fetch", fetch);
@@ -67,7 +75,7 @@ function fixture() {
 }
 afterEach(() => vi.unstubAllGlobals());
 
-it("Group search route: keep short input out of public discovery while the search tab stays selected", async () => {
+it("Group search route: finds groups with Friends and a single character", async () => {
   const { client, fetch, wrapper } = fixture();
   try {
     const result = await measureRenders(<SearchGroupsScreen />, {
@@ -78,17 +86,43 @@ it("Group search route: keep short input out of public discovery while the searc
       },
       scenario: async () => {
         expect(screen.getByRole("tab", { name: "Search" })).toBeSelected();
-        expect(screen.getByText("Enter at least 4 characters to search")).toBeVisible();
-        await fireEvent.changeText(screen.getByTestId("list-search-input"), "abc");
-        expect(screen.getByTestId("list-search-input")).toHaveDisplayValue("abc");
-        expect(screen.getByText("Enter at least 4 characters to search")).toBeVisible();
-        expect(fetch.mock.calls.some(([input]) => String(input).includes("scope=public"))).toBe(
-          false,
+        expect(screen.getByTestId("list-filter-friends")).toBeSelected();
+        expect(await screen.findByText("No public groups with your friends")).toBeVisible();
+        const input = screen.getByTestId("list-search-input");
+        await fireEvent.changeText(input, "a");
+        expect(screen.getByTestId("list-search-input")).toBe(input);
+        await waitFor(() =>
+          expect(
+            fetch.mock.calls.some(([input]) => {
+              const params = new URL(String(input)).searchParams;
+              return params.get("friends") === "true" && params.get("query") === "a";
+            }),
+          ).toBe(true),
         );
+        expect(await screen.findByText("No groups found")).toBeVisible();
       },
     });
     assertRenderMeasurement(result);
   } finally {
     client.clear();
   }
+});
+
+function DistancePicker() {
+  const [radiusKm, setRadiusKm] = useState(25);
+  return <GroupSearchDistance radiusKm={radiusKm} onChange={setRadiusKm} />;
+}
+
+it("Group search distance: choose a preset from the anchored menu", async () => {
+  await installNativePopoverMeasurements();
+  const result = await measureRenders(<DistancePicker />, {
+    wrapper: NativeTestProviders,
+    scenario: async () => {
+      await pressMeasuredPopover(screen.getByRole("button", { name: "Distance, 25 km" }));
+      await fireEvent.press(screen.getByTestId("group-distance-50"));
+      expect(await screen.findByRole("button", { name: "Distance, 50 km" })).toBeVisible();
+      expect(screen.queryByTestId("group-distance-25")).toBeNull();
+    },
+  });
+  assertRenderMeasurement(result);
 });

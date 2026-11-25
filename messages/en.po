@@ -1078,6 +1078,11 @@ msgstr "Answer every option and choose at least one Yes or If needed in each sec
 msgid "Anyone with the match link can request to join while planning and with free slots. The admin approves requests."
 msgstr "Anyone with the match link can request to join while planning and with free slots. The admin approves requests."
 
+#: apps/mobile/src/components/groups/GroupStatusBadge.tsx
+#: apps/web/src/components/groups/GroupStatusBadge.tsx
+msgid "Approval rejected"
+msgstr "Approval rejected"
+
 #: apps/web/src/components/groups/GroupMembers.tsx
 #: apps/web/src/components/groups/GroupReview.tsx
 msgid "Approve"
@@ -2590,6 +2595,11 @@ msgstr "Date"
 msgid "Date and start/end time"
 msgstr "Date and start/end time"
 
+#: apps/mobile/src/components/events/EventScheduleSummary.tsx
+#: apps/web/src/components/events/EventScheduleSummary.tsx
+msgid "Date and time:"
+msgstr "Date and time:"
+
 #: apps/web/src/components/events/EventProposalSection.tsx
 #: apps/web/src/components/events/EventScheduleFields.tsx
 msgid "Date and time"
@@ -3950,6 +3960,11 @@ msgstr "Local storage is unavailable. Data will be refreshed online."
 #: apps/web/src/components/matches/Matches.tsx
 msgid "location"
 msgstr "location"
+
+#: apps/mobile/src/components/events/EventScheduleSummary.tsx
+#: apps/web/src/components/events/EventScheduleSummary.tsx
+msgid "Location:"
+msgstr "Location:"
 
 #: apps/web/src/components/events/EventScheduleFields.tsx
 #: apps/web/src/components/groups/GroupWizard.tsx
@@ -5820,6 +5835,11 @@ msgstr "Revoke group exclusion"
 msgid "Revoking an exclusion does not restore membership or registrations. A new invitation or request is required."
 msgstr "Revoking an exclusion does not restore membership or registrations. A new invitation or request is required."
 
+#: apps/mobile/src/components/common/ui/ArtworkStatusPopover.tsx
+#: apps/web/src/components/common/ui/ArtworkStatusPopover.tsx
+msgid "Role"
+msgstr "Role"
+
 #: apps/web/src/components/common/ui/UserRoleBadge.tsx
 #: apps/web/src/components/events/EventRolePopover.tsx
 msgid "Roles and participation"
@@ -5933,6 +5953,11 @@ msgstr "Search failed. Retry"
 #: apps/web/src/components/contacts/PeoplePicker.tsx
 msgid "Search friends"
 msgstr "Search friends"
+
+#: apps/mobile/src/components/groups/GroupSearch.tsx
+#: apps/web/src/components/groups/GroupSearch.tsx
+msgid "Search approved public groups by name or venue address. Use the filters to find nearby groups or groups with friends."
+msgstr "Search approved public groups by name or venue address. Use the filters to find nearby groups or groups with friends."
 
 #: apps/web/src/components/events/EventGroupSelect.tsx
 #: apps/web/src/components/groups/GroupList.tsx
@@ -6347,6 +6372,11 @@ msgstr "Table start must be after event start and before event end."
 #: apps/web/src/components/events/EventWizard.tsx
 msgid "Tables"
 msgstr "Tables"
+
+#: apps/mobile/src/components/events/EventCardIndicators.tsx
+#: apps/web/src/components/events/EventCardIndicators.tsx
+msgid "Tables:"
+msgstr "Tables:"
 
 msgid "Tables changed"
 msgstr "Tables changed"
@@ -7204,6 +7234,10 @@ msgstr "The invitation was not accepted before confirmation."
 msgid "Your roles at this table:"
 msgstr "Your roles at this table:"
 
+#: apps/web/src/components/events/EventCardIndicators.tsx
+msgid "Your roles in this event:"
+msgstr "Your roles in this event:"
+
 #: apps/web/src/lib/eventCardMessages.ts
 msgid "Your votes do not agree with the chosen date and time."
 msgstr "Your votes do not agree with the chosen date and time."
@@ -7235,6 +7269,11 @@ msgstr "No tables are ready for confirmation."
 #: apps/web/src/components/events/EventCardIndicators.tsx
 msgid "Managers arrange seats and the waiting list. Confirmation requirements still apply."
 msgstr "Managers arrange seats and the waiting list. Confirmation requirements still apply."
+
+#: apps/mobile/src/components/groups/GroupStatusBadge.tsx
+#: apps/web/src/components/groups/GroupStatusBadge.tsx
+msgid "The approved version remains visible."
+msgstr "The approved version remains visible."
 
 #: apps/web/src/components/events/EventCardIndicators.tsx
 msgid "The app seeks compatible players, dates, locations and games. A manager must still confirm."
@@ -7753,6 +7792,11 @@ msgstr "Group events in planning that are open for you to join. Private events r
 msgid "Finished events where you played or demonstrated at a confirmed table, or that you still manage."
 msgstr "Finished events where you played or demonstrated at a confirmed table, or that you still manage."
 
+#: apps/mobile/src/components/groups/GroupSearch.tsx
+#: apps/web/src/components/groups/GroupSearch.tsx
+msgid "Group search"
+msgstr "Group search"
+
 #: apps/web/src/components/groups/GroupList.tsx
 msgid "Group search help"
 msgstr "Group search help"
@@ -7845,6 +7889,11 @@ msgstr "For a category with several options, choose at least one Yes or If neede
 msgid "Review the event and table settings, then vote in the sections shown."
 msgstr "Review the event and table settings, then vote in the sections shown."
 
+#: apps/mobile/src/components/groups/GroupStatusBadge.tsx
+#: apps/web/src/components/groups/GroupStatusBadge.tsx
+msgid "The approval request was rejected. This group has not been published."
+msgstr "The approval request was rejected. This group has not been published."
+
 #: apps/web/src/components/events/EventTableCardIndicatorView.tsx
 msgid "The game has ended."
 msgstr "The game has ended."
@@ -7856,3 +7905,32 @@ msgstr "The game has ended."
 #. js-lingui-explicit-id
 msgid "list.filter.admin"
 msgstr "Admin"
+#: apps/mobile/src/components/groups/GroupSearch.tsx
+#: apps/web/src/components/groups/GroupSearch.tsx
+msgid "Near me"
+msgstr "Near me"
+
+#: apps/mobile/src/components/groups/GroupSearch.tsx
+#: apps/web/src/components/groups/GroupSearch.tsx
+msgid "No public groups with your friends"
+msgstr "No public groups with your friends"
+
+#: apps/web/src/components/groups/GroupSearchDistance.tsx
+msgid "1–100 km"
+msgstr "1–100 km"
+
+#: apps/web/src/components/groups/GroupSearchDistance.tsx
+msgid "Apply"
+msgstr "Apply"
+
+#: apps/web/src/components/groups/GroupSearchDistance.tsx
+msgid "Custom distance"
+msgstr "Custom distance"
+
+#: apps/web/src/components/groups/GroupSearchDistance.tsx
+msgid "Distance"
+msgstr "Distance"
+
+#: apps/web/src/components/groups/GroupSearchDistance.tsx
+msgid "Distance, {value}"
+msgstr "Distance, {value}"

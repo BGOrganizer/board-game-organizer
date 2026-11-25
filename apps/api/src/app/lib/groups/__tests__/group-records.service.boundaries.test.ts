@@ -109,6 +109,7 @@ function setup(type: "PRIVATE" | "PUBLIC" = "PRIVATE") {
         _scope: string,
         _page: GroupRecordPage,
         _now: string,
+        _friendIds?: readonly string[],
       ): Promise<GroupRecord[]> => (state.group ? [state.group] : []),
     ),
     members: vi.fn(async (_id: string, status: GroupMembership["status"], _page: GroupRecordPage) =>
@@ -136,6 +137,10 @@ function setup(type: "PRIVATE" | "PUBLIC" = "PRIVATE") {
     moderatorIds: vi.fn(async () => ["reviewer", "reviewer"]),
   };
   const relationships = {
+    getBlockedUserIds: vi.fn(async (_viewer: string) => ["blocked"]),
+    listFriends: vi.fn(async (_viewer: string, _excluded: string[]) => [
+      { fromUserId: "guest", toUserId: "owner", status: "accepted" },
+    ]),
     isFriend: vi.fn(async (_actor: string, _target: string) => true),
     isBlocked: vi.fn(async (_actor: string, _target: string) => false),
     memberStates: vi.fn(
@@ -587,6 +592,27 @@ it("blocks enrollment while a public group awaits its first approval", async () 
   expect(f.groups.saveMembership).not.toHaveBeenCalled();
   expect(f.notifications.notifyMany).not.toHaveBeenCalled();
   expect(await f.service.moderationDetail("reviewer", id)).toMatchObject({ proposal: proposed });
+});
+
+it("uses the current viewer's reciprocal, unblocked friendships only when requested", async () => {
+  const f = setup("PUBLIC");
+  const criteria = { limit: 20, friends: true as const, nearLat: 41.9, nearLng: 12.5 };
+  await f.service.list("guest", "public", criteria);
+  expect(f.relationships.getBlockedUserIds).toHaveBeenCalledExactlyOnceWith("guest");
+  expect(f.relationships.listFriends).toHaveBeenCalledExactlyOnceWith("guest", ["blocked"]);
+  expect(f.groups.list).toHaveBeenLastCalledWith("guest", "public", criteria, expect.any(String), [
+    "owner",
+  ]);
+
+  await f.service.list("guest", "public", { limit: 20 });
+  expect(f.relationships.listFriends).toHaveBeenCalledTimes(1);
+  expect(f.groups.list).toHaveBeenLastCalledWith(
+    "guest",
+    "public",
+    { limit: 20 },
+    expect.any(String),
+    undefined,
+  );
 });
 
 it("requires moderation authority to list proposals and rejects stale group edits", async () => {

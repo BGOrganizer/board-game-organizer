@@ -15,6 +15,7 @@ export function SearchInput({
   clearButtonStyle,
   onFocus,
   onBlur,
+  leadingAction,
   isInvalid = false,
   children,
 }: {
@@ -30,6 +31,7 @@ export function SearchInput({
   onFocus?: ComponentProps<typeof SearchField.Input>["onFocus"];
   onBlur?: ComponentProps<typeof SearchField.Input>["onBlur"];
   children?: ReactNode;
+  leadingAction?: ReactNode;
   isInvalid?: boolean;
 }) {
   const t = useT();
@@ -37,7 +39,7 @@ export function SearchInput({
   return (
     <SearchField value={value} onChange={onChange} isInvalid={isInvalid}>
       <SearchField.Group>
-        <SearchField.SearchIcon />
+        {leadingAction ?? <SearchField.SearchIcon />}
         <SearchField.Input
           testID={testID}
           accessibilityLabel={label}

@@ -8,6 +8,7 @@ import { View, type ViewStyle } from "react-native";
 export function HelpPopover({
   label,
   title,
+  titleClassName,
   titleIcon,
   width = 260,
   align,
@@ -23,6 +24,7 @@ export function HelpPopover({
 }: {
   label: string;
   title?: string;
+  titleClassName?: string;
   titleIcon?: ReactNode;
   icon?: LucideIcon;
   tone?: "muted" | "warning" | "success" | "accent" | "danger";
@@ -66,6 +68,7 @@ export function HelpPopover({
   );
   const heading = title ? (
     <Popover.Title
+      className={titleClassName}
       accessible
       accessibilityRole="header"
       importantForAccessibility="yes"

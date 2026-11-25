@@ -2,18 +2,21 @@
 
 import { Button } from "@heroui/react";
 import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 
 export function FilterChips<Key extends string>({
   options,
   selected,
   onToggle,
+  children,
 }: {
   options: readonly { key: Key; label: string; icon: LucideIcon; disabled?: boolean }[];
   selected: readonly Key[];
   onToggle: (key: Key) => void;
+  children?: ReactNode;
 }) {
   return options.length ? (
-    <div className="flex flex-wrap gap-1">
+    <div className="flex flex-wrap items-center gap-1">
       {options.map(({ key, label, icon: Icon, disabled }) => {
         const active = selected.includes(key);
         return (
@@ -35,6 +38,7 @@ export function FilterChips<Key extends string>({
           </Button>
         );
       })}
+      {children}
     </div>
   ) : null;
 }

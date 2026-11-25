@@ -32,9 +32,6 @@ vi.mock("@/components/common/ui/HelpPopover", () => ({
     </section>
   ),
 }));
-vi.mock("../EventSchedulePopover", () => ({
-  EventSchedulePopover: ({ kind }: { kind: string }) => <span>{`event-${kind}`}</span>,
-}));
 vi.mock("../EventTableSchedulePopover", () => ({
   EventTableSchedulePopover: ({ kind }: { kind: string }) => <span>{`table-${kind}`}</span>,
 }));
@@ -141,8 +138,8 @@ it.each([true, false])("shows Planning readiness=%s and no proposal icons", (rea
       ready ? "Ready for a manager to confirm." : "Confirmation requirements are not yet met.",
     ),
   ).not.toBeNull();
-  expect(screen.queryByText("event-dates")).toBeNull();
-  expect(screen.queryByText("event-locations")).toBeNull();
+  expect(screen.queryByText("Date and time:")).toBeNull();
+  expect(screen.queryByText("Location:")).toBeNull();
 });
 it("leaves old cached Planning and result projections explicitly loading", () => {
   const view = renderWithI18n(<EventCardIndicators event={plannedEvent} />);
@@ -204,7 +201,7 @@ it("keeps mixed participation green, lists each confirmed Table and explains oth
               confirmedGameName: "Cascadia",
               order: 1,
               confirmed: true,
-              myParticipation: "CONFIRMED",
+              myDemonstrator: true,
             }),
             tableSummary({
               tableId: "other",
@@ -220,12 +217,12 @@ it("keeps mixed participation green, lists each confirmed Table and explains oth
   expect(screen.getByRole("button", { name: "Confirmed" }).parentElement?.dataset.tone).toBe(
     "success",
   );
-  const heading = screen.getByText("Tables where you are confirmed:");
+  const heading = screen.getByText("Tables:");
   expect(heading.nextElementSibling?.textContent).toBe("Table #1Cascadia");
   expect(heading.nextElementSibling?.children).toHaveLength(2);
   expect(screen.getByText("The table was excluded from confirmation.")).not.toBeNull();
   expect(screen.getByText("Table #3")).not.toBeNull();
-  expect(screen.getByText("event-dates")).not.toBeNull();
+  expect(screen.getByText("Date and time:")).not.toBeNull();
 });
 it("does not invent a confirmed Table count for a legacy frozen card", () => {
   renderWithI18n(

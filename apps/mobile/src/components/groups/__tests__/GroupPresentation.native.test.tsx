@@ -44,9 +44,7 @@ it("keeps complete group identity, venue, review feedback and child actions toge
   expect(screen.getByLabelText(group.location.address)).toHaveTextContent(
     formatLocationAddress(group.location.address),
   );
-  expect(
-    screen.getByText("Approved information remains visible while changes are reviewed."),
-  ).toBeOnTheScreen();
+  expect(screen.getByText("The approved version remains visible.")).toBeOnTheScreen();
   await view.rerender(
     <GroupDetailsCard
       group={{ ...groupRecord, canViewEvents: false, eventCount: null }}
@@ -74,6 +72,7 @@ it.each([
   [undefined, undefined, "Awaiting review"],
   [groupRecord.approved, "PENDING", "Awaiting review"],
   [groupRecord.approved, "REJECTED", "Changes rejected"],
+  [undefined, "REJECTED", "Approval rejected"],
   [groupRecord.approved, undefined, "Approved"],
 ] as const)(
   "reports the actual public approval state %s/%s as %s",

@@ -15,7 +15,8 @@ it.each([
   { approved: false, reviewStatus: "PENDING", label: "Awaiting review" },
   { approved: false, reviewStatus: undefined, label: "Awaiting review" },
   { approved: true, reviewStatus: "PENDING", label: "Awaiting review" },
-  { approved: false, reviewStatus: "REJECTED", label: "Changes rejected" },
+  { approved: false, reviewStatus: "REJECTED", label: "Approval rejected" },
+  { approved: true, reviewStatus: "REJECTED", label: "Changes rejected" },
   { approved: true, reviewStatus: undefined, label: "Approved" },
 ] as const)(
   "shows truthful public moderation status: $label ($reviewStatus, approved=$approved)",
@@ -29,6 +30,8 @@ it.each([
         }}
       />,
     );
-    expect(screen.getByText(label)).toBeTruthy();
+    const badge = screen.getByText(label).closest('[data-slot="chip"]');
+    expect(badge).toHaveClass(label === "Approval rejected" ? "chip--primary" : "chip--soft");
+    if (reviewStatus === "REJECTED") expect(badge).toHaveClass("chip--danger");
   },
 );

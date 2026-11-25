@@ -1,20 +1,23 @@
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import type { LucideIcon } from "lucide-react-native";
+import type { ReactNode } from "react";
 import { View } from "react-native";
 
 export function FilterChips<Key extends string>({
   options,
   selected,
   onToggle,
+  children,
 }: {
   options: readonly { key: Key; label: string; icon: LucideIcon; disabled?: boolean }[];
   selected: readonly Key[];
   onToggle: (key: Key) => void;
+  children?: ReactNode;
 }) {
   const [foreground, accentForeground] = useThemeColor(["foreground", "accent-foreground"]);
   return options.length ? (
-    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 4 }}>
+    <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 4 }}>
       {options.map(({ key, label, icon: Icon, disabled }) => {
         const active = selected.includes(key);
         return (
@@ -50,6 +53,7 @@ export function FilterChips<Key extends string>({
           </View>
         );
       })}
+      {children}
     </View>
   ) : null;
 }

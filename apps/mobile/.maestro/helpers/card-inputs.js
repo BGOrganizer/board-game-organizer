@@ -38,16 +38,13 @@ output.cardEventTitle = "^" + escaped(output.cardEventName) + "$";
 output.cardTableTitle = "^" + escaped(output.cardTableName) + "$";
 output.groupPrivateListHelp = italian ? "^Aiuto sui gruppi privati$" : "^Private groups help$";
 output.groupPublicListHelp = italian ? "^Aiuto sui gruppi pubblici$" : "^Public groups help$";
-output.groupSearchPrompt = italian
-  ? "^Inserisci almeno 4 caratteri per cercare$"
-  : "^Enter at least 4 characters to search$";
 output.groupSearchFieldHelp = italian
   ? "^Cerca gruppi: Aiuto ricerca$"
   : "^Search groups: Search help$";
 output.groupSearchListHelp = italian ? "^Aiuto sulla ricerca dei gruppi$" : "^Group search help$";
 output.groupSearchListRule = italian
-  ? "^Cerca per nome i gruppi pubblici approvati\\. Digita almeno quattro caratteri\\.$"
-  : "^Search for approved public groups by name\\. Enter at least four characters\\.$";
+  ? "^Cerca gruppi pubblici approvati per nome o indirizzo della sede\\. Usa i filtri per trovare i gruppi vicini o quelli con i tuoi amici\\.$"
+  : "^Search approved public groups by name or venue address\\. Use the filters to find nearby groups or groups with friends\\.$";
 output.groupDetailsHelp = italian ? "^Aiuto sui dettagli del gruppo$" : "^Group details help$";
 output.groupDetailsHelpText = italian
   ? "^Nei gruppi privati si entra solo su invito\\.$"
@@ -80,6 +77,9 @@ output.cardEventDatesPopover =
 output.cardEventLocationsPopover =
   "^" + (italian ? "Luoghi: " : "Locations: ") + escaped(output.cardEventName) + "$";
 output.cardPlayers = italian ? "^Giocatori: [0-9]+$" : "^Players: [0-9]+$";
+output.cardEventRolesIntro = italian
+  ? "^In questo evento, hai i seguenti ruoli:$"
+  : "^Your roles in this event:$";
 output.cardEventAccepted = italian ? "^Partecipante accettato$" : "^Accepted participant$";
 output.cardEventTableCount = italian ? "^[0-9]+ Tavol[oi]$" : "^[0-9]+ Tables?$";
 var person = JSON.parse(
@@ -105,6 +105,10 @@ var roleLabels = {
 };
 output.cardPerson = "^@" + escaped(handle) + "$";
 output.cardGroupRole = "^" + escaped(roleLabels[person.groupRole]) + "$";
+output.cardGroupRoleHelp = italian ? "^Ruolo$" : "^Role$";
+output.cardGroupRoleTrigger = italian
+  ? "^(Amministratore|Moderatore|Membro accettato)( · .+)?$"
+  : "^(Admin|Moderator|Accepted member)( · .+)?$";
 output.cardEventRole = "^" + escaped(roleLabels[person.eventRole]) + "$";
 output.cardTableStatus =
   "^" +

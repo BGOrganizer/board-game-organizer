@@ -22,6 +22,10 @@ import {
 
 const listBoundary = vi.hoisted(() => ({
   push: vi.fn(),
+  setOptions: vi.fn(),
+  locationPermission: vi.fn(),
+  requestLocationPermission: vi.fn(),
+  position: vi.fn(),
   apiUrl: "https://main-list-fixtures.test",
   userId: "owner",
 }));
@@ -49,12 +53,21 @@ vi.mock("@clerk/expo", () => ({
     };
   },
 }));
+const navigation = {
+  getState: () => ({ type: "tab" }),
+  setOptions: listBoundary.setOptions,
+};
 vi.mock("expo-router", () => ({
   useRouter: () => ({ push: listBoundary.push }),
-  useNavigation: () => ({ getState: () => ({ type: "tab" }) }),
+  useNavigation: () => navigation,
   useLocalSearchParams: () => useContext(RouteParams),
   Stack: { Screen: () => null },
   useFocusEffect: (effect: EffectCallback) => useEffect(effect, [effect]),
+}));
+vi.mock("expo-location", () => ({
+  getForegroundPermissionsAsync: listBoundary.locationPermission,
+  requestForegroundPermissionsAsync: listBoundary.requestLocationPermission,
+  getCurrentPositionAsync: listBoundary.position,
 }));
 vi.mock("expo-notifications", () => ({
   PermissionStatus: { GRANTED: "granted", DENIED: "denied", UNDETERMINED: "undetermined" },
@@ -165,6 +178,9 @@ const attention = (targets: unknown[]) => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  listBoundary.locationPermission.mockResolvedValue({ granted: true, canAskAgain: true });
+  listBoundary.requestLocationPermission.mockResolvedValue({ granted: true });
+  listBoundary.position.mockResolvedValue({ coords: { latitude: 41.9, longitude: 12.5 } });
   useAppStore.setState({ communityViews: {} });
   listBoundary.apiUrl = listApi;
   listBoundary.userId = "owner";
@@ -265,7 +281,13 @@ beforeEach(() => {
         rows = next ? listFixture.nextTables : listFixture.tables;
       else throw new Error(`Unexpected fixture path: ${url.pathname}`);
       return listJson({
-        items: rows.filter((row) => row.name.toLowerCase().includes(query)),
+        items: rows.filter(
+          (row) =>
+            row.name.toLowerCase().includes(query) ||
+            (url.searchParams.get("scope") === "public" &&
+              "approved" in row &&
+              row.approved?.location?.address.toLowerCase().includes(query)),
+        ),
         nextCursor: next ? null : (listFixture.cursors.get(url.pathname) ?? null),
       });
     }),

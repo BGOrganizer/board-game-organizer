@@ -2,6 +2,7 @@ import {
   bggPickerUnavailable,
   filterPersonalEventAccessRestore,
   filterRevokedStandaloneEventRestore,
+  isGroupDiscoveryKey,
   isRetiredActivityFeed,
   optimisticBaseData,
 } from "@board-game-organizer/shared";
@@ -28,13 +29,17 @@ export type CacheStorage = {
   remove(key: string): unknown;
 };
 
-function retiredQuery(key: QueryKey) {
-  return isRetiredActivityFeed(key) || (key[0] === "bgg-picker" && key[8] !== "sources-v2");
+function excludedQuery(key: QueryKey) {
+  return (
+    isGroupDiscoveryKey(key) ||
+    isRetiredActivityFeed(key) ||
+    (key[0] === "bgg-picker" && key[8] !== "sources-v2")
+  );
 }
 
 /** No credentials, raw address-book values, transient drafts, or licensed provider searches. */
 export function ownsPersistedQuery(key: QueryKey, owner: CacheOwner) {
-  if (retiredQuery(key) || (key[0] === "events" && key[3] === "guest-votes")) return false;
+  if (excludedQuery(key) || (key[0] === "events" && key[3] === "guest-votes")) return false;
   if (key[0] === "contacts") return key[2] === owner.apiUrl && key[3] === owner.userId;
   return (
     [
@@ -132,7 +137,7 @@ export function decodeCache(
     return undefined;
   const queries: PersistedClient["clientState"]["queries"] = [];
   for (const value of input.clientState.queries) {
-    if (record(value) && Array.isArray(value.queryKey) && retiredQuery(value.queryKey)) continue;
+    if (record(value) && Array.isArray(value.queryKey) && excludedQuery(value.queryKey)) continue;
     if (
       !record(value) ||
       !Array.isArray(value.queryKey) ||

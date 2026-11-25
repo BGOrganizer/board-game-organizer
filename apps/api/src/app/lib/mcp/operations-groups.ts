@@ -37,7 +37,7 @@ export const groupsOperations = [
   defineOperation({
     name: "list_groups",
     description:
-      "List your groups or search public groups by name. The moderation scope requires reviewer permission.",
+      "List your groups or search approved public groups by name or venue address. The moderation scope requires reviewer permission.",
     path: "/api/groups",
     method: "GET",
     handler: groupsRoute.GET,
@@ -54,7 +54,8 @@ export const groupsOperations = [
   }),
   defineOperation({
     name: "discover_groups",
-    description: "Search for visible public BGO groups by name using at least four characters.",
+    description:
+      "Search for visible public BGO groups by name or venue address using at least four characters.",
     path: "/api/groups/discovery",
     method: "GET",
     handler: groupsDiscoveryRoute.GET,

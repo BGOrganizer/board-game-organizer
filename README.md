@@ -40,8 +40,16 @@ Main navigation is **History / Events / Groups / Community / Contacts**:
   Available contains other enrollable planning Events: private Events require Group membership; approved public Events do not.
   Terminated contains completed Events where you played, demonstrated, or still have management authority.
   All three lists support name or play-date ordering. Scheduled and Terminated also filter by role.
+  The role popover lists your roles. On list and detail cards, the status popover shows the chosen
+  date, time and venue for confirmed and finished Events. For confirmed Events it also lists the
+  Tables where you have a confirmed seat or demonstrate a game.
 - **Groups:** Private and Public show your groups with role filters and name or creation-date ordering.
-  Use Search to discover approved public groups.
+  The ID-card popover shows your current Group role. Public group review distinguishes a rejected
+  first application from rejected edits to an approved group and shows the reason when available.
+  Search approved public groups by name or venue address. Friends is selected initially and includes
+  groups that a BGO friend administers, moderates or has joined. Near me limits results to venues
+  within 25 km by default after location permission. Its distance menu offers presets or a
+  custom radius from 1 to 100 km.
 - **Community:** Activities from your network, global Rankings, and the Marketplace placeholder.
 - **Contacts:** Connections, Requests, Contacts and Search. Device contacts and remote search have separate lists;
   web shows registered contacts from the synchronized snapshot.

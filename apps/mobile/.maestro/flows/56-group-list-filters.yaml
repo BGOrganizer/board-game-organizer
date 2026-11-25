@@ -6,6 +6,8 @@ tags: [manual, groups]
 - stopApp
 - launchApp:
     clearState: false
+    permissions:
+      location: allow
 - openLink: bgo-dev:///groups
 - extendedWaitUntil:
     visible:
@@ -29,4 +31,83 @@ tags: [manual, groups]
     id: list-sort-field
 - assertNotVisible:
     id: list-sort-direction
-- assertVisible: '^(Enter at least 4 characters to search|Inserisci almeno 4 caratteri per cercare)$'
+- assertVisible:
+    id: list-filter-friends
+    selected: true
+- assertVisible:
+    id: list-filter-nearby
+- tapOn:
+    id: list-filter-friends
+- assertNotVisible:
+    id: top-tab-search
+- tapOn:
+    id: list-search-input
+- inputText: A
+- assertVisible: '^(Back|Indietro)$'
+- tapOn: '^(Back|Indietro)$'
+- assertVisible:
+    id: top-tab-search
+    selected: true
+- assertVisible:
+    id: list-filter-friends
+    selected: true
+- assertVisible:
+    id: list-filter-nearby
+    selected: false
+- setLocation:
+    latitude: 41.9
+    longitude: 12.5
+- assertNotVisible:
+    id: group-search-distance
+- tapOn:
+    id: list-filter-nearby
+- extendedWaitUntil:
+    visible:
+      id: group-search-distance
+    timeout: 20000
+- tapOn:
+    id: group-search-distance
+- assertVisible:
+    id: group-distance-25
+    selected: true
+- tapOn:
+    id: group-distance-50
+- assertNotVisible:
+    id: group-distance-25
+- tapOn:
+    id: group-search-distance
+- assertVisible:
+    id: group-distance-50
+    selected: true
+- tapOn:
+    id: group-distance-custom
+- tapOn:
+    id: group-custom-distance
+- eraseText: 3
+- inputText: "101"
+- assertVisible:
+    id: group-custom-distance-apply
+    enabled: false
+- eraseText: 3
+- inputText: "12"
+- tapOn:
+    id: group-custom-distance-apply
+- assertNotVisible:
+    id: group-custom-distance
+- tapOn:
+    id: list-filter-nearby
+- assertNotVisible:
+    id: group-search-distance
+- tapOn:
+    id: list-filter-nearby
+- extendedWaitUntil:
+    visible:
+      id: group-search-distance
+    timeout: 20000
+- tapOn:
+    id: group-search-distance
+- tapOn:
+    id: group-distance-custom
+- assertVisible:
+    id: group-custom-distance
+    text: "12"
