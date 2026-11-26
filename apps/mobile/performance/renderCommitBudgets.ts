@@ -64,6 +64,7 @@ export const renderCommitBudgets: Readonly<Record<string, number>> = {
   "EventProposalSection: review an authorized proposal and dismiss it without a decision": 5,
   "EventResults: edit a frozen score and reconcile the authoritative save": 20,
   "EventResultTableCard: expose the confirmed score summary and request score editing": 5,
+  "EventSchedulePopover: show two proposed dates at their original wall times": 5,
   "Event status popover: shows the chosen date at its original wall time": 5,
   "EventTableInvitationActions: decline the displayed version once and reconcile the decision": 6,
   "EventTableResults: expand immutable group and global ratings for a finished table": 5,

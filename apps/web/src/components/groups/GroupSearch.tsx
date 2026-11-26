@@ -11,7 +11,6 @@ import { HelpSectionCard } from "@/components/common/ui/HelpSectionCard";
 import { ListPage } from "@/components/common/ui/ListPage";
 import { SearchInput } from "@/components/common/ui/SearchInput";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
-import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 import { GroupCard } from "./GroupCard";
 import { useGroupDiscoverySearch } from "./GroupDiscoverySession";
@@ -68,9 +67,8 @@ const GroupSearchEmpty = memo(function GroupSearchEmpty({ friendsOnly }: { frien
 
 export function GroupSearch() {
   const { t } = useLingui();
-  const options = useCommunityApi();
   const search = useGroupDiscoverySearch();
-  const { list } = search;
+  const { list, options } = search;
   const items = communityAccessDenied(list.error) ? [] : list.items;
   const sentinel = useInfiniteScroll({
     hasNextPage: list.hasNextPage,

@@ -25,12 +25,15 @@ function requestPosition() {
 
 type Section = "private" | "public" | "search";
 const GroupNavigation = createContext<{
+  options: CommunityApiOptions;
   section: Section;
   setSection: (section: Section) => void;
-  searchActive: boolean;
   closeSearch: () => void;
 } | null>(null);
-const GroupDiscovery = createContext<ReturnType<typeof usePublicGroupSearch> | null>(null);
+const GroupSearchMode = createContext(false);
+const GroupDiscovery = createContext<
+  (ReturnType<typeof usePublicGroupSearch> & { options: CommunityApiOptions }) | null
+>(null);
 
 export function useGroupNavigation() {
   const session = useContext(GroupNavigation);
@@ -42,6 +45,10 @@ export function useGroupDiscoverySearch() {
   const search = useContext(GroupDiscovery);
   if (!search) throw new Error("Group search requires a GroupDiscoverySession");
   return search;
+}
+
+export function useGroupSearchMode() {
+  return useContext(GroupSearchMode);
 }
 
 function ScopedSession({
@@ -62,12 +69,12 @@ function ScopedSession({
   const { active, close } = search;
   const navigation = useMemo(
     () => ({
+      options,
       section,
       setSection,
-      searchActive: section === "search" && active,
       closeSearch: close,
     }),
-    [section, active, close],
+    [options, section, close],
   );
 
   useEffect(() => {
@@ -76,7 +83,9 @@ function ScopedSession({
 
   return (
     <GroupNavigation value={navigation}>
-      <GroupDiscovery value={search}>{children}</GroupDiscovery>
+      <GroupSearchMode value={section === "search" && active}>
+        <GroupDiscovery value={{ ...search, options }}>{children}</GroupDiscovery>
+      </GroupSearchMode>
     </GroupNavigation>
   );
 }

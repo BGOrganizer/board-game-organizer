@@ -13,6 +13,7 @@ import {
 } from "react";
 import { Keyboard, Text } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { ScheduleOptionsPopover } from "@/components/common/ui/ScheduleOptionsPopover";
 import { ContactLegend } from "@/components/contacts/ContactLegend";
 import { EventCardIndicators } from "@/components/events/EventCardIndicators";
 import { EventPlayerCard } from "@/components/events/EventPlayerCard";
@@ -134,6 +135,37 @@ it("ScoreIdentity: explain position while retaining the provisional rating and s
       await pressMeasuredPopover(screen.getByRole("button", { name: "Position: #1" }));
       expect(await screen.findByRole("heading", { name: "Position" })).toBeVisible();
       expect(screen.getByText("#1")).toBeVisible();
+    },
+  );
+});
+
+// Keep measuring the same two-row popover used by the old event trigger.
+it("EventSchedulePopover: show two proposed dates at their original wall times", async () => {
+  const starts = ["2030-06-03T20:00Z", "2030-06-04T18:15Z"];
+  await benchmark(
+    <ScheduleOptionsPopover
+      name={plannedEvent.name}
+      kind="dates"
+      planning
+      rows={starts.map((startsAt) => ({ id: startsAt, date: { startsAt, timeZone: "UTC" } }))}
+    />,
+    async () => {
+      await pressMeasuredPopover(
+        screen.getByRole("button", { name: `Dates and times: ${plannedEvent.name}` }),
+      );
+      for (const startsAt of starts) {
+        const date = new Date(startsAt);
+        const day = new Intl.DateTimeFormat("en", { timeZone: "UTC", dateStyle: "long" }).format(
+          date,
+        );
+        const clock = new Intl.DateTimeFormat("en", {
+          timeZone: "UTC",
+          hour: "2-digit",
+          minute: "2-digit",
+        }).format(date);
+        expect(screen.getByText(day)).toBeVisible();
+        expect(screen.getByText(clock)).toBeVisible();
+      }
     },
   );
 });

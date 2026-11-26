@@ -62,8 +62,8 @@ export const renderCommitBudgets: Readonly<Record<string, number>> = {
   "GlobalError: report a render exception and offer an accessible retry": 2,
   "Group ban route: open the authorized member roster directly": 8,
   // Enter search mode and restore its tabs and guide with Back.
-  "Group search route: reset to cached Friends discovery": 9,
-  "Group search route: explain the discovery filter before a valid query": 9,
+  "Group search route: reset to cached Friends discovery": 8,
+  "Group search route: explain the discovery filter before a valid query": 8,
   "Group search distance: choose a preset from the anchored menu": 6,
   "GroupArtwork: generated deterministic resource image": 1,
   "GroupBanDialog: explicit permanent group exclusion": 4,
