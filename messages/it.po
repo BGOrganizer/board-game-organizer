@@ -1107,6 +1107,12 @@ msgstr "Approva le informazioni proposte per l'organizzazione oppure rifiutale i
 #: apps/web/src/components/groups/GroupCardIndicators.tsx
 #: apps/web/src/components/groups/GroupStatusBadge.tsx
 msgid "Approved"
+msgstr "Approvata"
+
+#. js-lingui-explicit-id
+#: apps/web/src/components/groups/GroupStatusBadge.tsx
+#: apps/mobile/src/components/groups/GroupStatusBadge.tsx
+msgid "group.review.approved"
 msgstr "Approvato"
 
 #: apps/web/src/components/groups/GroupCardIndicators.tsx

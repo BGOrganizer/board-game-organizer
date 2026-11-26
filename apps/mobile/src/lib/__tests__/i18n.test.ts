@@ -123,6 +123,12 @@ describe("translate (runtime)", () => {
     expect(translate(createAppI18n("en"), english)).toBe(english);
     expect(translate(createAppI18n("it"), english)).toBe(italian);
   });
+  it("uses a separate approval label for Groups", () => {
+    expect(translate(createAppI18n("en"), "group.review.approved")).toBe("Approved");
+    const italian = createAppI18n("it");
+    expect(translate(italian, "group.review.approved")).toBe("Approvato");
+    expect(translate(italian, "Approved")).toBe("Approvata");
+  });
   it("resolves the shared catalog id from the English source", () => {
     const it = createAppI18n("it");
     expect(translate(it, "Sign in")).toBe("Accedi");

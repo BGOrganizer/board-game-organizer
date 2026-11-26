@@ -10,7 +10,7 @@ import { useT } from "@/lib/i18n";
 
 const appearance = {
   approved: {
-    label: "Approved",
+    label: "group.review.approved",
     description: "This public group is approved.",
     icon: CircleCheck,
     tone: "success",

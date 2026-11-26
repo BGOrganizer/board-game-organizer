@@ -1,4 +1,5 @@
 import type { NotificationAttentionTarget } from "@board-game-organizer/schemas";
+import { groupRecordKeys } from "@board-game-organizer/shared";
 import { measureRenders } from "@callstack/reassure-measure";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, screen, waitFor } from "@testing-library/react-native";
@@ -112,6 +113,40 @@ function DistancePicker() {
   const [radiusKm, setRadiusKm] = useState(25);
   return <GroupSearchDistance radiusKm={radiusKm} onChange={setRadiusKm} />;
 }
+
+it("Group search route: keep short input out of public discovery while the search tab stays selected", async () => {
+  const { client, fetch, wrapper } = fixture();
+  const key = groupRecordKeys.list(options, "public", "", undefined, undefined, undefined, {
+    friends: true,
+  });
+  try {
+    const result = await measureRenders(<SearchGroupsScreen />, {
+      wrapper,
+      beforeEach: () => {
+        client.clear();
+        client.setQueryData(key, {
+          pages: [{ items: [], nextCursor: null }],
+          pageParams: [""],
+        });
+        fetch.mockClear();
+      },
+      scenario: async () => {
+        expect(screen.getByRole("tab", { name: "Search" })).toBeSelected();
+        const search = screen.getByTestId("list-search-input");
+        await fireEvent.changeText(search, " ");
+        expect(search).toHaveDisplayValue(" ");
+        expect(screen.getByRole("tab", { name: "Search" })).toBeSelected();
+        expect(screen.getByText("No public groups with your friends")).toBeVisible();
+        expect(fetch.mock.calls.some(([input]) => String(input).includes("scope=public"))).toBe(
+          false,
+        );
+      },
+    });
+    assertRenderMeasurement(result);
+  } finally {
+    client.clear();
+  }
+});
 
 it("Group search distance: choose a preset from the anchored menu", async () => {
   await installNativePopoverMeasurements();

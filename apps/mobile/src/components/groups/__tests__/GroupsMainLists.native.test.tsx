@@ -400,6 +400,7 @@ it("uses Nearby with an empty query, applies both chips, and keeps Friends when 
 });
 
 it("changes the distance with the anchored HeroUI popover and keeps it when Nearby is toggled", async () => {
+  const back = vi.spyOn(BackHandler, "addEventListener").mockReturnValue({ remove: vi.fn() });
   await installNativePopoverMeasurements();
   await render(
     <MainListFixture>
@@ -422,6 +423,15 @@ it("changes the distance with the anchored HeroUI popover and keeps it when Near
   expect(field).toHaveDisplayValue("50");
   await fireEvent.changeText(field, "0");
   expect(screen.getByTestId("group-custom-distance-apply")).toBeDisabled();
+  const dismissMenu = back.mock.calls.at(-1)?.[1];
+  if (!dismissMenu) throw new Error("Expected the native popover Back handler");
+  await act(() => {
+    expect(dismissMenu({} as Parameters<typeof dismissMenu>[0])).toBe(true);
+  });
+  expect(screen.queryByTestId("group-custom-distance")).toBeNull();
+  await pressMeasuredPopover(screen.getByRole("button", { name: "Distance, 50 km" }));
+  await fireEvent.press(screen.getByTestId("group-distance-custom"));
+  expect(screen.getByTestId("group-custom-distance")).toHaveDisplayValue("50");
   await fireEvent.press(screen.getByTestId("group-custom-distance-back"));
   expect(screen.getByTestId("group-distance-50")).toBeSelected();
   await fireEvent.press(screen.getByTestId("group-distance-custom"));
@@ -453,6 +463,81 @@ it("shows distinct discovery empty and retry paths with the filters always avail
   listFixture.statuses.delete("/api/groups");
   await listPress("Try again");
   expect((await screen.findByText("No groups found")).parent).toHaveStyle({ alignItems: "center" });
+});
+
+it("pages discovery results and retries the same cursor while keeping available groups visible", async () => {
+  listFixture.cursors.set("/api/groups", "next-discovery-page");
+  listFixture.nextGroups = [listGroup("Next discovery group", { type: "PUBLIC", id: listId(4) })];
+  await render(
+    <MainListFixture>
+      <Groups initialSection="search" />
+    </MainListFixture>,
+  );
+  expect(await screen.findByText("Public list group")).toBeVisible();
+  let finish: (response: Response) => void = () => {
+    throw new Error("Expected a discovery page request");
+  };
+  listFixture.pending.set(
+    "/api/groups",
+    new Promise((resolve) => {
+      finish = resolve;
+    }),
+  );
+  const nextReads = () =>
+    listFixture.reads.filter((url) => url.searchParams.get("cursor") === "next-discovery-page");
+  const list = screen.getByTestId("groups-scroll");
+  await scrollListEnd(list);
+  await waitFor(() => expect(nextReads()).toHaveLength(1));
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+  expect(screen.getByText("Public list group")).toBeVisible();
+  await scrollListEnd(list);
+  expect(nextReads()).toHaveLength(1);
+  await act(() => {
+    listFixture.pending.delete("/api/groups");
+    finish(listJson({ error: "UNAVAILABLE" }, 503));
+  });
+  expect(await screen.findByRole("button", { name: "Could not load groups. Retry" })).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+  expect(screen.getByText("Public list group")).toBeVisible();
+  await listPress("Could not load groups. Retry");
+  expect(await screen.findByText("Next discovery group")).toBeVisible();
+  expect(nextReads()).toHaveLength(2);
+  for (const { searchParams } of nextReads()) {
+    expect(searchParams.get("scope")).toBe("public");
+    expect(searchParams.get("friends")).toBe("true");
+  }
+});
+
+it("hides cached discovery results when authorization is lost", async () => {
+  await render(
+    <MainListFixture>
+      <Groups initialSection="search" />
+    </MainListFixture>,
+  );
+  expect(await screen.findByText("Public list group")).toBeVisible();
+  listFixture.statuses.set("/api/groups", 403);
+  await act(() => listFixture.client?.invalidateQueries({ queryKey: ["groups"] }));
+  expect(await screen.findByText("Could not load groups")).toBeVisible();
+  expect(screen.queryByText("Public list group")).toBeNull();
+  expect(screen.queryByText("No groups found")).toBeNull();
+});
+
+it("continues discovery when a page has a cursor but contains no visible groups", async () => {
+  listFixture.groups = [];
+  listFixture.cursors.set("/api/groups", "next-visible-group");
+  listFixture.nextGroups = [listGroup("Later visible group", { type: "PUBLIC", id: listId(4) })];
+  await render(
+    <MainListFixture>
+      <Groups initialSection="search" />
+    </MainListFixture>,
+  );
+  const load = await screen.findByRole("button", { name: "Load more" });
+  expect(screen.queryByText("No public groups with your friends")).toBeNull();
+  await userEvent.setup().press(load);
+  expect(await screen.findByText("Later visible group")).toBeVisible();
+  expect(
+    listFixture.reads.filter((url) => url.searchParams.get("cursor") === "next-visible-group"),
+  ).toHaveLength(1);
 });
 
 it("keeps the first group page usable while suppressing repeated requests for the pending next cursor", async () => {

@@ -9,7 +9,7 @@ import { HelpPopover } from "@/components/common/ui/HelpPopover";
 
 const appearance = {
   approved: {
-    label: msg`Approved`,
+    label: msg({ id: "group.review.approved", message: "Approved" }),
     description: msg`This public group is approved.`,
     icon: CircleCheck,
     tone: "success",

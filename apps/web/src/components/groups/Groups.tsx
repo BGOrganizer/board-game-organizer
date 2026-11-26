@@ -11,7 +11,7 @@ import { TabTrigger } from "@/components/common/ui/TabTrigger";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { NotificationTabBadge } from "@/components/notifications/NotificationTabBadge";
 import { useCommunityApi } from "@/lib/useCommunityApi";
-import { useGroupDiscoverySession } from "./GroupDiscoverySession";
+import { useGroupNavigation } from "./GroupDiscoverySession";
 import { GroupList } from "./GroupList";
 import { GroupSearch } from "./GroupSearch";
 
@@ -22,8 +22,7 @@ export function Groups({
 }) {
   const { t } = useLingui();
   const options = useCommunityApi();
-  const { section, setSection, search } = useGroupDiscoverySession();
-  const searchActive = section === "search" && search.active;
+  const { section, setSection, searchActive, closeSearch } = useGroupNavigation();
   return (
     <NotificationAttentionScope
       options={options}
@@ -51,7 +50,7 @@ export function Groups({
         selectedKey={section}
         onSelectionChange={(key) => {
           if (key === "private" || key === "public" || key === "search") {
-            if (key !== "search") search.close();
+            if (key !== "search") closeSearch();
             setSection(key);
           }
         }}

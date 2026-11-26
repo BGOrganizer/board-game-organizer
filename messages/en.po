@@ -1109,6 +1109,12 @@ msgstr "Approve the proposed organization information, or reject it with a reaso
 msgid "Approved"
 msgstr "Approved"
 
+#. js-lingui-explicit-id
+#: apps/web/src/components/groups/GroupStatusBadge.tsx
+#: apps/mobile/src/components/groups/GroupStatusBadge.tsx
+msgid "group.review.approved"
+msgstr "Approved"
+
 #: apps/web/src/components/groups/GroupCardIndicators.tsx
 #: apps/web/src/components/groups/GroupDetailsCard.tsx
 msgid "Approved information remains visible while changes are reviewed."

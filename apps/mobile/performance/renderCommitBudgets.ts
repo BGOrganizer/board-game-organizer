@@ -76,6 +76,7 @@ export const renderCommitBudgets: Readonly<Record<string, number>> = {
   "GamePicker: search, open the actual catalog information and choose one canonical game": 19,
   // Initial Friends and one-character results each exercise a cold request and its UI states.
   "Group search route: finds groups with Friends and a single character": 9,
+  "Group search route: keep short input out of public discovery while the search tab stays selected": 4,
   "Group search distance: choose a preset from the anchored menu": 7,
   "GroupBanDialog: select a temporary ban deadline in the group's time zone": 5,
   "GroupDetailsCard: fresh group identity and venue replace cached private fields": 4,

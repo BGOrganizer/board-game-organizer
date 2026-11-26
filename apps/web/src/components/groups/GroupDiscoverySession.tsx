@@ -6,7 +6,7 @@ import {
   usePublicGroupSearch,
 } from "@board-game-organizer/shared";
 import { usePathname } from "next/navigation";
-import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
+import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from "react";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 
 function requestPosition() {
@@ -24,16 +24,24 @@ function requestPosition() {
 }
 
 type Section = "private" | "public" | "search";
-const Session = createContext<{
+const GroupNavigation = createContext<{
   section: Section;
   setSection: (section: Section) => void;
-  search: ReturnType<typeof usePublicGroupSearch>;
+  searchActive: boolean;
+  closeSearch: () => void;
 } | null>(null);
+const GroupDiscovery = createContext<ReturnType<typeof usePublicGroupSearch> | null>(null);
 
-export function useGroupDiscoverySession() {
-  const session = useContext(Session);
+export function useGroupNavigation() {
+  const session = useContext(GroupNavigation);
   if (!session) throw new Error("Groups require a GroupDiscoverySession");
   return session;
+}
+
+export function useGroupDiscoverySearch() {
+  const search = useContext(GroupDiscovery);
+  if (!search) throw new Error("Group search requires a GroupDiscoverySession");
+  return search;
 }
 
 function ScopedSession({
@@ -51,12 +59,26 @@ function ScopedSession({
     { ...options, enabled: options.enabled !== false && visible && section === "search" },
     requestPosition,
   );
+  const { active, close } = search;
+  const navigation = useMemo(
+    () => ({
+      section,
+      setSection,
+      searchActive: section === "search" && active,
+      closeSearch: close,
+    }),
+    [section, active, close],
+  );
 
   useEffect(() => {
     if (directSearch) setSection("search");
   }, [directSearch]);
 
-  return <Session value={{ section, setSection, search }}>{children}</Session>;
+  return (
+    <GroupNavigation value={navigation}>
+      <GroupDiscovery value={search}>{children}</GroupDiscovery>
+    </GroupNavigation>
+  );
 }
 
 /** Keep the search in memory while visiting a Group from the results. */

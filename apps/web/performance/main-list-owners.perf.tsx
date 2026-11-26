@@ -279,6 +279,35 @@ test(searchScenario, async () => {
   }
 });
 
+const invalidDiscoveryScenario =
+  "Group search route: explain the discovery filter before a valid query";
+test(invalidDiscoveryScenario, async () => {
+  boundary.pathname = "/groups/search";
+  try {
+    const result = await measureRenders(
+      <GroupsLayout>
+        <GroupSearchPage />
+      </GroupsLayout>,
+      {
+        scenario: async () => {
+          expect(screen.getByRole("link", { name: "Back" })).toHaveAttribute("href", "/groups");
+          expect(screen.getByRole("tab", { name: "Search", selected: true })).toBeVisible();
+          const search = screen.getByRole("searchbox", { name: "Search groups" });
+          fireEvent.change(search, { target: { value: " " } });
+          expect(screen.getByRole("heading", { name: "Group search" })).toBeVisible();
+          expect(screen.getByText("No public groups with your friends")).toBeVisible();
+          fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
+          expect(search).toHaveValue("");
+          expect(current().fixture.reads).toEqual([]);
+        },
+      },
+    );
+    assertRenderMeasurement(result, invalidDiscoveryScenario);
+  } finally {
+    boundary.pathname = "/groups";
+  }
+});
+
 const distanceScenario = "Group search distance: choose a preset from the anchored menu";
 
 function DistancePicker() {

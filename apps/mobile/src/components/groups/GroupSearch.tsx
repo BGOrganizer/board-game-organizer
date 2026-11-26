@@ -10,7 +10,7 @@ import { useThemeColor } from "heroui-native/hooks";
 import { Skeleton } from "heroui-native/skeleton";
 import { Typography } from "heroui-native/text";
 import { LocateFixed, Search, SearchX, UsersRound } from "lucide-react-native";
-import { useCallback, useLayoutEffect, useRef } from "react";
+import { memo, useCallback, useLayoutEffect, useRef } from "react";
 import { BackHandler, type FlatList, Keyboard, Linking, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { HeaderBackButton } from "@/components/common/layout/HeaderBackButton";
@@ -36,6 +36,50 @@ async function requestNearbyPosition() {
 function renderGroup({ item }: { item: ClientGroupRecord }) {
   return <GroupCard group={item} />;
 }
+
+const GroupSearchGuide = memo(function GroupSearchGuide() {
+  const t = useT();
+  return (
+    <HelpSectionCard title={t("Group search")} label={t("Group search help")} icon={Search}>
+      <Typography className="text-foreground">
+        {t(
+          "Search approved public groups by name or venue address. Use the filters to find nearby groups or groups with friends.",
+        )}
+      </Typography>
+    </HelpSectionCard>
+  );
+});
+
+const GroupSearchFilters = memo(function GroupSearchFilters({
+  friends,
+  nearby,
+  radiusKm,
+  onToggle,
+  onDistanceChange,
+}: {
+  friends: boolean;
+  nearby: boolean;
+  radiusKm: number;
+  onToggle: (key: "friends" | "nearby") => void;
+  onDistanceChange: (radius: number) => void;
+}) {
+  const t = useT();
+  const selected: Array<"friends" | "nearby"> = [];
+  if (friends) selected.push("friends");
+  if (nearby) selected.push("nearby");
+  return (
+    <FilterChips
+      options={[
+        { key: "friends", label: t("Friends"), icon: UsersRound },
+        { key: "nearby", label: t("Near me"), icon: LocateFixed },
+      ]}
+      selected={selected}
+      onToggle={onToggle}
+    >
+      {nearby ? <GroupSearchDistance radiusKm={radiusKm} onChange={onDistanceChange} /> : null}
+    </FilterChips>
+  );
+});
 
 export function GroupSearch({ onActiveChange }: { onActiveChange: (active: boolean) => void }) {
   const t = useT();
@@ -73,12 +117,15 @@ export function GroupSearch({ onActiveChange }: { onActiveChange: (active: boole
     };
   }, [active, navigation, onActiveChange]);
 
-  const scrollToStart = () => listRef.current?.scrollToOffset({ offset: 0, animated: false });
+  const scrollToStart = useCallback(
+    () => listRef.current?.scrollToOffset({ offset: 0, animated: false }),
+    [],
+  );
   const finish = useCallback(() => {
     Keyboard.dismiss();
-    listRef.current?.scrollToOffset({ offset: 0, animated: false });
+    scrollToStart();
     close();
-  }, [close]);
+  }, [close, scrollToStart]);
   useFocusEffect(
     useCallback(() => {
       if (!active) return;
@@ -94,15 +141,21 @@ export function GroupSearch({ onActiveChange }: { onActiveChange: (active: boole
     scrollToStart();
     setQuery(value);
   };
-  const filter = (key: "friends" | "nearby") => {
-    open();
-    scrollToStart();
-    if (key === "friends") toggleFriends();
-    else void toggleNearby();
-  };
-  const selected: Array<"friends" | "nearby"> = [];
-  if (friends) selected.push("friends");
-  if (nearby) selected.push("nearby");
+  const filter = useCallback(
+    (key: "friends" | "nearby") => {
+      scrollToStart();
+      if (key === "friends") toggleFriends();
+      else void toggleNearby();
+    },
+    [scrollToStart, toggleFriends, toggleNearby],
+  );
+  const changeDistance = useCallback(
+    (radius: number) => {
+      scrollToStart();
+      setRadiusKm(radius);
+    },
+    [scrollToStart, setRadiusKm],
+  );
   const firstPageError = list.isError && !list.isFetchNextPageError;
 
   return (
@@ -118,15 +171,7 @@ export function GroupSearch({ onActiveChange }: { onActiveChange: (active: boole
             gap: 8,
           }}
         >
-          {!active ? (
-            <HelpSectionCard title={t("Group search")} label={t("Group search help")} icon={Search}>
-              <Typography className="text-foreground">
-                {t(
-                  "Search approved public groups by name or venue address. Use the filters to find nearby groups or groups with friends.",
-                )}
-              </Typography>
-            </HelpSectionCard>
-          ) : null}
+          {!active ? <GroupSearchGuide /> : null}
           {/* The input remains mounted during the layout change so focus and keyboard stay intact. */}
           <SearchInput
             value={query}
@@ -139,24 +184,13 @@ export function GroupSearch({ onActiveChange }: { onActiveChange: (active: boole
             leadingAction={active ? <HeaderBackButton onPress={finish} /> : undefined}
             inputStyle={active ? { flex: 1 } : undefined}
           />
-          <FilterChips
-            options={[
-              { key: "friends", label: t("Friends"), icon: UsersRound },
-              { key: "nearby", label: t("Near me"), icon: LocateFixed },
-            ]}
-            selected={selected}
+          <GroupSearchFilters
+            friends={friends}
+            nearby={nearby}
+            radiusKm={radiusKm}
             onToggle={filter}
-          >
-            {nearby ? (
-              <GroupSearchDistance
-                radiusKm={radiusKm}
-                onChange={(value) => {
-                  scrollToStart();
-                  setRadiusKm(value);
-                }}
-              />
-            ) : null}
-          </FilterChips>
+            onDistanceChange={changeDistance}
+          />
           {locating ? (
             <Skeleton
               accessibilityLabel={t("Loading…")}
