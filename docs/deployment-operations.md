@@ -181,10 +181,12 @@ reviews, unrelated protections and rollback evidence; use the procedure below.
 
 ### CI script ownership and cleanup safety
 
-Deploy composites own their minimal tool setup; native builds own dependency installation unless
-APK cache inspection has already installed the same checkout. EAS publication also installs locked
-workspace dependencies to resolve Expo config plugins; notification-only helpers need just tooling. Unit/integration/build jobs keep
-their locked workspace installation and the two publication lanes remain independent.
+Deploy composites own their minimal tool setup. Native builds install dependencies unless APK cache
+inspection has already installed the same checkout. APK builds prepare Android CMake before Gradle
+starts and retry transient Android SDK download failures. EAS publication installs locked workspace
+dependencies to resolve Expo config plugins. Notification-only helpers need just tooling.
+Unit, integration and build jobs keep their locked workspace installation. The two publication
+lanes remain independent.
 
 Per-run cleanup deletes explicit provisioned IDs and/or the exact run/attempt username namespace;
 it never falls through to an age sweep. The scheduled sweep requires a development Clerk key,
