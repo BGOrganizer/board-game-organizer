@@ -201,7 +201,7 @@ it.each(cases)(
     renderWithI18n(<Contacts />);
     const tab =
       scenario.source === "device"
-        ? "Contacts"
+        ? "Search"
         : scenario.source === "pending" || scenario.source === "sent"
           ? "Requests"
           : "Connections";

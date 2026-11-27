@@ -91,6 +91,7 @@ let client: QueryClient;
 let target: ContactUser;
 let actionStatus: number, searchStatus: number;
 let pendingAction: Promise<Response> | undefined;
+let nextSearchPage: (() => Promise<Response>) | undefined;
 let suggestions: ContactUser[];
 const rows = new Map<RelationshipListType, RelationshipRow[]>();
 const nextRows = new Map<RelationshipListType, RelationshipRow[]>();
@@ -113,6 +114,7 @@ beforeEach(() => {
   target = person();
   actionStatus = searchStatus = 200;
   pendingAction = undefined;
+  nextSearchPage = undefined;
   suggestions = [];
   rows.clear();
   nextRows.clear();
@@ -203,7 +205,8 @@ beforeEach(() => {
           { status: failed ? 400 : 200 },
         );
       }
-      if (url.pathname === "/api/users/search")
+      if (url.pathname === "/api/users/search") {
+        if (url.searchParams.get("cursor") && nextSearchPage) return nextSearchPage();
         return Response.json(
           searchStatus !== 200
             ? { error: "Search unavailable" }
@@ -212,9 +215,11 @@ beforeEach(() => {
                   url.searchParams.get("query") === "nobody"
                     ? []
                     : [person("search-result", { username: null })],
+                nextCursor: nextSearchPage ? "next-directory-result" : null,
               },
           { status: searchStatus },
         );
+      }
       throw new Error(`Unexpected Contacts request: ${method} ${url.pathname}`);
     }),
   );
@@ -252,7 +257,7 @@ it.each(scenarios)(
     mount();
     tab(
       scenario.source === "device"
-        ? "Contacts"
+        ? "Search"
         : scenario.source === "pending" || scenario.source === "sent"
           ? "Requests"
           : "Connections",
@@ -363,7 +368,7 @@ it("retains device suggestions through a failed page and explicitly retries the 
   suggestions = [target];
   pageErrors.add("suggestions");
   mount();
-  tab("Contacts");
+  tab("Search");
   await screen.findByText("Target Player");
   await waitFor(() => expect(intersections.observedTargetCount).toBeGreaterThan(0));
   await act(async () => intersections.intersect());
@@ -384,6 +389,7 @@ it("keeps failed search distinct from empty, clears the failed scope and searche
   mount();
   tab("Search");
   const input = screen.getByPlaceholderText("Search users");
+  fireEvent.focus(input);
   fireEvent.change(input, { target: { value: "missing" } });
   expect(await screen.findByText("Could not load contacts")).toBeVisible();
   expect(screen.queryByText("No users found")).toBeNull();
@@ -395,4 +401,36 @@ it("keeps failed search distinct from empty, clears the failed scope and searche
   fireEvent.change(input, { target: { value: "another" } });
   expect(await screen.findByText("Player search-result")).toBeVisible();
   expect(screen.queryByText("@handle-search-result")).toBeNull();
+});
+
+it("keeps directory results visible when the next page fails and retries the same cursor", async () => {
+  let finish: ((page: Response) => void) | undefined;
+  const pending = new Promise<Response>((resolve) => {
+    finish = resolve;
+  });
+  nextSearchPage = vi
+    .fn()
+    .mockReturnValueOnce(pending)
+    .mockResolvedValueOnce(Response.json({ users: [person("next-result")], nextCursor: null }));
+  mount();
+  tab("Search");
+  const input = screen.getByRole("searchbox");
+  fireEvent.focus(input);
+  fireEvent.change(input, { target: { value: "@handle" } });
+  expect(await screen.findByText("Player search-result")).toBeVisible();
+  await waitFor(() => expect(intersections.observedTargetCount).toBeGreaterThan(0));
+  await act(async () => intersections.intersect());
+  await waitFor(() => expect(nextSearchPage).toHaveBeenCalledOnce());
+  expect(screen.getByText("Player search-result")).toBeVisible();
+  await act(async () => finish?.(Response.json({ error: "Page unavailable" }, { status: 503 })));
+  const retry = await screen.findByRole("button", { name: "Retry" });
+  expect(screen.queryByText("Could not load contacts")).toBeNull();
+  fireEvent.click(retry);
+  expect(await screen.findByText("Player next-result")).toBeVisible();
+  expect(screen.getByText("Player search-result")).toBeVisible();
+  expect(
+    reads
+      .filter((url) => url.pathname === "/api/users/search")
+      .map((url) => url.searchParams.get("cursor")),
+  ).toEqual([null, "next-directory-result", "next-directory-result"]);
 });
