@@ -317,7 +317,7 @@ test(contactsScenario, async () => {
       for (let visit = 0; visit < 2; visit++) {
         fireEvent.click(screen.getByRole("tab", { name: /^Requests(?:\s|$)/ }));
         expect(await screen.findByText("Incoming player")).toBeVisible();
-        fireEvent.click(screen.getByRole("tab", { name: "Contacts" }));
+        fireEvent.click(screen.getByRole("tab", { name: "Search" }));
         expect(await screen.findByText("Suggested player")).toBeVisible();
         fireEvent.click(screen.getByRole("tab", { name: /^Connections(?:\s|$)/ }));
         expect(await screen.findByText("Cached friend 1")).toBeVisible();
