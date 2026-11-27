@@ -193,16 +193,22 @@ it("main native strips share Groups geometry while detail tabs retain independen
     readFileSync(new URL("../../components/groups/GroupDetail.tsx", import.meta.url), "utf8"),
   ).toContain("marginTop: 8");
   const code = expression("events/EventList", "InputFlatList", "contentContainerStyle");
-  expect(
-    runInNewContext(code, { groupId: undefined, layout: { paddingBottom: 32 } }),
-  ).toMatchObject({
+  const options = { headerSearch: { active: false, top: 24 }, layout: { paddingBottom: 32 } };
+  expect(runInNewContext(code, { ...options, groupId: undefined })).toMatchObject({
     padding: 20,
     paddingTop: 8,
   });
-  expect(runInNewContext(code, { groupId: "group", layout: { paddingBottom: 32 } })).toMatchObject({
+  expect(runInNewContext(code, { ...options, groupId: "group" })).toMatchObject({
     padding: 20,
     paddingTop: 0,
   });
+  expect(
+    runInNewContext(code, {
+      ...options,
+      groupId: "group",
+      headerSearch: { active: true, top: 24 },
+    }),
+  ).toMatchObject({ padding: 20, paddingTop: 28 });
   expect(
     readFileSync(new URL("../../components/groups/GroupDetail.tsx", import.meta.url), "utf8"),
   ).toContain("contentContainerStyle={{ paddingTop: 0 }}");

@@ -1,6 +1,8 @@
 import type { ContactUser } from "@board-game-organizer/shared";
 import { act, fireEvent, screen, userEvent, waitFor, within } from "@testing-library/react-native";
-import { expect, it } from "vitest";
+import { DeviceEventEmitter } from "react-native";
+import { expect, it, vi } from "vitest";
+import { scrollNativeListToEnd } from "@/test/nativeListGeometry";
 import {
   contactPress,
   contactsApi,
@@ -304,6 +306,55 @@ it("debounces real user discovery, distinguishes failures and empty results, and
       "pages",
     ])?.status,
   ).toBe("success");
+});
+
+it("retries a failed directory page from the real scroll list and restores the address book on Android Back", async () => {
+  let finish: ((response: Response) => void) | undefined;
+  const pending = new Promise<Response>((resolve) => {
+    finish = resolve;
+  });
+  const next = fixtureUser({ id: "next-directory-user", name: "Next Directory User" });
+  const nextPage = vi
+    .fn()
+    .mockReturnValueOnce(pending)
+    .mockResolvedValueOnce(fixtureJson({ users: [next], nextCursor: null }));
+  contactsFixture.nextSearchPage = nextPage;
+  await renderContacts();
+  await contactsReady();
+  await contactTab("search");
+  const input = screen.getByTestId("contact-search-input");
+  await fireEvent(input, "focus");
+  await fireEvent.changeText(input, "@target");
+
+  const first = await screen.findByText("Target Player");
+  let list: typeof first | null = first;
+  while (list && typeof list.props.onScroll !== "function") list = list.parent;
+  if (!list) throw new Error("Expected the directory list scroll host");
+  await scrollNativeListToEnd(list);
+  await waitFor(() => expect(nextPage).toHaveBeenCalledOnce());
+  expect(first).toBeVisible();
+  await scrollNativeListToEnd(list, 1300);
+  expect(nextPage).toHaveBeenCalledOnce();
+
+  await act(async () => finish?.(fixtureJson({ error: "Page unavailable" }, 503)));
+  expect(await screen.findByRole("button", { name: "Retry" })).toBeEnabled();
+  expect(first).toBeVisible();
+  expect(screen.queryByText("Could not load contacts")).toBeNull();
+  await scrollNativeListToEnd(list, 1400);
+  expect(nextPage).toHaveBeenCalledOnce();
+  await contactPress("Retry");
+  expect(await screen.findByText("Next Directory User")).toBeVisible();
+  expect(first).toBeVisible();
+  expect(
+    contactsFixture.reads
+      .filter((url) => url.pathname === "/api/users/search")
+      .map((url) => url.searchParams.get("cursor")),
+  ).toEqual([null, "next-directory-result", "next-directory-result"]);
+
+  await act(() => DeviceEventEmitter.emit("hardwareBackPress"));
+  expect(screen.queryByText("Next Directory User")).toBeNull();
+  expect(screen.getByTestId("top-tab-search")).toBeSelected();
+  expect(input).toHaveDisplayValue("");
 });
 
 it("omits redacted pending and sent profiles without exposing an action, while retaining visible requests", async () => {
