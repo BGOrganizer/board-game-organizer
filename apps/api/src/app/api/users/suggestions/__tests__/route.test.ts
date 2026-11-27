@@ -174,3 +174,41 @@ describe("GET /api/users/suggestions", () => {
     expect(body.users[0].id).toBe("user_b");
   });
 });
+
+it("pages only unrelated registered address-book contacts in discovery scope", async () => {
+  const ids = ["a_incoming", "b_new", "c_outgoing", "d_friend", "e_follow", "f_follower", "g_new"];
+  contactClerkIdsForUser.mockResolvedValue(ids);
+  getDbMock.mockResolvedValue({
+    collection: (name: string) => ({
+      find: (filter: Record<string, unknown>) => ({
+        toArray: async () => {
+          if (name === "users") return ids.map((clerkId) => ({ clerkId, name: clerkId }));
+          if (name === "follows")
+            return typeof filter.fromUserId === "string"
+              ? [{ toUserId: "e_follow" }]
+              : [{ fromUserId: "f_follower" }];
+          if (name === "friendRequests")
+            return filter.status === "pending"
+              ? [
+                  { fromUserId: "a_incoming", toUserId: "user_1" },
+                  { fromUserId: "user_1", toUserId: "c_outgoing" },
+                ]
+              : [
+                  { fromUserId: "user_1", toUserId: "d_friend" },
+                  { fromUserId: "d_friend", toUserId: "user_1" },
+                  { fromUserId: "user_1", toUserId: "b_new" },
+                ];
+          return [];
+        },
+      }),
+    }),
+  } as never);
+  const url = "http://localhost/api/users/suggestions?scope=discovery&limit=1";
+  const first = await (await GET(new Request(url))).json();
+  expect(first.users).toEqual([expect.objectContaining({ id: "b_new" })]);
+  expect(first.nextCursor).toBe("b_new");
+  const next = await (await GET(new Request(`${url}&cursor=${first.nextCursor}`))).json();
+  expect(next.users).toEqual([expect.objectContaining({ id: "g_new" })]);
+  expect(next.nextCursor).toBeNull();
+  expect(next.hasContacts).toBe(true);
+});

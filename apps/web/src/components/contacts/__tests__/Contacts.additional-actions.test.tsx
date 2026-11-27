@@ -92,6 +92,7 @@ let target: ContactUser;
 let actionStatus: number, searchStatus: number;
 let pendingAction: Promise<Response> | undefined;
 let nextSearchPage: (() => Promise<Response>) | undefined;
+let directoryRows: ContactUser[] | undefined;
 let suggestions: ContactUser[];
 const rows = new Map<RelationshipListType, RelationshipRow[]>();
 const nextRows = new Map<RelationshipListType, RelationshipRow[]>();
@@ -115,6 +116,7 @@ beforeEach(() => {
   actionStatus = searchStatus = 200;
   pendingAction = undefined;
   nextSearchPage = undefined;
+  directoryRows = undefined;
   suggestions = [];
   rows.clear();
   nextRows.clear();
@@ -214,7 +216,7 @@ beforeEach(() => {
                 users:
                   url.searchParams.get("query") === "nobody"
                     ? []
-                    : [person("search-result", { username: null })],
+                    : (directoryRows ?? [person("search-result", { username: null })]),
                 nextCursor: nextSearchPage ? "next-directory-result" : null,
               },
           { status: searchStatus },
@@ -433,4 +435,32 @@ it("keeps directory results visible when the next page fails and retries the sam
       .filter((url) => url.pathname === "/api/users/search")
       .map((url) => url.searchParams.get("cursor")),
   ).toEqual([null, "next-directory-result", "next-directory-result"]);
+});
+
+it("shows only new contacts in the synced list and directory during a stale relationship response", async () => {
+  const incoming = person("incoming");
+  const outgoing = person("outgoing");
+  const follower = person("follower");
+  const unrelated = person("new-contact");
+  suggestions = directoryRows = [incoming, outgoing, follower, unrelated];
+  rows.set("pending", [relationship("pending", incoming)]);
+  rows.set("sent", [relationship("sent", outgoing)]);
+  rows.set("followers", [relationship("followers", follower)]);
+  mount();
+  expect(await screen.findByText("Player follower")).toBeVisible();
+  tab("Requests");
+  expect(await screen.findByText("Player incoming")).toBeVisible();
+  expect(screen.getByText("Player outgoing")).toBeVisible();
+  tab("Search");
+  expect(await screen.findByText("Player new-contact")).toBeVisible();
+  const hidden = ["incoming", "outgoing", "follower"];
+  for (const id of hidden) expect(screen.queryByText(`Player ${id}`)).toBeNull();
+  const input = screen.getByRole("searchbox");
+  fireEvent.focus(input);
+  fireEvent.change(input, { target: { value: "Player" } });
+  expect(await screen.findByText("Player new-contact")).toBeVisible();
+  for (const id of hidden) expect(screen.queryByText(`Player ${id}`)).toBeNull();
+  expect(reads.find((url) => url.pathname === "/api/users/search")?.searchParams.get("scope")).toBe(
+    "discovery",
+  );
 });

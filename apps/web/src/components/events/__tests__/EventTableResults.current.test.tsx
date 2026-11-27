@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, renderHook, screen } from "@testing-library/react";
 import { Activity, type ComponentProps, type ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
-import { plannedTable } from "@/test-fixtures/eventRecords";
+import { chessMetadata, plannedTable } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { EventTableResults } from "../EventTableResults";
 
@@ -187,6 +187,7 @@ it.each([
           table={{
             ...table,
             eventStatus: "TERMINATED",
+            gamesDetail: [chessMetadata],
             results: {
               lowerWins: false,
               entries: [{ userId: "p00", rank, score: rank === null ? null : "10" }],
@@ -213,7 +214,8 @@ it.each([
     expect(chip).toHaveClass(`chip--${tone}`);
     if (icon) expect(badge.querySelector(`.lucide-${icon}`)).not.toBeNull();
     else expect(badge.textContent).toBe(rank === null ? "ND" : `#${rank}`);
-    expect(screen.getAllByRole("button")).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: /Rating details/ })).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Game information: Chess" })).toBeVisible();
     expect(Boolean(screen.queryByText("Winner"))).toBe(rank === 1);
     expect(screen.getByRole("heading", { name: "Chess" }).closest(".card")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "How OpenSkill works" })).toBeNull();
@@ -232,6 +234,7 @@ it("shows a winning guest by name with the physical score, without a rating cont
         table={{
           ...table,
           eventStatus: "TERMINATED",
+          gamesDetail: [chessMetadata],
           confirmed: {
             ...table.confirmed,
             playerIds: [guest.participantId, "p00"],
@@ -262,6 +265,7 @@ it("reveals historical results in fixed batches and handles a legacy empty roste
   const snapshot = {
     ...table,
     eventStatus: "TERMINATED" as const,
+    gamesDetail: [chessMetadata],
     confirmed: { ...table.confirmed, playerIds: frozenIds },
     results: {
       lowerWins: false,

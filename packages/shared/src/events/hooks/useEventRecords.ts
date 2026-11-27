@@ -13,6 +13,7 @@ import type {
   TableSeatResponse,
 } from "@board-game-organizer/schemas";
 import {
+  eventListDefaultOrder,
   eventListStatuses,
   scheduledEventFilterRoles,
   terminatedEventFilterRoles,
@@ -57,6 +58,10 @@ type TableFilters = Omit<ListFilters, "groupId" | "section" | "roles" | "order">
   section?: TableListSection;
 };
 
+function eventListOrder(filters: ListFilters) {
+  return filters.order ?? (filters.groupId ? eventListDefaultOrder.mine : undefined);
+}
+
 function eventRoleSelection(filters: ListFilters) {
   if (!filters.roles || filters.groupId || filters.section === "available") return undefined;
   const available =
@@ -87,7 +92,7 @@ export const eventRecordKeys = {
         ),
         query: filters.query?.trim() ?? "",
         ...(eventRoleSelection(filters) ? { roles: eventRoleSelection(filters) } : {}),
-        ...(!filters.groupId && filters.order ? { order: filters.order } : {}),
+        ...(filters.groupId || filters.order ? { order: eventListOrder(filters) } : {}),
       },
     ] as const,
   tables: (o: KeyOwner, id: string | null, filters: TableFilters = {}) =>
@@ -130,7 +135,7 @@ function enabled(o: CommunityApiOptions) {
 }
 export function eventRecordsQuery(o: CommunityApiOptions, filters: ListFilters = {}) {
   const roles = eventRoleSelection(filters);
-  const order = filters.groupId ? undefined : filters.order;
+  const order = eventListOrder(filters);
   return infiniteQueryOptions({
     queryKey: eventRecordKeys.list(o, filters),
     queryFn: async ({ pageParam, signal, client, queryKey }) => {

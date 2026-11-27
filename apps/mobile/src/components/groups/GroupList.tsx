@@ -2,6 +2,7 @@ import {
   type GroupRecord,
   groupRecordMemberRoles,
   type RecordListOrder,
+  recordListSortFields,
 } from "@board-game-organizer/schemas";
 import {
   communityAccessDenied,
@@ -125,7 +126,7 @@ export function GroupList({
               { key: "pending", label: t("Pending"), icon: Clock3 },
             ]}
           />
-          <ListOrdering order={order} onChange={setOrder} />
+          <ListOrdering fields={recordListSortFields} order={order} onChange={setOrder} />
         </View>
       </View>
     );

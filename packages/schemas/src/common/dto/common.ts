@@ -38,7 +38,7 @@ export const listParamsSchema = z.object({
 export type ListParams = z.infer<typeof listParamsSchema>;
 
 export const recordListSortFields = ["name", "date"] as const;
-export interface RecordListOrder {
-  sort: (typeof recordListSortFields)[number];
+export interface RecordListOrder<Field extends string = (typeof recordListSortFields)[number]> {
+  sort: Field;
   direction: "asc" | "desc";
 }

@@ -50,6 +50,7 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
     event = communityAccessDenied(q.error) ? undefined : q.data;
   const { getTableTitle, numberedTableTitle } = useTableTitle();
   const [requestedTab, setTab] = useState("details");
+  const [tableSearchActive, setTableSearchActive] = useState(false);
   const transitionVersion = useRef<number | null>(null);
   const tab =
     (event?.sharedResultsOnly || event?.personalAccessOnly) && requestedTab === "participants"
@@ -147,58 +148,61 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
         className="mx-auto max-w-4xl space-y-4"
         style={hasFloatingActions ? floatingActionContentStyle : undefined}
       >
-        <HeaderActions back={back}>
-          {!event.readOnly && canManageEvent(event, o.userId) && event.status === "PLANNING" ? (
-            <div className="flex items-center gap-1">
-              {confirmationBlocked ? (
-                <HelpPopover
-                  label={t`Confirm event`}
-                  title={t`Confirm event`}
-                  icon={Check}
-                  triggerVariant="primary"
-                  triggerClassName="opacity-60"
-                >
-                  <div className="space-y-2">
-                    <p>{confirmationHint}</p>
-                    {event.agreement?.reasons.map((reason) => {
-                      const table = tables.items.find((row) => row.id === reason.tableId);
-                      return (
-                        <p key={reason.tableId}>
-                          {table ? getTableTitle(table) : numberedTableTitle()}:{" "}
-                          {reason.code === "PENDING_RESERVATIONS"
-                            ? t`Pending invitations still reserve places.`
-                            : reason.code === "GAME_DISAGREEMENT"
-                              ? t`Seated players agree on date and location but not game. Change votes or edit the games; waiting players cannot replace them for this reason.`
-                              : t`No compatible accepted players for this table.`}
-                        </p>
-                      );
-                    })}
-                  </div>
-                </HelpPopover>
-              ) : (
-                <Button
-                  {...headerButtonProps}
-                  variant="primary"
-                  aria-label={t`Confirm event`}
-                  onPress={() => {
-                    setError(false);
-                    transitionVersion.current = event.version;
-                    setConfirm("confirm");
-                  }}
-                >
-                  <Check className={HEADER_ICON_CLASS} aria-hidden />
-                </Button>
-              )}
-              <EventDeleteAction event={event} disabled={q.isPlaceholderData} />
-            </div>
-          ) : null}
-          {!event.readOnly && canManageEvent(event, o.userId) && event.status === "CONFIRMED" ? (
-            <EventFinalizeAction event={event} disabled={q.isPlaceholderData} />
-          ) : null}
-        </HeaderActions>
+        {!tableSearchActive ? (
+          <HeaderActions back={back}>
+            {!event.readOnly && canManageEvent(event, o.userId) && event.status === "PLANNING" ? (
+              <div className="flex items-center gap-1">
+                {confirmationBlocked ? (
+                  <HelpPopover
+                    label={t`Confirm event`}
+                    title={t`Confirm event`}
+                    icon={Check}
+                    triggerVariant="primary"
+                    triggerClassName="opacity-60"
+                  >
+                    <div className="space-y-2">
+                      <p>{confirmationHint}</p>
+                      {event.agreement?.reasons.map((reason) => {
+                        const table = tables.items.find((row) => row.id === reason.tableId);
+                        return (
+                          <p key={reason.tableId}>
+                            {table ? getTableTitle(table) : numberedTableTitle()}:{" "}
+                            {reason.code === "PENDING_RESERVATIONS"
+                              ? t`Pending invitations still reserve places.`
+                              : reason.code === "GAME_DISAGREEMENT"
+                                ? t`Seated players agree on date and location but not game. Change votes or edit the games; waiting players cannot replace them for this reason.`
+                                : t`No compatible accepted players for this table.`}
+                          </p>
+                        );
+                      })}
+                    </div>
+                  </HelpPopover>
+                ) : (
+                  <Button
+                    {...headerButtonProps}
+                    variant="primary"
+                    aria-label={t`Confirm event`}
+                    onPress={() => {
+                      setError(false);
+                      transitionVersion.current = event.version;
+                      setConfirm("confirm");
+                    }}
+                  >
+                    <Check className={HEADER_ICON_CLASS} aria-hidden />
+                  </Button>
+                )}
+                <EventDeleteAction event={event} disabled={q.isPlaceholderData} />
+              </div>
+            ) : null}
+            {!event.readOnly && canManageEvent(event, o.userId) && event.status === "CONFIRMED" ? (
+              <EventFinalizeAction event={event} disabled={q.isPlaceholderData} />
+            ) : null}
+          </HeaderActions>
+        ) : null}
         <EventDetailView
           event={event}
           selectedKey={tab}
+          tableSearchActive={tableSearchActive}
           onSelectionChange={setTab}
           titleAction={
             !event.readOnly && !event.personalAccessOnly && !event.sharedResultsOnly ? (
@@ -254,10 +258,11 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
             )
           }
           tables={
-            <>
-              <NotificationItem itemId={notificationItemId(event.id, "tables")} />
-              <EventTables query={tables} />
-            </>
+            <EventTables
+              query={tables}
+              onSearchActiveChange={setTableSearchActive}
+              header={<NotificationItem itemId={notificationItemId(event.id, "tables")} />}
+            />
           }
         />
         {canManageEvent(event, o.userId) && event.status === "CONFIRMED" && event.canReplan ? (

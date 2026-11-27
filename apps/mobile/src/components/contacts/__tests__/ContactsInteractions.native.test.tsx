@@ -375,3 +375,39 @@ it("omits redacted pending and sent profiles without exposing an action, while r
   expect(screen.queryByText(/redacted-(incoming|outgoing)/)).toBeNull();
   expect(socialWrites()).toEqual([]);
 });
+
+it("excludes existing relationships and requests from both mobile search modes", async () => {
+  const incoming = fixtureUser({ id: "incoming", name: "Incoming Contact" });
+  const outgoing = fixtureUser({ id: "outgoing", name: "Outgoing Contact" });
+  const follower = fixtureUser({ id: "follower", name: "Follower Contact" });
+  const unrelated = fixtureUser({ id: "new-contact", name: "New Contact" });
+  contactsFixture.suggestions = contactsFixture.searchUsers = [
+    incoming,
+    outgoing,
+    follower,
+    unrelated,
+  ];
+  relationship("pending", incoming);
+  relationship("sent", outgoing);
+  relationship("followers", follower);
+  await renderContacts();
+  await contactsReady();
+  expect(await screen.findByText("Follower Contact")).toBeVisible();
+  await contactTab("requests");
+  expect(await screen.findByText("Incoming Contact")).toBeVisible();
+  expect(screen.getByText("Outgoing Contact")).toBeVisible();
+  await contactTab("search");
+  expect(await screen.findByText("New Contact")).toBeVisible();
+  const excluded = [incoming, outgoing, follower];
+  for (const user of excluded) expect(screen.queryByText(user.name)).toBeNull();
+  const input = screen.getByTestId("contact-search-input");
+  await fireEvent(input, "focus");
+  await fireEvent.changeText(input, "Contact");
+  expect(await screen.findByText("New Contact")).toBeVisible();
+  for (const user of excluded) expect(screen.queryByText(user.name)).toBeNull();
+  expect(
+    contactsFixture.reads
+      .find((url) => url.pathname === "/api/users/search")
+      ?.searchParams.get("scope"),
+  ).toBe("discovery");
+});

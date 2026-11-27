@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
 import {
@@ -25,9 +25,11 @@ const boundary = vi.hoisted(() => ({
 
 // Remote models/actions and session/router boundaries are controlled. Native lists, retained
 // panels, their headers, HeroUI tabs, cards and popovers remain the real code.
+const navigation = { getState: () => ({ type: "stack" }), setOptions: vi.fn() };
 vi.mock("expo-router", () => ({
   useRouter: () => ({ push: boundary.push }),
-  useNavigation: () => ({ getState: () => ({ type: "stack" }) }),
+  useNavigation: () => navigation,
+  useFocusEffect: () => undefined,
   useLocalSearchParams: () => ({}),
   Stack: { Screen: () => null },
 }));
@@ -202,6 +204,28 @@ it("updates a retained native table viewport when the authoritative record chang
 });
 
 import { createRequire } from "node:module";
+
+it("moves the table filter to the header while keeping the same ordering controls", async () => {
+  boundary.tables = [
+    { ...plannedTable, id: "first", order: 0, seatedCount: 2 },
+    { ...plannedTable, id: "second", order: 1, seatedCount: 1 },
+  ];
+  await render(<Fixture />);
+  await fireEvent.press(screen.getByRole("tab", { name: "Tables" }));
+  const filter = screen.getByTestId("list-search-input");
+  expect(screen.getByTestId("list-sort-field")).toBeVisible();
+  await fireEvent(filter, "focus");
+  expect(navigation.setOptions).toHaveBeenCalledWith({ headerShown: false });
+  expect(screen.queryByRole("button", { name: "Event tables help" })).toBeNull();
+  expect(screen.getByTestId("list-sort-field")).toBeVisible();
+  await fireEvent.changeText(filter, "2");
+  await waitFor(() => expect(screen.queryByText("Table #1")).toBeNull());
+  expect(screen.getByText("Table #2")).toBeVisible();
+  await fireEvent.press(screen.getByRole("button", { name: "Back" }));
+  expect(navigation.setOptions).toHaveBeenLastCalledWith({ headerShown: true });
+  expect(screen.getByTestId("list-sort-field")).toBeVisible();
+  expect(screen.getByText("Table #1")).toBeVisible();
+});
 
 it("introduces event details with the active settings and Group below Locations", async () => {
   boundary.event = {

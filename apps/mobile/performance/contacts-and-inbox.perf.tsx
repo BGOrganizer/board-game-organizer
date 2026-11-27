@@ -104,6 +104,13 @@ const bob: ContactUser = {
   username: "bob",
   isFriend: false,
 };
+const discoverable: ContactUser = {
+  ...alice,
+  id: "alice-new",
+  name: "Alice New Player",
+  username: "alice-new",
+  isFriend: false,
+};
 const friend: RelationshipRow = { fromUserId: "owner", toUserId: alice.id, profile: alice };
 const request: RelationshipRow = { fromUserId: bob.id, toUserId: "owner", profile: bob };
 const relationshipPage = (rows: RelationshipRow[]) => ({
@@ -220,7 +227,7 @@ it.each(["contacts", "inbox"] as const)(
           );
         if (kind === "contacts" && url.pathname === "/api/users/search") {
           searches.push(url);
-          return Response.json({ users: [alice] });
+          return Response.json({ users: [alice, discoverable] });
         }
         unexpectedReads.push(url.pathname);
         throw new Error(`Unexpected canonical read outside the private cache ${url.pathname}`);
@@ -260,7 +267,8 @@ it.each(["contacts", "inbox"] as const)(
               const search = screen.getByPlaceholderText("Search users");
               await fireEvent(search, "focus");
               await fireEvent.changeText(search, "Alice");
-              expect(await screen.findByText("@alice")).toBeVisible();
+              expect(await screen.findByText("@alice-new")).toBeVisible();
+              expect(screen.queryByText("@alice")).toBeNull();
               expect(searches).toHaveLength(1);
               expect(searches[0].searchParams.get("query")).toBe("Alice");
               await userEvent.setup().press(screen.getByRole("button", { name: "Back" }));

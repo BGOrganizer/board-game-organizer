@@ -207,7 +207,13 @@ test(`owned Event access ${mode}/${locale}/${theme}`, async ({ page }) => {
       })
       .click();
     await page.getByRole("tab", { name: it ? "Eventi" : "Events", exact: true }).click();
+    const groupSort = page.getByRole("button", {
+      name: it ? "Ordina per Data" : "Sort by Date",
+      exact: true,
+    });
+    await expect(groupSort).toBeVisible();
     await page.getByRole("searchbox").fill(input.eventName);
+    await expect(groupSort).toBeVisible();
     await page
       .getByRole("link", {
         name: `${it ? "Apri evento" : "Open event"}: ${input.eventName}`,
@@ -216,6 +222,23 @@ test(`owned Event access ${mode}/${locale}/${theme}`, async ({ page }) => {
       .click();
     await assertBackground(input.eventName);
     await page.getByRole("tab", { name: l.tables, exact: true }).click();
+    const tableSearch = page.getByRole("searchbox", {
+      name: it ? "Filtra" : "Filter",
+      exact: true,
+    });
+    const tableSort = page.getByRole("button", {
+      name: it ? "Ordina per Nome" : "Sort by Name",
+      exact: true,
+    });
+    await expect(tableSort).toBeVisible();
+    await tableSearch.fill("no-matching-table-filter");
+    await expect(
+      page.getByText(it ? "Nessun tavolo trovato" : "No tables found", { exact: true }),
+    ).toBeVisible();
+    await expect(tableSort).toBeVisible();
+    await page.getByRole("button", { name: it ? "Indietro" : "Back", exact: true }).click();
+    await expect(tableSearch).toHaveValue("");
+    await expect(tableSort).toBeVisible();
     await page
       .getByRole("button", { name: it ? "Aiuto sui tavoli dell’evento" : "Event tables help" })
       .click();

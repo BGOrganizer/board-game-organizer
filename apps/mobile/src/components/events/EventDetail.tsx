@@ -30,16 +30,16 @@ import {
   UsersRound,
 } from "lucide-react-native";
 import { useCallback, useRef, useState } from "react";
-import { FlatList, type ScrollView, View } from "react-native";
+import { type ScrollView, View } from "react-native";
 import { HEADER_ICON_SIZE, headerButtonProps } from "@/components/common/layout/headerStyles";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { DateTimeInfo } from "@/components/common/ui/DateTimeInfo";
-import { EmptyList } from "@/components/common/ui/EmptyList";
 import { ExpandableGroupedRow } from "@/components/common/ui/ExpandableGroupedRow";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GroupedRow } from "@/components/common/ui/GroupedRow";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
+import { InputScrollView } from "@/components/common/ui/InputScrollView";
 import { RetainedTabPanel } from "@/components/common/ui/RetainedTabPanel";
 import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
 import { ScrollTargetContext } from "@/components/common/ui/ScrollTargetContext";
@@ -61,7 +61,7 @@ import { EventGroupLink } from "./EventGroupLink";
 import { EventParticipants } from "./EventParticipants";
 import { EventProposalSection } from "./EventProposalSection";
 import { EventSectionHeader } from "./EventSectionHeader";
-import { EventTableCard } from "./EventTableCard";
+import { EventTables } from "./EventTables";
 import { EventVoteButtons } from "./EventVoteButtons";
 import { EventVoteLegend } from "./EventVoteLegend";
 import { OptionVoteVoters } from "./OptionVoteVoters";
@@ -113,23 +113,14 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
   const resetTablesPresentation = useRef(tables.resetPresentation);
   resetTablesPresentation.current = tables.resetPresentation;
   const changeTab = useCallback((value: string) => {
-    const activeScroll =
-      tabRef.current === "tables" ? tablesScroll : tabRef.current === "details" ? scroll : null;
-    activeScroll?.current?.scrollTo({ y: 0, animated: false });
-    if (tabRef.current === "tables" && value !== "tables") resetTablesPresentation.current();
+    if (tabRef.current === "tables") {
+      tablesScroll.current?.scrollTo({ y: 0, animated: false });
+      if (value !== "tables") resetTablesPresentation.current();
+    }
+    if (tabRef.current === "details") scroll.current?.scrollTo({ y: 0, animated: false });
     setTab(value);
   }, []);
-  const renderTable = useCallback(
-    ({ item }: { item: (typeof tables.items)[number] }) => (
-      <EventTableCard table={item} context="event" />
-    ),
-    [],
-  );
-  const [accentForeground, muted, foreground] = useThemeColor([
-    "accent-foreground",
-    "muted",
-    "foreground",
-  ]);
+  const [accentForeground, foreground] = useThemeColor(["accent-foreground", "foreground"]);
   const confirmationBlocked =
     a.busy || q.isPlaceholderData || !event?.canConfirm || event?.agreement?.agreed !== true;
   const confirmationHint = a.busy
@@ -542,86 +533,34 @@ export function EventDetail({ eventId, fromGroup }: { eventId: string; fromGroup
                     hasFloatingActions={hasFloatingActions}
                   />
                 )
+              ) : panel === "tables" ? (
+                <EventTables
+                  query={tables}
+                  paddingBottom={layout.paddingBottom}
+                  scrollTarget={tablesScroll}
+                  header={
+                    <>
+                      {detailHeader}
+                      <EventSectionHeader event={event} section="tables" />
+                      <NotificationItem itemId={notificationItemId(event.id, "tables")} />
+                    </>
+                  }
+                />
               ) : (
-                <ScrollTargetContext.Provider value={panel === "tables" ? tablesScroll : scroll}>
-                  <FlatList
-                    initialNumToRender={8}
-                    maxToRenderPerBatch={6}
-                    windowSize={7}
-                    key={eventId}
-                    ref={(node) => {
-                      const target = panel === "tables" ? tablesScroll : scroll;
-                      target.current = node?.getNativeScrollRef() as ScrollView | null;
-                    }}
-                    data={
-                      panel === "tables" && !communityAccessDenied(tables.error) ? tables.items : []
-                    }
-                    keyExtractor={(row) => row.id}
+                <ScrollTargetContext.Provider value={scroll}>
+                  <InputScrollView
+                    ref={scroll}
+                    style={{ flex: 1 }}
                     contentContainerStyle={{
                       padding: 20,
                       paddingTop: 12,
-                      gap: 12,
                       paddingBottom: layout.paddingBottom,
+                      gap: 12,
                     }}
-                    ListHeaderComponent={
-                      <View style={{ gap: 12 }}>
-                        <View>{detailHeader}</View>
-                        {panel === "details" ? (
-                          header
-                        ) : (
-                          <>
-                            <EventSectionHeader event={event} section="tables" />
-                            <NotificationItem itemId={notificationItemId(event.id, "tables")} />
-                          </>
-                        )}
-                      </View>
-                    }
-                    ListEmptyComponent={
-                      panel === "tables" && !tables.isPending && !tables.isError ? (
-                        <EmptyList icon={<Dices size={28} color={muted} />}>
-                          {t("No tables found")}
-                        </EmptyList>
-                      ) : null
-                    }
-                    renderItem={renderTable}
-                    onEndReached={() => {
-                      if (
-                        panel === "tables" &&
-                        tabRef.current === "tables" &&
-                        tables.hasNextPage &&
-                        !tables.isFetching &&
-                        !tables.isFetchNextPageError
-                      )
-                        void tables.fetchNextPage();
-                    }}
-                    ListFooterComponent={
-                      panel === "tables" ? (
-                        <View style={{ gap: 12 }}>
-                          {tables.isPending || tables.isFetchingNextPage ? (
-                            <Skeleton style={{ width: "100%", height: 128, borderRadius: 12 }} />
-                          ) : null}
-                          {tables.isError ? (
-                            <>
-                              <Typography accessibilityRole="alert" className="text-danger">
-                                {t("Could not load tables")}
-                              </Typography>
-                              <Button onPress={() => void tables.refetch()}>
-                                <Button.Label>{t("Try again")}</Button.Label>
-                              </Button>
-                            </>
-                          ) : null}
-                          {tables.hasNextPage ? (
-                            <Button
-                              isDisabled={tables.isFetchingNextPage}
-                              onPress={() => void tables.fetchNextPage()}
-                            >
-                              <Button.Label>{t("Load more")}</Button.Label>
-                            </Button>
-                          ) : null}
-                        </View>
-                      ) : null
-                    }
-                  />
+                  >
+                    {detailHeader}
+                    {header}
+                  </InputScrollView>
                 </ScrollTargetContext.Provider>
               )}
             </RetainedTabPanel>

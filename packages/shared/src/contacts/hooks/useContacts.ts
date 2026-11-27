@@ -75,7 +75,7 @@ export function relationshipListKey(
 }
 
 export function contactSuggestionsKey(apiUrl: string, userId: string | null | undefined) {
-  return ["contacts", "suggestions", apiUrl, userId, "device", "pages-v1"] as const;
+  return ["contacts", "suggestions", apiUrl, userId, "device", "pages-v2"] as const;
 }
 
 export interface ContactsApiOptions {
@@ -166,7 +166,7 @@ export async function fetchSuggestionPageWithToken(
 ): Promise<{ users: ContactUser[]; hasContacts: boolean; nextCursor: string | null }> {
   const params = new URLSearchParams({
     limit: "20",
-    scope: "contacts",
+    scope: "discovery",
     ...(cursor ? { cursor } : {}),
   });
   const res = await fetch(
@@ -235,7 +235,7 @@ export function searchUsers(
   const after = cursor ? `&cursor=${encodeURIComponent(cursor)}` : "";
   return fetch(
     withProtectionBypass(
-      `${apiUrl}/api/users/search?query=${encodeURIComponent(query)}${after}`,
+      `${apiUrl}/api/users/search?query=${encodeURIComponent(query)}&scope=discovery${after}`,
       protectionBypass,
     ),
     // GET: Authorization only — no Content-Type, so the request stays a

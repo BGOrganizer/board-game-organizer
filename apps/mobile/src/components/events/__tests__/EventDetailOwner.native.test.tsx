@@ -64,9 +64,11 @@ vi.mock("@clerk/expo", () => ({
     getToken: options().getToken,
   }),
 }));
+const navigation = { getState: () => ({ type: "stack" }), setOptions: vi.fn() };
 vi.mock("expo-router", () => ({
   useRouter: () => ({ push: boundary.push }),
-  useNavigation: () => ({ getState: () => ({ type: "stack" }) }),
+  useNavigation: () => navigation,
+  useFocusEffect: () => undefined,
   useLocalSearchParams: () => useContext(RouteParams),
   Stack: {
     Screen: ({ options: config }: { options: { headerRight?: () => ReactNode } }) => (

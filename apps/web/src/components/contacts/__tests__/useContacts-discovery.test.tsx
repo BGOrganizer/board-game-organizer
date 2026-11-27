@@ -41,7 +41,7 @@ function setup(isFriend = true) {
           ],
           pageParams: [""],
         });
-      client.setQueryData(["contacts", "suggestions", base, owner, "device", "pages-v1"], {
+      client.setQueryData(["contacts", "suggestions", base, owner, "device", "pages-v2"], {
         pages: [{ users: [], hasContacts: true, nextCursor: null }],
         pageParams: [""],
       });

@@ -423,7 +423,7 @@ it("opens one game-vote dialog for an accepted participant and prevents removal 
   await render(<Fixture />);
   await ready();
   expect(screen.queryByLabelText("Votes: Chess")).toBeNull();
-  expect(screen.queryByRole("button", { name: "Game information: Chess" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Game information: Chess" })).toBeVisible();
   expect(screen.getByRole("button", { name: "Game information: Strategy game" })).toBeVisible();
   const summary = screen.getByRole("button", { name: "Vote summary: Chess" });
   expect(within(summary).getByText("Votes")).toBeVisible();
@@ -452,7 +452,6 @@ it("opens one game-vote dialog for an accepted participant and prevents removal 
     path: `/api/events/${event.id}/votes`,
     input: { kind: "game", tableId: table.id, gameId: 1, vote: "IF_NEEDED" },
   });
-  await press("Vote summary: Chess");
   const gameInfo = screen.getByRole("button", { name: "Game information: Chess" });
   expect(gameInfo).toHaveStyle({ width: 28, height: 28 });
   await pressMeasuredPopover(gameInfo);

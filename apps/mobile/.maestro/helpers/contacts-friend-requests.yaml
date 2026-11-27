@@ -33,19 +33,13 @@ appId: com.bgo.boardgameorganizer.dev
     timeout: 30000
 - assertVisible: "Sent"
 - assertVisible: "^@[^ ]+$"
-# Reopening directory search keeps the outgoing action without sending another request.
-- tapOn: "Connections"
+# Active requests are hidden from the directory and stay actionable in Requests.
 - runFlow:
     file: contact-search.yaml
     env:
       CONTACT_EMAIL: ${EMAIL_2}
-      CONTACT_ACTIONS: "^Actions: E2E Target$"
-- tapOn: "^Actions: E2E Target$"
-- extendedWaitUntil:
-    visible: "^Cancel friend request$"
-    timeout: 30000
-- assertNotVisible: "^Send friend request$"
-- tapOn: "^Cancel$"
+      CONTACT_ACTIONS: "^No users found$"
+- assertNotVisible: "E2E Target"
 - tapOn: "Back"
 - tapOn: "Requests"
 - assertVisible: "E2E Target"

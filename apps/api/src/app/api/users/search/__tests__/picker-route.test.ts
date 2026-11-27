@@ -179,3 +179,65 @@ it("returns independent following, follower and mutual friendship state for sear
     { projection: { _id: 0 } },
   );
 });
+
+it("filters existing connections and both directions of pending requests before discovery cursors", async () => {
+  const candidateIds = [
+    "a_following",
+    "b_new",
+    "c_incoming",
+    "d_follower",
+    "e_mutual",
+    "f_outgoing",
+    "g_new",
+  ];
+  const find = vi.fn(({ clerkId }: { clerkId: { $nin: string[]; $gt?: string } }) => {
+    let limit = 0;
+    const cursor = {
+      sort: vi.fn().mockReturnThis(),
+      limit: (value: number) => {
+        limit = value;
+        return cursor;
+      },
+      toArray: async () =>
+        candidateIds
+          .filter((id) => !clerkId.$nin.includes(id) && id > (clerkId.$gt ?? ""))
+          .slice(0, limit)
+          .map((id) => ({ clerkId: id, name: "Player" })),
+    };
+    return cursor;
+  });
+  const friendFind = vi.fn(({ status }: { status: string }) => ({
+    toArray: async () =>
+      status === "pending"
+        ? [
+            { fromUserId: "c_incoming", toUserId: "viewer" },
+            { fromUserId: "viewer", toUserId: "f_outgoing" },
+          ]
+        : [
+            { fromUserId: "viewer", toUserId: "e_mutual" },
+            { fromUserId: "e_mutual", toUserId: "viewer" },
+            { fromUserId: "viewer", toUserId: "b_new" },
+          ],
+  }));
+  mocks.db.collection.mockImplementation((name: string) => {
+    if (name === "users") return { find };
+    if (name === "friendRequests") return { find: friendFind };
+    return {
+      find: (filter: { fromUserId?: string }) => ({
+        toArray: async () =>
+          filter.fromUserId ? [{ toUserId: "a_following" }] : [{ fromUserId: "d_follower" }],
+      }),
+    };
+  });
+  const url = "https://api.test/api/users/search?query=player&limit=1&scope=discovery";
+  const first = await (await GET(new Request(url))).json();
+  expect(first.users).toEqual([expect.objectContaining({ id: "b_new" })]);
+  expect(first.nextCursor).toBe("b_new");
+  const next = await (await GET(new Request(`${url}&cursor=${first.nextCursor}`))).json();
+  expect(next.users).toEqual([expect.objectContaining({ id: "g_new" })]);
+  expect(next.nextCursor).toBeNull();
+  expect(friendFind).toHaveBeenCalledWith(
+    { status: "pending", $or: [{ fromUserId: "viewer" }, { toUserId: "viewer" }] },
+    { projection: { _id: 0, fromUserId: 1, toUserId: 1 } },
+  );
+});

@@ -169,7 +169,9 @@ vi.mock("@board-game-organizer/shared", async (importOriginal) => ({
       isError: false,
     },
     search: {
-      data: mocks.searchResult ? { users: [target], nextCursor: null } : null,
+      data: mocks.searchResult
+        ? { users: [{ ...target, isFollowing: false }], nextCursor: null }
+        : null,
       isLoading: false,
       isError: mocks.searchError,
     },
@@ -513,6 +515,7 @@ describe("Contacts tabs", () => {
 
   it("web search shows BGO users and Back restores the synchronized address book", async () => {
     mocks.searchResult = true;
+    mocks.following = false;
     renderWithI18n(<Contacts />);
     fireEvent.click(screen.getByRole("tab", { name: "Search" }));
     expect(

@@ -20,6 +20,7 @@ import { GroupedList } from "@/components/common/ui/GroupedList";
 import { ScreenScrollView } from "@/components/common/ui/ScreenScrollView";
 import { SectionHeaderCard } from "@/components/common/ui/SectionHeaderCard";
 import { UserListRow } from "@/components/common/ui/UserListRow";
+import { GameCatalogMetadata } from "@/components/games/GameCatalogMetadata";
 import { useT } from "@/lib/i18n";
 import { useListActivity } from "@/lib/listActivity";
 import { useCommunityApi } from "@/lib/useCommunityApi";
@@ -105,12 +106,20 @@ export function EventTableResults({
               <SectionHeaderCard
                 title={game.name}
                 leading={
-                  <Avatar size="md" alt={game.name} accessible={false} className="rounded-lg">
-                    {game.imageUrl ? <Avatar.Image source={{ uri: game.imageUrl }} /> : null}
-                    <Avatar.Fallback>
-                      <Dices size={18} color={muted} accessible={false} />
-                    </Avatar.Fallback>
-                  </Avatar>
+                  <View style={{ position: "relative", overflow: "visible" }}>
+                    <Avatar size="md" alt={game.name} accessible={false} className="rounded-lg">
+                      {game.imageUrl ? <Avatar.Image source={{ uri: game.imageUrl }} /> : null}
+                      <Avatar.Fallback>
+                        <Dices size={18} color={muted} accessible={false} />
+                      </Avatar.Fallback>
+                    </Avatar>
+                    <View
+                      pointerEvents="box-none"
+                      style={{ position: "absolute", right: -10, bottom: -10, zIndex: 2 }}
+                    >
+                      <GameCatalogMetadata game={game} name={game.name} visible />
+                    </View>
+                  </View>
                 }
               />
             ) : null}

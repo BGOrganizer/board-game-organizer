@@ -196,7 +196,7 @@ function WidgetFrame({
           viewerUserId={output.viewerUserId}
           renderGameRow={(game) => <McpGameListRow key={game.id} app={app} game={game} />}
         />
-        {table ? <TableFinalResults data={table} /> : null}
+        {table ? <TableFinalResults app={app} data={table} /> : null}
       </section>
     );
   }

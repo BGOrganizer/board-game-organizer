@@ -8,7 +8,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { plannedTable } from "@/test-fixtures/eventRecords";
+import { chessMetadata, plannedTable } from "@/test-fixtures/eventRecords";
 import { RankingResults } from "./RankingResults";
 import { TableFinalResults } from "./TableFinalResults";
 import { WidgetNavigation } from "./WidgetNavigation";
@@ -247,7 +247,8 @@ it.each([
   },
 );
 
-it("uses the BGO final result rows and rating accordion for terminated table receipts", () => {
+it("uses the BGO result rows, host game metadata and rating accordion for finished tables", async () => {
+  call.mockResolvedValueOnce(response("get_bgg_games", { items: [chessMetadata] }));
   const data = {
     ...plannedTable,
     groupId: null,
@@ -273,11 +274,21 @@ it("uses the BGO final result rows and rating accordion for terminated table rec
     ],
     rankingEnabled: false,
   };
-  const waiting = show(<TableFinalResults data={{ ...data, eventStatus: "CONFIRMED" }} />);
+  const waiting = show(
+    <TableFinalResults app={app} data={{ ...data, eventStatus: "CONFIRMED" }} />,
+  );
   expect(screen.queryByRole("region", { name: "Results" })).toBeNull();
   waiting.unmount();
-  show(<TableFinalResults data={data} />);
+  show(<TableFinalResults app={app} data={data} />);
   expect(screen.getByRole("heading", { name: "Chess" })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Game information: Chess" }));
+  expect(await screen.findByText("Abstract Strategy")).toBeVisible();
+  expect(call).toHaveBeenCalledWith(
+    { name: "get_bgg_games", arguments: { query: { ids: "1" } } },
+    { signal: expect.any(AbortSignal) },
+  );
+  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape", code: "Escape" });
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   expect(screen.getByText("@ada")).toBeVisible();
   expect(screen.getByRole("img", { name: "Position: #1" })).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: /Rating details.*@ada/ }));

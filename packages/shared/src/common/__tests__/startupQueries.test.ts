@@ -1,6 +1,7 @@
 import { eventListDefaultOrder, groupRecordMemberRoles } from "@board-game-organizer/schemas";
 import { QueryClient } from "@tanstack/react-query";
 import { afterEach, expect, it, vi } from "vitest";
+import { contactSuggestionsKey } from "../../contacts/hooks/useContacts";
 import { eventRecordsQuery, recordTablesQuery } from "../../events/hooks/useEventRecords";
 import { bggAccountQuery } from "../../games/hooks/useBggAccount";
 import { bggPickerQuery } from "../../games/hooks/useBggPicker";
@@ -160,19 +161,11 @@ it("progressively warms scoped first pages, linked events and authorized groups,
     new Headers(init?.headers).get("Authorization"),
   );
   expect(new Set(headers).size).toBe(22);
+  expect(client.getQueryData(contactSuggestionsKey(options.apiUrl, options.userId))).toBeDefined();
+  expect(client.getQueryData(contactSuggestionsKey(options.apiUrl, "other"))).toBeUndefined();
   expect(
-    client.getQueryData([
-      "contacts",
-      "suggestions",
-      options.apiUrl,
-      options.userId,
-      "device",
-      "pages-v1",
-    ]),
-  ).toBeDefined();
-  expect(
-    client.getQueryData(["contacts", "suggestions", options.apiUrl, "other", "device", "pages-v1"]),
-  ).toBeUndefined();
+    urls.find((url) => url.pathname === "/api/users/suggestions")?.searchParams.get("scope"),
+  ).toBe("discovery");
   expect(
     client
       .getQueryCache()

@@ -144,7 +144,8 @@ export const eventListQuery = eventFilterPageQuery
         value.section === "mine" ||
         (value.section === "terminated" && !value.roles.includes("pending"))) &&
       ((value.sort === undefined && value.direction === undefined) ||
-        value.section !== undefined) &&
+        value.section !== undefined ||
+        value.groupId !== undefined) &&
       (value.cursor === undefined || value.cursor.startsWith("name:") === (value.sort === "name")),
   );
 export const personalTablesQuery = eventFilterPageQuery.extend({

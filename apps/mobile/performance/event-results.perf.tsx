@@ -18,7 +18,12 @@ import { expect, it, vi } from "vitest";
 import EventResultsScreen from "@/app/event/results";
 import { EventTableResults } from "@/components/events/EventTableResults";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
-import { plannedEvent, plannedTable, seat } from "../../web/src/test-fixtures/eventRecords";
+import {
+  chessMetadata,
+  plannedEvent,
+  plannedTable,
+  seat,
+} from "../../web/src/test-fixtures/eventRecords";
 import { assertRenderMeasurement } from "./assertRenderMeasurement";
 
 const boundary = vi.hoisted(() => ({
@@ -227,6 +232,7 @@ it("EventTableResults: expand immutable group and global ratings for a finished 
     ...table,
     groupId: "33333333-3333-4333-8333-333333333333",
     eventStatus: "TERMINATED",
+    gamesDetail: [chessMetadata],
     results: {
       lowerWins: false,
       entries: [

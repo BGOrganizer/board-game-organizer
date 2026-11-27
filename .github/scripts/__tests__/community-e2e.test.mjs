@@ -421,7 +421,7 @@ test("native device verification uses Clerk development fixtures, without disabl
   );
   for (const [name, expected] of [
     ["02-login", 1],
-    ["05-contacts-follow-block", 4],
+    ["05-contacts-follow-block", 6],
     ["07-reauth-after-logout", 1],
     ["09-group-invitations", 3],
   ]) {
@@ -1117,13 +1117,13 @@ test("native group invitations settle confirmations, handle permission and verif
       "utf8",
     ),
   )[1].toJSON();
-  const reset = setup.find((step) => step.runFlow?.when?.visible === "^Remove friend$");
-  assert.deepEqual(reset.runFlow.commands, [
-    { tapOn: "^Remove friend$" },
-    { extendedWaitUntil: { visible: { id: "confirm-unfriend-btn" }, timeout: 30000 } },
-    { tapOn: { id: "confirm-unfriend-btn" } },
-    { extendedWaitUntil: { notVisible: { id: "confirmation-dialog" }, timeout: 30000 } },
-  ]);
+  assert(
+    setup.some(
+      (step) =>
+        step.runFlow?.file === "contact-search.yaml" &&
+        step.runFlow.env.CONTACT_ACTIONS === "^Actions: E2E Target$",
+    ),
+  );
   const decisions = setup.filter((step) => step.runFlow?.file === "contact-action.yaml");
   assert.deepEqual(
     decisions.map((step) => step.runFlow.env.ACTION_LABEL),

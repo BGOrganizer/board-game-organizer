@@ -159,11 +159,16 @@ it("keeps Scheduled, Available and Terminated source pages separate, with Group 
   fireEvent.focus(screen.getByRole("searchbox", { name: "Filter" }));
   for (const name of ["Confirmed events", "Planning", "Terminated events"])
     expect(screen.getByRole("button", { name, pressed: true })).toBeTruthy();
-  expect(screen.queryByRole("button", { name: "Sort by Date" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Sort by Date" })).toBeVisible();
   expect(
     fetcher.mock.calls.some(([url]) => {
       const p = new URL(url).searchParams;
-      return p.get("groupId") === "club" && !p.has("section");
+      return (
+        p.get("groupId") === "club" &&
+        p.get("sort") === "date" &&
+        p.get("direction") === "asc" &&
+        !p.has("section")
+      );
     }),
   ).toBe(true);
 });

@@ -55,12 +55,16 @@ Main navigation is **History / Events / Groups / Community / Contacts**:
 - **Community:** Activities from your network, global Rankings, and the Marketplace placeholder.
 - **Contacts:** Connections, Requests and Search. Search opens with synchronized BGO contacts on top
   and other device contacts on mobile. Focus the search bar to search the BGO directory by first name,
-  last name, email or username.
+  last name, email or username. Existing connections and pending requests stay in their own tabs.
 
 > [!NOTE]
 > The [Groups / Events / Tables contract](docs/groups-events-tables.md) defines domain behavior.
 > Assess release readiness using current CI and runtime evidence, following the
 > [verification requirements](docs/verification-and-acceptance.md).
+
+Group event lists can be sorted by name or game date. An event’s Tables tab supports title search and
+sorting by name, date or seated players. Game covers show the BoardGameGeek details badge in table
+votes and finished results.
 
 ## Get started
 

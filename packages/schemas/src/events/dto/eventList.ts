@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { RecordListOrder } from "../../common/dto/common";
+import { type RecordListOrder, recordListSortFields } from "../../common/dto/common";
 import { eventStateSchema } from "../models/eventRecord";
 
 export const eventListSections = ["mine", "available", "terminated"] as const;
@@ -12,6 +12,14 @@ export const eventListDefaultOrder = {
   available: { sort: "date", direction: "asc" },
   terminated: { sort: "date", direction: "desc" },
 } as const satisfies Record<EventListSection, RecordListOrder>;
+export const eventTableListSortFields = [...recordListSortFields, "participants"] as const;
+export type EventTableListSortField = (typeof eventTableListSortFields)[number];
+export type EventTableListOrder = RecordListOrder<EventTableListSortField>;
+export const eventTableListDefaultOrder = {
+  sort: "name",
+  direction: "asc",
+} as const satisfies EventTableListOrder;
+
 export const tableListSections = ["mine", "waiting"] as const;
 export type TableListSection = (typeof tableListSections)[number];
 

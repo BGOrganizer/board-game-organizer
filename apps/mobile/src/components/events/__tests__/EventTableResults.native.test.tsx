@@ -16,7 +16,7 @@ import {
   installNativePopoverMeasurements,
   pressMeasuredPopover,
 } from "@/test/nativePopoverGeometry";
-import { plannedTable } from "../../../../../web/src/test-fixtures/eventRecords";
+import { chessMetadata, plannedTable } from "../../../../../web/src/test-fixtures/eventRecords";
 import { EventPlayerRatingPopover } from "../EventPlayerRatingPopover";
 import { EventTableResults } from "../EventTableResults";
 
@@ -77,6 +77,7 @@ function confirmed(change: Partial<PlannedTableResponse> = {}): PlannedTableResp
 function history(change: Partial<PlannedTableResponse> = {}): PlannedTableResponse {
   return confirmed({
     eventStatus: "TERMINATED",
+    gamesDetail: [chessMetadata],
     results: {
       lowerWins: false,
       entries: [
@@ -202,6 +203,12 @@ it("renders immutable completed standings from their frozen profiles without cal
   if (!header) throw new Error("Expected the table results header");
   expect(header).toHaveStyle({ gap: 16 });
   expect(within(header).getByRole("heading", { name: "Chess" })).toBeVisible();
+  const badge = within(header).getByRole("button", { name: "Game information: Chess" });
+  expect(badge).toHaveStyle({ width: 22, height: 22 });
+  await pressMeasuredPopover(badge);
+  expect(screen.getByText("BGG rating:")).toBeVisible();
+  expect(screen.getByText("7.30")).toBeVisible();
+  expect(await screen.findByText("Abstract Strategy")).toBeVisible();
   expect(screen.queryByRole("button", { name: "How OpenSkill works" })).toBeNull();
   expect(screen.getByText("@owner")).toBeVisible();
   expect(screen.getByText("@guest")).toBeVisible();
@@ -573,7 +580,7 @@ it("preserves current confirmed results after a later page failure and retries o
 it("renders a confirmed historical game cover and results when the caller supplies no optional header", async () => {
   const imageUrl = "https://game-image.example.test/chess.png";
   record = history({
-    gamesDetail: [{ ...plannedTable.gamesDetail[0], imageUrl }],
+    gamesDetail: [{ ...chessMetadata, imageUrl }],
   });
   await render(<Fixture table={record} header={null} />);
   expect(screen.getByText("Chess")).toBeVisible();

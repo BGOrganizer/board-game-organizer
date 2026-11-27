@@ -23,7 +23,7 @@ async function signIn(page: import("@playwright/test").Page, emailAddress: strin
   await completeMobileNumberIfNeeded(page);
 }
 
-async function findTarget(page: import("@playwright/test").Page, query = E2E_EMAIL_2) {
+async function openDirectory(page: import("@playwright/test").Page, query = E2E_EMAIL_2) {
   await page.getByRole("tab", { name: "Search" }).click();
   const panel = page.getByRole("tabpanel", { name: "Search" });
   await expect(panel.getByText("Section guide", { exact: true })).toBeVisible();
@@ -34,6 +34,11 @@ async function findTarget(page: import("@playwright/test").Page, query = E2E_EMA
   await searchInput.fill(query);
   await expect(panel.getByText("Section guide", { exact: true })).toBeHidden();
   await expect(panel.getByRole("button", { name: "Back" })).toBeVisible();
+  return panel;
+}
+
+async function findTarget(page: import("@playwright/test").Page, query = E2E_EMAIL_2) {
+  const panel = await openDirectory(page, query);
   await expect(panel.getByRole("listitem").getByText("E2E Target")).toBeVisible({
     timeout: 90_000,
   });
@@ -130,7 +135,8 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   await sendFriendRequest(page);
   await page.getByRole("button", { name: "Back" }).click();
   await expect(page.getByRole("searchbox")).toHaveValue("");
-  await expect(deviceContacts.getByText("E2E Target")).toBeVisible();
+  await expect(deviceContacts).toBeVisible();
+  await expect(deviceContacts.getByText("E2E Target")).toHaveCount(0);
   await page.getByRole("tab", { name: "Requests" }).click();
   await page.getByRole("button", { name: "Requests: Icon legend" }).click();
   const requestLegend = page.getByRole("dialog");
@@ -142,17 +148,10 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   await expect(sent.getByText(/^@\S+$/)).toBeVisible();
   await expect(sent.getByRole("img", { name: "Sent" })).toBeVisible({ timeout: 30_000 });
 
-  // Reenter cached subtabs without losing the canonical request action for this person.
+  // Pending contact requests disappear from discovery but remain actionable in Requests.
   await page.getByRole("tab", { name: "Connections" }).click();
-  await findTarget(page);
-  await page
-    .getByRole("listitem")
-    .filter({ hasText: "E2E Target" })
-    .getByRole("button", { name: "Actions" })
-    .click();
-  await expect(page.getByRole("menuitem", { name: "Cancel friend request" })).toBeVisible();
-  await expect(page.getByRole("menuitem", { name: "Send friend request" })).toHaveCount(0);
-  await page.keyboard.press("Escape");
+  const requestSearch = await openDirectory(page);
+  await expect(requestSearch.getByText("No users found")).toBeVisible();
   await page.getByRole("button", { name: "Back" }).click();
   await page.getByRole("tab", { name: "Requests" }).click();
   await expect(sent.getByRole("img", { name: "Sent" })).toBeVisible();
@@ -269,7 +268,6 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
       .getByText(/^@\S+$/),
   ).toBeVisible();
   await expect(page.getByRole("img", { name: "Friends" })).toBeVisible();
-  await targetContext.close();
 
   // One action removes friendship plus the actor's follow and refreshes every list.
   await page.getByRole("button", { name: "Actions" }).first().click();
@@ -278,7 +276,7 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   await page.getByRole("button", { name: "Remove friend", exact: true }).click();
   expect((await unfriendResponse).ok()).toBe(true);
   await expect(page.getByRole("img", { name: "Friends" })).toHaveCount(0);
-  await findTarget(page);
+  await expect(page.getByRole("img", { name: "Followers", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Actions" }).first().click();
   await expect(page.getByRole("menuitem", { name: "Follow", exact: true })).toBeVisible();
 
@@ -287,10 +285,11 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   await page.getByRole("menuitem", { name: "Follow", exact: true }).click();
   expect((await followResponse).ok()).toBe(true);
   releaseFollowing();
+  await expect(page.getByRole("img", { name: "Following" })).toBeVisible();
+  const followingSearch = await openDirectory(page);
+  await expect(followingSearch.getByText("No users found")).toBeVisible();
   await page.getByRole("button", { name: "Back" }).click();
   await page.getByRole("tab", { name: "Connections" }).click();
-  await expect(page.getByRole("img", { name: "Following" })).toBeVisible();
-  await findTarget(page);
   await page.getByRole("button", { name: "Actions" }).first().click();
   await expect(page.getByRole("menuitem", { name: "Unfollow", exact: true })).toBeVisible();
 
@@ -316,11 +315,8 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   await dialog.getByRole("button", { name: "Block", exact: true }).click();
   expect((await blockResponse).ok()).toBe(true);
 
-  // Blocked user disappears from search results.
-  await expect(page.getByText("E2E Target").first()).toBeHidden({ timeout: 30_000 });
-
   // Blocked user appears in Connections, never Requests.
-  await page.getByRole("button", { name: "Back" }).click();
+  await expect(page.getByRole("img", { name: "Blocked" })).toBeVisible();
   await page.getByRole("tab", { name: "Requests" }).click();
   await expect(page.getByText("E2E Target")).toHaveCount(0);
   await page.getByRole("tab", { name: "Connections" }).click();
@@ -333,7 +329,15 @@ test("contacts: friend lifecycle, follow/unfollow, block/unblock", async ({ page
   expect((await unblockResponse).ok()).toBe(true);
   await expect(page.getByRole("img", { name: "Blocked" })).toHaveCount(0);
 
-  // Back to search: the target is findable again.
+  // Remove the remaining incoming follow from the actor who owns it.
+  await targetPage.reload();
+  const ownerRow = targetPage.getByRole("listitem").filter({ hasText: "E2E Test" });
+  await ownerRow.getByRole("button", { name: "Actions" }).click();
+  const removeFollower = waitForRelationshipResponse(targetPage, "DELETE", "follow");
+  await targetPage.getByRole("menuitem", { name: "Unfollow", exact: true }).click();
+  expect((await removeFollower).ok()).toBe(true);
+  await targetContext.close();
+
+  await page.reload();
   await findTarget(page);
-  await expect(page.getByText("E2E Target").first()).toBeVisible({ timeout: 30_000 });
 });

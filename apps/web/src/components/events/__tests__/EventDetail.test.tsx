@@ -110,6 +110,36 @@ it("introduces the event sections and places its group after the schedule", asyn
   }
 });
 
+it("filters authorized event tables by title and keeps ordering available in header search", async () => {
+  tables = [
+    { ...plannedTable, id: "first", order: 0, seatedCount: 3 },
+    { ...plannedTable, id: "second", order: 1, seatedCount: 1 },
+  ];
+  mount();
+  fireEvent.click(await screen.findByRole("tab", { name: "Tables" }));
+  const filter = screen.getByRole("searchbox", { name: "Filter" });
+  const sort = screen.getByRole("button", { name: "Sort by Name" });
+  expect(screen.getByRole("button", { name: "Event tables help" })).toBeVisible();
+  fireEvent.focus(filter);
+  expect(screen.queryByRole("button", { name: "Event tables help" })).toBeNull();
+  fireEvent.click(sort);
+  fireEvent.click(await screen.findByRole("menuitemradio", { name: "Number of players" }));
+  expect(await screen.findByRole("button", { name: "Sort by Number of players" })).toBeVisible();
+  const sorted = await screen.findAllByRole("link", { name: /^Open table:/ });
+  expect(sorted.map((link) => link.getAttribute("aria-label"))).toEqual([
+    "Open table: Table #2",
+    "Open table: Table #1",
+  ]);
+  fireEvent.change(filter, { target: { value: "2" } });
+  await waitFor(() =>
+    expect(screen.queryByRole("link", { name: "Open table: Table #1" })).toBeNull(),
+  );
+  fireEvent.click(screen.getByRole("button", { name: /^Back$/ }));
+  expect(filter).toHaveValue("");
+  expect(screen.getByRole("button", { name: "Sort by Number of players" })).toBeVisible();
+  expect(await screen.findByRole("link", { name: "Open table: Table #1" })).toBeVisible();
+});
+
 it("explains final eligibility in the Italian sections of a shared event", async () => {
   event = { ...event, status: "TERMINATED", readOnly: true, sharedResultsOnly: true };
   mount(undefined, "it");

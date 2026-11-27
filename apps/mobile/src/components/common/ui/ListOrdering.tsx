@@ -1,9 +1,9 @@
-import { type RecordListOrder, recordListSortFields } from "@board-game-organizer/schemas";
+import type { EventTableListSortField, RecordListOrder } from "@board-game-organizer/schemas";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Menu } from "heroui-native/menu";
 import { Typography } from "heroui-native/text";
-import { ArrowDown, ArrowUp, CalendarDays, ListOrdered } from "lucide-react-native";
+import { ArrowDown, ArrowUp, CalendarDays, ListOrdered, UsersRound } from "lucide-react-native";
 import { memo } from "react";
 import { View } from "react-native";
 import { useT } from "@/lib/i18n";
@@ -17,18 +17,21 @@ const face = {
   gap: 4,
 } as const;
 
-export const ListOrdering = memo(function ListOrdering({
+function ListOrderingControl<Field extends EventTableListSortField>({
   order: { sort, direction },
   onChange,
+  fields: availableFields,
 }: {
-  order: RecordListOrder;
-  onChange: (order: RecordListOrder) => void;
+  order: RecordListOrder<Field>;
+  onChange: (order: RecordListOrder<Field>) => void;
+  fields: readonly Field[];
 }) {
   const t = useT();
   const [accent, foreground] = useThemeColor(["accent", "foreground"]);
   const fields = {
     name: { label: t("Name"), Icon: ListOrdered },
     date: { label: t("Date"), Icon: CalendarDays },
+    participants: { label: t("Number of players"), Icon: UsersRound },
   };
   const { label, Icon } = fields[sort];
   const DirectionIcon = direction === "asc" ? ArrowUp : ArrowDown;
@@ -68,11 +71,11 @@ export const ListOrdering = memo(function ListOrdering({
                 disallowEmptySelection
                 selectedKeys={[sort]}
                 onSelectionChange={(keys) => {
-                  const field = recordListSortFields.find((item) => keys.has(item));
+                  const field = availableFields.find((item) => keys.has(item));
                   if (field) onChange({ sort: field, direction });
                 }}
               >
-                {recordListSortFields.map((field) => {
+                {availableFields.map((field) => {
                   const { Icon, label } = fields[field];
                   return (
                     <Menu.Item key={field} id={field} accessibilityLabel={label}>
@@ -102,4 +105,6 @@ export const ListOrdering = memo(function ListOrdering({
       </View>
     </View>
   );
-});
+}
+
+export const ListOrdering = memo(ListOrderingControl) as typeof ListOrderingControl;

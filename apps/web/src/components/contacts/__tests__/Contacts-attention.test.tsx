@@ -17,6 +17,7 @@ const mutations = vi.hoisted(() => ({
   isPending: false,
   searchUsers: false,
   deviceOnly: false,
+  suggestionFollowing: false,
 }));
 const getToken = async () => "fresh";
 const options = { apiUrl: "https://api.test", userId: "user_1", getToken };
@@ -72,7 +73,14 @@ vi.mock("@board-game-organizer/shared", async (original) => ({
           : [{ fromUserId: user.id, toUserId: "user_1", profile: user }],
       },
       sent: page,
-      suggestions: { ...page, data: { users: mutations.deviceOnly ? [user] : [] } },
+      suggestions: {
+        ...page,
+        data: {
+          users: mutations.deviceOnly
+            ? [{ ...user, isFollowing: mutations.suggestionFollowing }]
+            : [],
+        },
+      },
       search: { ...page, data: { users: mutations.searchUsers ? [user] : [] } },
       runSearch: vi.fn(),
       isBusy: () => false,
@@ -132,43 +140,54 @@ afterEach(() => {
   vi.clearAllMocks();
   mutations.searchUsers = false;
   mutations.deviceOnly = false;
+  mutations.suggestionFollowing = false;
 });
-it("requests attention for device contacts whose existing connection is off-page, without reading a device subsection", async () => {
-  mutations.deviceOnly = true;
-  client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const fetcher = vi.fn(async (url: string, _init?: RequestInit) => {
-    const requested = JSON.parse(new URL(url).searchParams.get("targets") ?? "[]");
-    return Response.json({
-      ...source(),
-      targets: source().targets.filter((row) =>
-        requested.some(
-          (target: NotificationAttentionTarget) =>
-            target.kind === row.target.kind && target.id === row.target.id,
+it.each([false, true])(
+  "reflects unread actor markers only for visible device contacts (already following: %s)",
+  async (alreadyFollowing) => {
+    mutations.deviceOnly = true;
+    mutations.suggestionFollowing = alreadyFollowing;
+    client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const fetcher = vi.fn(async (url: string, _init?: RequestInit) => {
+      const requested = JSON.parse(new URL(url).searchParams.get("targets") ?? "[]");
+      return Response.json({
+        ...source(),
+        targets: source().targets.filter((row) =>
+          requested.some(
+            (target: NotificationAttentionTarget) =>
+              target.kind === row.target.kind && target.id === row.target.id,
+          ),
         ),
-      ),
+      });
     });
-  });
-  vi.stubGlobal("fetch", fetcher);
-  renderWithI18n(
-    <QueryClientProvider client={client}>
-      <Contacts />
-    </QueryClientProvider>,
-  );
-  const device = screen.getByRole("tab", { name: "Search" });
-  await waitFor(() =>
-    expect(within(device).getByRole("img", { name: "Needs attention" })).toBeTruthy(),
-  );
-  fireEvent.click(device);
-  expect(await screen.findByText("Target User")).toBeTruthy();
-  expect(
-    fetcher.mock.calls.some(([url]) =>
-      new URL(url).searchParams.get("targets")?.includes('"kind":"contact"'),
-    ),
-  ).toBe(true);
-  expect(fetcher.mock.calls.every(([url]) => !url.includes('"id":"device"'))).toBe(true);
-  expect(fetcher.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
-});
-it("mirrors source-backed actor markers into Connections and loaded Search results without reading another subsection", async () => {
+    vi.stubGlobal("fetch", fetcher);
+    renderWithI18n(
+      <QueryClientProvider client={client}>
+        <Contacts />
+      </QueryClientProvider>,
+    );
+    const device = screen.getByRole("tab", { name: "Search" });
+    fireEvent.click(device);
+    if (alreadyFollowing) {
+      expect(await screen.findByText("No contacts to invite")).toBeVisible();
+      expect(screen.queryByText("Target User")).toBeNull();
+      expect(within(device).queryByRole("img", { name: "Needs attention" })).toBeNull();
+    } else {
+      expect(await screen.findByText("Target User")).toBeVisible();
+      await waitFor(() =>
+        expect(within(device).getByRole("img", { name: "Needs attention" })).toBeTruthy(),
+      );
+    }
+    expect(
+      fetcher.mock.calls.some(([url]) =>
+        new URL(url).searchParams.get("targets")?.includes('"kind":"contact"'),
+      ),
+    ).toBe(!alreadyFollowing);
+    expect(fetcher.mock.calls.every(([url]) => !url.includes('"id":"device"'))).toBe(true);
+    expect(fetcher.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
+  },
+);
+it("keeps an existing connection and its unread marker out of Search without reading another subsection", async () => {
   client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
@@ -205,11 +224,9 @@ it("mirrors source-backed actor markers into Connections and loaded Search resul
   const input = screen.getByRole("searchbox");
   fireEvent.focus(input);
   fireEvent.change(input, { target: { value: "target" } });
-  await screen.findByText("Target User");
-  expect(within(search).getByRole("img", { name: "Needs attention", hidden: true })).toBeTruthy();
-  expect(
-    screen.getByText("Target User").closest("li")?.querySelector('[aria-label="Unread updates"]'),
-  ).not.toBeNull();
+  expect(await screen.findByText("No users found")).toBeVisible();
+  expect(screen.queryByText("Target User")).toBeNull();
+  expect(within(search).queryByRole("img", { name: "Needs attention", hidden: true })).toBeNull();
   expect(
     client
       .getQueryData<NotificationAttentionSnapshot>(

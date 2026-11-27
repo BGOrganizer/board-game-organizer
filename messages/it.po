@@ -7933,3 +7933,6 @@ msgstr "Cerca utenti per nome, email o username"
 
 msgid "Find BGO users by first name, last name, email, or username, including people outside your contacts."
 msgstr "Cerca utenti BGO per nome, cognome, email o username, anche se non sono nella tua rubrica."
+
+msgid "People already in Connections or Requests appear in those tabs."
+msgstr "Chi è già tra le connessioni o ha una richiesta in attesa compare nel relativo tab."

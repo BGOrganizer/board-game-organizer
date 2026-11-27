@@ -194,6 +194,14 @@ describe("unified request boundaries", () => {
     expect(recordQuery(req("section=mine"), eventListQuery).sort).toBeUndefined();
   });
 
+  it("allows a Group's events to be ordered by name or date", () => {
+    for (const sort of ["name", "date"] as const) {
+      expect(
+        recordQuery(req(`groupId=${id}&sort=${sort}&direction=desc`), eventListQuery),
+      ).toMatchObject({ groupId: id, sort, direction: "desc" });
+    }
+  });
+
   it.each([
     "section=mine&roles=participant,",
     "section=mine&roles=demonstrator",
@@ -206,7 +214,6 @@ describe("unified request boundaries", () => {
     "sort=date",
     "direction=asc",
     `groupId=${id}&roles=participant`,
-    `groupId=${id}&sort=name`,
     `section=available&sort=name&cursor=${encodeURIComponent(cursor)}`,
     `section=mine&sort=date&cursor=${encodeURIComponent(`name:Games|${id}`)}`,
     `section=mine&cursor=${encodeURIComponent(`name:Games|${id}`)}`,

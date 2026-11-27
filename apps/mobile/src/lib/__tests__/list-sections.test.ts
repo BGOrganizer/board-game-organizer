@@ -108,7 +108,7 @@ it.each([
       statuses: filters.selected,
       query: "z",
       roles: undefined,
-      order: undefined,
+      order,
     });
     const options = expression("events/EventList", "ListSearch", "options");
     const labels = {

@@ -51,6 +51,15 @@ describe("listParamsSchema / limitSchema", () => {
 });
 
 describe("searchContactsParamsSchema", () => {
+  it("supports the opt-in contact discovery scope", () => {
+    expect(searchContactsParamsSchema.parse({ query: "alice", scope: "discovery" }).scope).toBe(
+      "discovery",
+    );
+    expect(
+      searchContactsParamsSchema.safeParse({ query: "alice", scope: "contacts" }).success,
+    ).toBe(false);
+  });
+
   it("accepts a valid query with defaults", () => {
     const parsed = searchContactsParamsSchema.parse({ query: "alessandro" });
     expect(parsed.query).toBe("alessandro");

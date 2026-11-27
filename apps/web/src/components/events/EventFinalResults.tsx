@@ -1,6 +1,6 @@
 "use client";
 
-import type { PlannedTableResponse } from "@board-game-organizer/schemas";
+import type { BggSearchItem, PlannedTableResponse } from "@board-game-organizer/schemas";
 import {
   eventTablePeople,
   formatUsername,
@@ -9,7 +9,7 @@ import {
 import { Avatar, Button } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { Dices, Trophy } from "lucide-react";
-import { useMemo, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { SectionHeaderCard } from "@/components/common/ui/SectionHeaderCard";
 import { EventFinalResultRow } from "./EventFinalResultRow";
@@ -18,7 +18,13 @@ type FinalTable = Parameters<typeof eventTablePeople>[0] &
   Parameters<typeof tablePlayerRatingRows>[0] &
   Pick<PlannedTableResponse, "gamesDetail">;
 
-export function EventFinalResults({ table }: { table: FinalTable }) {
+export function EventFinalResults({
+  table,
+  renderGameMetadata,
+}: {
+  table: FinalTable;
+  renderGameMetadata: (game: BggSearchItem) => ReactNode;
+}) {
   const { t } = useLingui();
   const rows = useMemo(() => eventTablePeople(table, []), [table]);
   const [count, setCount] = useState(8);
@@ -32,12 +38,15 @@ export function EventFinalResults({ table }: { table: FinalTable }) {
         <SectionHeaderCard
           title={game.name}
           leading={
-            <Avatar size="md" className="shrink-0 rounded-xl">
-              <Avatar.Image src={game.imageUrl ?? undefined} alt="" />
-              <Avatar.Fallback>
-                <Dices aria-hidden className="size-4" />
-              </Avatar.Fallback>
-            </Avatar>
+            <div className="relative shrink-0">
+              <Avatar size="md" className="rounded-xl">
+                <Avatar.Image src={game.imageUrl ?? undefined} alt="" />
+                <Avatar.Fallback>
+                  <Dices aria-hidden className="size-4" />
+                </Avatar.Fallback>
+              </Avatar>
+              <div className="absolute -right-2.5 -bottom-2.5 z-10">{renderGameMetadata(game)}</div>
+            </div>
           }
         />
       ) : null}

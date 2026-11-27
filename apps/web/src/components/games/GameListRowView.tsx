@@ -15,7 +15,7 @@ type MetadataProps = {
   game: BggSearchItem;
   name: string;
   visible: boolean;
-  render?: (badge: ReactNode) => ReactNode;
+  size?: "sm" | "md";
 };
 
 export type GameListRowProps = {
@@ -100,33 +100,28 @@ export function GameListRowView({
       {children}
     </div>
   );
-  if (disclosure) {
-    const renderRow = (badge?: ReactNode) => (
+  const coverBadge = game
+    ? renderMetadata({ name, game, visible: id === visibleId, size: disclosure ? "md" : "sm" })
+    : null;
+  const coverWithBadge = (
+    <div className="relative shrink-0">
+      {image}
+      {coverBadge ? <div className="absolute -right-2 -bottom-2 z-10">{coverBadge}</div> : null}
+    </div>
+  );
+  if (disclosure)
+    return (
       <ExpandableGroupedRow
-        disclosure={{
-          ...disclosure,
-          content: badge ? (
-            <div className="flex items-center gap-2">
-              {badge}
-              <div className="min-w-0 flex-1">{disclosure.content}</div>
-            </div>
-          ) : (
-            disclosure.content
-          ),
-        }}
+        disclosure={disclosure}
         summary={
           <>
-            {image}
+            {coverWithBadge}
             {identity}
           </>
         }
         actions={actions}
       />
     );
-    return game
-      ? renderMetadata({ name, game, visible: id === visibleId, render: renderRow })
-      : renderRow();
-  }
   return (
     <GroupedRow className="w-full flex-wrap">
       <div className="relative flex min-w-0 flex-1">
@@ -143,14 +138,12 @@ export function GameListRowView({
           </Button>
         ) : (
           <div className="flex min-w-0 flex-1 items-center gap-2">
-            {image}
+            {coverWithBadge}
             {identity}
           </div>
         )}
-        {game ? (
-          <div className="absolute top-1/2 left-[26px] z-10 mt-0.5">
-            {renderMetadata({ name, game, visible: id === visibleId })}
-          </div>
+        {onPress && coverBadge ? (
+          <div className="absolute top-1/2 left-[26px] z-10 mt-0.5">{coverBadge}</div>
         ) : null}
       </div>
       {actions}

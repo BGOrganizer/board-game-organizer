@@ -3,6 +3,7 @@
 import {
   type ContactUser,
   contactConnections,
+  contactDiscoveryFilter,
   formatUsername,
   hasContactRelationship,
   reportPresence,
@@ -292,8 +293,11 @@ export function Contacts() {
 
   const blockedRows = contacts.blocked.data ?? [];
   const suggestions = contacts.suggestions.data?.users ?? [];
+  const showInSearch = contactDiscoveryFilter(contacts.knownConnectionIds, pendingRows, sentRows);
   const searchResults =
-    headerSearch.active && validQuery && !searchPending ? (contacts.search.data?.users ?? []) : [];
+    headerSearch.active && validQuery && !searchPending
+      ? (contacts.search.data?.users ?? []).filter(showInSearch)
+      : [];
 
   const connections = contactConnections(
     friendsRows,
@@ -303,7 +307,7 @@ export function Contacts() {
     blockedRows,
     contacts.knownConnectionIds,
   );
-  const bgoContacts = suggestions;
+  const bgoContacts = suggestions.filter(showInSearch);
   const connectionLabels = {
     friends: t`Friends`,
     following: t`Following`,
@@ -441,6 +445,7 @@ export function Contacts() {
               <HelpSectionCard title={t`Search`} icon={Search} label={t`Contact search help`}>
                 <p>{t`Find BGO users by first name, last name, email, or username, including people outside your contacts.`}</p>
                 <p>{t`Type at least 4 characters to search`}</p>
+                <p>{t`People already in Connections or Requests appear in those tabs.`}</p>
                 <p>{t`Sync your address book from the mobile app to see friend suggestions here.`}</p>
                 <p>{t`Send a friend request to connect with a contact who already uses Board Game Organizer.`}</p>
               </HelpSectionCard>

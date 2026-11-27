@@ -228,45 +228,55 @@ it("keeps the selected game label when closing search restores an option window 
   expect(screen.queryByText("Unknown")).toBeNull();
 });
 
-it("expands compact player statistics while keeping rank and sorting controls visible", async () => {
-  vi.stubGlobal("matchMedia", (query: string) => ({
-    media: query,
-    matches: query === "(max-width: 639px)",
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-  }));
-  try {
-    renderWithI18n(<Leaderboard groupId="test" groupName="Game night" />);
-    expect(screen.getByText("Choose a game to see the leaderboard")).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: /Board game/ }));
-    fireEvent.click(await screen.findByRole("option", { name: "Azul" }));
-    const list = screen.getByRole("list", { name: "Group leaderboard" });
-    const card = within(list).getByTestId("group-ranking-player-former");
-    expect(within(card).getByText("@grace")).toBeVisible();
-    expect(within(card).getByText("Former group member")).toBeVisible();
-    expect(within(card).getByText("OpenSkill")).toBeVisible();
-    const row = within(card);
-    const position = row.getByRole("img", { name: "Position: #4" });
-    expect(position).toHaveTextContent("#4");
-    expect(position.compareDocumentPosition(row.getByText("@grace"))).toBe(
-      Node.DOCUMENT_POSITION_FOLLOWING,
-    );
-    const statistics = row.getByRole("button", { name: /Game statistics: @grace/ });
-    expect(statistics).toHaveAttribute("aria-expanded", "false");
-    for (const label of ["Played", "Wins", "ND"]) expect(row.queryByText(label)).toBeNull();
-    fireEvent.click(statistics);
-    expect(statistics).toHaveAttribute("aria-expanded", "true");
-    for (const label of ["Played", "Wins", "ND"]) expect(row.getByText(label)).toBeVisible();
-    fireEvent.click(statistics);
-    expect(statistics).toHaveAttribute("aria-expanded", "false");
-    expect(row.queryByText("ND")).toBeNull();
-    expect(screen.queryByRole("grid")).toBeNull();
-    expect(screen.getByTestId("ranking-sort-metric")).toBeVisible();
-    expect(screen.getByTestId("ranking-sort-direction")).toBeVisible();
-  } finally {
-    vi.unstubAllGlobals();
-  }
-});
+it.each([false, true])(
+  "expands compact player statistics and applies the row spacing for global=%s",
+  async (global) => {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      media: query,
+      matches: query === "(max-width: 639px)",
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+    try {
+      renderWithI18n(<Leaderboard groupId={global ? undefined : "test"} groupName="Game night" />);
+      expect(screen.getByText("Choose a game to see the leaderboard")).toBeVisible();
+      fireEvent.click(screen.getByRole("button", { name: /Board game/ }));
+      fireEvent.click(await screen.findByRole("option", { name: "Azul" }));
+      const list = screen.getByRole("list", {
+        name: global ? "Global leaderboard" : "Group leaderboard",
+      });
+      const card = within(list).getByTestId("group-ranking-player-former");
+      expect(within(card).getByText("@grace")).toBeVisible();
+      expect(within(card).getByText("Former group member")).toBeVisible();
+      expect(within(card).getByText("OpenSkill")).toBeVisible();
+      const row = within(card);
+      const position = row.getByRole("img", { name: "Position: #4" });
+      expect(position).toHaveTextContent("#4");
+      expect(position.compareDocumentPosition(row.getByText("@grace"))).toBe(
+        Node.DOCUMENT_POSITION_FOLLOWING,
+      );
+      const statistics = row.getByRole("button", { name: /Game statistics: @grace/ });
+      expect(statistics).toHaveAttribute("aria-expanded", "false");
+      if (global) {
+        expect(statistics).toHaveClass("py-3", "pe-3");
+        expect(statistics.closest(".ps-4")).toBeVisible();
+      }
+      for (const label of ["Played", "Wins", "ND"]) expect(row.queryByText(label)).toBeNull();
+      fireEvent.click(statistics);
+      expect(statistics).toHaveAttribute("aria-expanded", "true");
+      for (const label of ["Played", "Wins", "ND"]) expect(row.getByText(label)).toBeVisible();
+      if (global) expect(row.getByText("Wins").closest(".pb-3")).toHaveClass("ps-4");
+      fireEvent.click(statistics);
+      expect(statistics).toHaveAttribute("aria-expanded", "false");
+      expect(row.queryByText("ND")).toBeNull();
+      expect(screen.queryByRole("grid")).toBeNull();
+      expect(screen.getByTestId("ranking-sort-metric")).toBeVisible();
+      expect(screen.getByTestId("ranking-sort-direction")).toBeVisible();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  },
+);
 
 it("changes both sort directions through the desktop table headers", async () => {
   renderWithI18n(<Leaderboard groupId="test" />);

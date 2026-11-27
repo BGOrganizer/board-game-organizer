@@ -1,17 +1,11 @@
 import { z } from "zod";
 import { cursorSchema, limitSchema } from "../../common/dto/common";
 
-/**
- * DTOs for contact search (`GET /api/relationships/search`).
- *
- * Search runs against the MongoDB text index with a Clerk API fallback, is
- * rate limited (20 req/min), and is block-filtered (asymmetric: users you
- * blocked are hidden, users who blocked you remain findable by explicit
- * name search so the blocker perceives nothing).
- */
+/** Filters for the authenticated user directory. */
 export const searchContactsParamsSchema = z.object({
   query: z.string().trim().min(1).max(100),
   friendsOnly: z.enum(["true", "false"]).optional(),
+  scope: z.literal("discovery").optional(),
   cursor: cursorSchema.optional(),
   limit: limitSchema,
 });

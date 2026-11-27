@@ -1,38 +1,11 @@
 appId: com.bgo.boardgameorganizer.dev
 ---
-# Normalize any existing friendship through real UI; new request/accept stay mandatory.
+# Use the provisioned pair with a clean social graph.
 - runFlow:
     file: contact-search.yaml
     env:
       CONTACT_EMAIL: ${EMAIL_2}
       CONTACT_ACTIONS: "^Actions: E2E Target$"
-- tapOn: "^Actions: E2E Target$"
-- extendedWaitUntil:
-    visible: "^Send friend request$|^Remove friend$"
-    timeout: 30000
-- runFlow:
-    when:
-      visible: "^Remove friend$"
-    commands:
-      - tapOn: "^Remove friend$"
-      - extendedWaitUntil:
-          visible:
-            id: "confirm-unfriend-btn"
-          timeout: 30000
-      - tapOn:
-          id: "confirm-unfriend-btn"
-      - extendedWaitUntil:
-          notVisible:
-            id: "confirmation-dialog"
-          timeout: 30000
-- runFlow:
-    when:
-      visible: "^Send friend request$"
-    commands:
-      - back
-- extendedWaitUntil:
-    notVisible: "^Send friend request$|^Remove friend$"
-    timeout: 30000
 - runFlow:
     file: contact-action.yaml
     env:

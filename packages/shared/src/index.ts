@@ -21,6 +21,7 @@ export * from "./contacts/hooks/usePeoplePicker";
 export * from "./contacts/phoneCountries";
 export * from "./events/eventAgreement";
 export * from "./events/eventCardIndicators";
+export * from "./events/eventDetailTables";
 export * from "./events/eventForm";
 export * from "./events/eventGameDuration";
 export * from "./events/eventJoinAvailability";

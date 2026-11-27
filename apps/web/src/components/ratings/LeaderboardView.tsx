@@ -345,10 +345,14 @@ export function LeaderboardView({
                               <Accordion.Item id={player.userId}>
                                 {({ isExpanded }) => (
                                   <>
-                                    <div className="flex items-center gap-1 ps-2">
+                                    <div
+                                      className={`flex items-center gap-1 ${group ? "ps-2" : "ps-4"}`}
+                                    >
                                       {identity(player)}
                                       <Accordion.Heading className="shrink-0">
-                                        <Accordion.Trigger className="min-h-11 gap-1.5 px-2 py-1">
+                                        <Accordion.Trigger
+                                          className={`min-h-11 gap-1.5 ${group ? "px-2 py-1" : "py-3 pe-3 ps-2"}`}
+                                        >
                                           <span className="sr-only">
                                             {t`Game statistics`}:{" "}
                                             {formatUsername(
@@ -375,7 +379,11 @@ export function LeaderboardView({
                                     </div>
                                     <Accordion.Panel>
                                       {isExpanded ? (
-                                        <Accordion.Body className="px-2 pt-0 pb-2">
+                                        <Accordion.Body
+                                          className={
+                                            group ? "px-2 pt-0 pb-2" : "pt-0 pe-3 pb-3 ps-4"
+                                          }
+                                        >
                                           <dl className="grid grid-cols-3 gap-2 border-separator border-t pt-2">
                                             {(["gamesPlayed", "gamesWon", "nd"] as const).map(
                                               (metric) => {
@@ -480,17 +488,27 @@ export function LeaderboardView({
                                 data-testid={`group-ranking-player-${player.userId}`}
                                 className={player.left ? "opacity-60" : undefined}
                               >
-                                <Table.Cell className="min-w-0">{identity(player)}</Table.Cell>
-                                <Table.Cell className="text-right tabular-nums">
+                                <Table.Cell className={group ? "min-w-0" : "min-w-0 py-3 ps-4"}>
+                                  {identity(player)}
+                                </Table.Cell>
+                                <Table.Cell
+                                  className={`text-right tabular-nums ${group ? "" : "px-3 py-3"}`}
+                                >
                                   {Math.max(0, player.gamesPlayed - player.nd)}
                                 </Table.Cell>
-                                <Table.Cell className="text-right tabular-nums">
+                                <Table.Cell
+                                  className={`text-right tabular-nums ${group ? "" : "px-3 py-3"}`}
+                                >
                                   {player.gamesWon}
                                 </Table.Cell>
-                                <Table.Cell className="text-right tabular-nums">
+                                <Table.Cell
+                                  className={`text-right tabular-nums ${group ? "" : "px-3 py-3"}`}
+                                >
                                   {player.nd}
                                 </Table.Cell>
-                                <Table.Cell>{rating(player)}</Table.Cell>
+                                <Table.Cell className={group ? undefined : "py-3 pe-3"}>
+                                  {rating(player)}
+                                </Table.Cell>
                               </Table.Row>
                             ))}
                           </Table.Body>

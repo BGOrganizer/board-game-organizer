@@ -1,22 +1,25 @@
 "use client";
 
-import { type RecordListOrder, recordListSortFields } from "@board-game-organizer/schemas";
+import type { EventTableListSortField, RecordListOrder } from "@board-game-organizer/schemas";
 import { Button, Dropdown, Label } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowDown, ArrowUp, CalendarDays, ListOrdered } from "lucide-react";
+import { ArrowDown, ArrowUp, CalendarDays, ListOrdered, UsersRound } from "lucide-react";
 import { memo } from "react";
 
-export const ListOrdering = memo(function ListOrdering({
+function ListOrderingControl<Field extends EventTableListSortField>({
   order: { sort, direction },
   onChange,
+  fields: availableFields,
 }: {
-  order: RecordListOrder;
-  onChange: (order: RecordListOrder) => void;
+  order: RecordListOrder<Field>;
+  onChange: (order: RecordListOrder<Field>) => void;
+  fields: readonly Field[];
 }) {
   const { t } = useLingui();
   const fields = {
     name: { label: t`Name`, Icon: ListOrdered },
     date: { label: t`Date`, Icon: CalendarDays },
+    participants: { label: t`Number of players`, Icon: UsersRound },
   };
   const { label, Icon } = fields[sort];
   const DirectionIcon = direction === "asc" ? ArrowUp : ArrowDown;
@@ -44,7 +47,7 @@ export const ListOrdering = memo(function ListOrdering({
               disallowEmptySelection
               selectedKeys={[sort]}
             >
-              {recordListSortFields.map((field) => {
+              {availableFields.map((field) => {
                 const { Icon, label } = fields[field];
                 return (
                   <Dropdown.Item
@@ -77,4 +80,6 @@ export const ListOrdering = memo(function ListOrdering({
       </div>
     </div>
   );
-});
+}
+
+export const ListOrdering = memo(ListOrderingControl) as typeof ListOrderingControl;

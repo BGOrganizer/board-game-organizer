@@ -1,3 +1,4 @@
+import { contactRelationshipIds } from "./contactRelationshipIds";
 import type { ContactUser, RelationshipRow } from "./hooks/useContacts";
 
 export type ContactConnectionIds = {
@@ -80,4 +81,18 @@ export function hasContactRelationship(
   user: Pick<ContactUser, "id" | "isFriend" | "isFollowing" | "isFollower" | "blockedByMe">,
 ): boolean {
   return Boolean(user.blockedByMe || user.isFriend || user.isFollowing || user.isFollower);
+}
+
+/** Hide locally known relationships while the authorized discovery pages reconcile. */
+export function contactDiscoveryFilter(
+  known: ContactConnectionIds | undefined,
+  pending: RelationshipRow[],
+  sent: RelationshipRow[],
+): (user: ContactUser) => boolean {
+  const requests = contactRelationshipIds([{ rows: pending }, { rows: sent }]);
+  const exclusionSets = [...Object.values(known ?? {}), requests];
+  return (user) =>
+    !hasContactRelationship(user) &&
+    !user.blockedMe &&
+    !exclusionSets.some((ids) => ids.has(user.id));
 }

@@ -113,7 +113,8 @@ it("shares one horizontal Table card across feeds with only Back context varying
   const indicators =
     source("events", "EventTableCardIndicators") + source("events", "EventTableRatingInfo");
   expect(source("events", "TableList")).toContain('context="personal"');
-  expect(source("events", "EventDetail")).toContain('context="event"');
+  expect(source("events", "EventDetail")).toContain("<EventTables");
+  expect(source("events", "EventTables")).toContain('context="event"');
   expect(card).toContain('context === "event"');
   expect(card).toContain('artworkLayout="cover"');
   expect(card).toContain('presentation="cover"');

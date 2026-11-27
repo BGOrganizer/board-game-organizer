@@ -335,6 +335,12 @@ export default defineConfig({
           branches: 93,
           statements: 93,
         },
+        "src/events/eventDetailTables.ts": {
+          lines: 100,
+          functions: 100,
+          branches: 100,
+          statements: 100,
+        },
         "src/events/eventPolicy.ts": {
           lines: 93,
           functions: 93,

@@ -98,13 +98,14 @@ tags: [manual, tables, guests]
     direction: DOWN
     timeout: 30000
 - assertNotVisible: ${output.tableGuest.breakdown}
-- assertNotVisible: ${output.tableGuest.gameInfo}
-- tapOn: ${output.tableGuest.summary}
+- assertVisible: ${output.tableGuest.gameInfo}
 - tapOn: ${output.tableGuest.gameInfo}
 - extendedWaitUntil:
     visible: ${output.tableGuest.gameInfoFact}
     timeout: 20000
 - back
+- assertNotVisible: ${output.tableGuest.breakdown}
+- tapOn: ${output.tableGuest.summary}
 - scrollUntilVisible:
     element: ${output.tableGuest.breakdown}
     direction: DOWN

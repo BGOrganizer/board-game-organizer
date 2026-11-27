@@ -1,6 +1,7 @@
 import {
   type ContactUser,
   contactConnections,
+  contactDiscoveryFilter,
   formatUsername,
   hasContactRelationship,
   reportPresence,
@@ -557,8 +558,11 @@ function ContactsContent() {
   const suggestions = contacts.suggestions.data?.users ?? [];
   const visibleSuggestions =
     contacts.suggestions.isLoading || contactsPermission === "checking" ? [] : suggestions;
+  const showInSearch = contactDiscoveryFilter(contacts.knownConnectionIds, pendingRows, sentRows);
   const searchResults =
-    headerSearch.active && validQuery && !searchPending ? (contacts.search.data?.users ?? []) : [];
+    headerSearch.active && validQuery && !searchPending
+      ? (contacts.search.data?.users ?? []).filter(showInSearch)
+      : [];
   const connections = contactConnections(
     friendsRows,
     followingRows,
@@ -567,7 +571,7 @@ function ContactsContent() {
     blockedRows,
     contacts.knownConnectionIds,
   );
-  const bgoContacts = visibleSuggestions;
+  const bgoContacts = visibleSuggestions.filter(showInSearch);
   const devicePages = useMemo(() => [{ items: unregistered }], [unregistered]);
   const deviceWindow = useRecordListWindow({
     scope: JSON.stringify([apiUrl(), userId, tab, deviceGenerationRef.current]),
@@ -746,6 +750,9 @@ function ContactsContent() {
                     </Typography>
                     <Typography className="text-foreground">
                       {t("Type at least 4 characters to search")}
+                    </Typography>
+                    <Typography className="text-foreground">
+                      {t("People already in Connections or Requests appear in those tabs.")}
                     </Typography>
                     <Typography className="text-foreground">
                       {t(

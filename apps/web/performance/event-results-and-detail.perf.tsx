@@ -10,7 +10,13 @@ import { EventTableInfo } from "@/components/events/EventTableInfo";
 import { EventTableResults } from "@/components/events/EventTableResults";
 import { EventTableScheduleCard } from "@/components/events/EventTableScheduleCard";
 import { GroupDetailsCard } from "@/components/groups/GroupDetailsCard";
-import { groupRecord, plannedEvent, plannedTable, seat } from "@/test-fixtures/eventRecords";
+import {
+  chessMetadata,
+  groupRecord,
+  plannedEvent,
+  plannedTable,
+  seat,
+} from "@/test-fixtures/eventRecords";
 import { measureWebFeature } from "./featureScenario";
 
 vi.mock("@/lib/useCommunityApi", () => ({
@@ -39,6 +45,7 @@ const table = {
 const finalTable = {
   ...table,
   eventStatus: "TERMINATED" as const,
+  gamesDetail: [chessMetadata],
   results: {
     entries: [
       { userId: "owner", score: "1.50", rank: 1 },

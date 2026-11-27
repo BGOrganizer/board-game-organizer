@@ -76,7 +76,7 @@ export const LeaderboardPlayerCard = memo(function LeaderboardPlayerCard({
               flexDirection: "row",
               alignItems: "center",
               gap: 8,
-              paddingStart: 8,
+              paddingStart: group ? 8 : 16,
               paddingBottom: roles.length ? 8 : 0,
             }}
           >
@@ -113,8 +113,8 @@ export const LeaderboardPlayerCard = memo(function LeaderboardPlayerCard({
                 flexDirection: "row",
                 alignItems: "center",
                 gap: 6,
-                paddingVertical: 8,
-                paddingEnd: 8,
+                paddingVertical: group ? 8 : 12,
+                paddingEnd: group ? 8 : 12,
               }}
             >
               <View style={{ alignItems: "flex-end" }}>
@@ -146,7 +146,14 @@ export const LeaderboardPlayerCard = memo(function LeaderboardPlayerCard({
               <Accordion.Indicator iconProps={{ size: 16, color: muted }} />
             </Accordion.Trigger>
           </View>
-          <Accordion.Content style={{ paddingHorizontal: 8, paddingTop: 0, paddingBottom: 8 }}>
+          <Accordion.Content
+            style={{
+              paddingStart: group ? 8 : 16,
+              paddingEnd: group ? 8 : 12,
+              paddingTop: 0,
+              paddingBottom: group ? 8 : 12,
+            }}
+          >
             <View
               testID="ranking-player-statistics"
               className="border-separator border-t"

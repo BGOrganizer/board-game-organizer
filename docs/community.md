@@ -6,6 +6,8 @@ localized Coming soon placeholder.
 
 ## Global rankings
 
+Community standings use player-row spacing in the compact accordion and the desktop table.
+
 The authenticated `GET /api/community/leaderboard` uses the same game selection, source pagination
 and sorting as Group Rankings. It returns eligible games when no game is selected and player rows
 for the selected game. The picker starts empty, searches on the server and can be cleared.

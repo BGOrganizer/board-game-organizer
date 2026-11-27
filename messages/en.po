@@ -7934,3 +7934,6 @@ msgstr "Search users by name, email, or username"
 
 msgid "Find BGO users by first name, last name, email, or username, including people outside your contacts."
 msgstr "Find BGO users by first name, last name, email, or username, including people outside your contacts."
+
+msgid "People already in Connections or Requests appear in those tabs."
+msgstr "People already in Connections or Requests appear in those tabs."

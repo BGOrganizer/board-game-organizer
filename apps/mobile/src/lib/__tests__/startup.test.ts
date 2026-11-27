@@ -36,7 +36,7 @@ function seed(client: QueryClient) {
       pages: [{ rows: [], nextCursor: null }],
       pageParams: [""],
     });
-  client.setQueryData(["contacts", "suggestions", apiUrl, userId, "device", "pages-v1"], {
+  client.setQueryData(["contacts", "suggestions", apiUrl, userId, "device", "pages-v2"], {
     pages: [{ users: [], hasContacts: false, nextCursor: null }],
     pageParams: [""],
   });

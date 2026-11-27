@@ -5,6 +5,7 @@ import {
   eventListDefaultOrder,
   eventListStatuses,
   type RecordListOrder,
+  recordListSortFields,
   scheduledEventFilterRoles,
   terminatedEventFilterRoles,
 } from "@board-game-organizer/schemas";
@@ -92,7 +93,7 @@ export function EventList({
             : ["CONFIRMED", "PLANNING"],
       query: filters.search,
       roles: groupId ? undefined : roles.filter((role) => filters.selected.includes(role)),
-      order: groupId ? undefined : order,
+      order,
     });
   const headerSearch = useListSearchHeader<(typeof list.items)[number]>(
     filters.reset,
@@ -180,7 +181,7 @@ export function EventList({
                   ]
             }
           />
-          {!groupId ? <ListOrdering order={order} onChange={setOrder} /> : null}
+          <ListOrdering fields={recordListSortFields} order={order} onChange={setOrder} />
         </View>
       </View>
     );

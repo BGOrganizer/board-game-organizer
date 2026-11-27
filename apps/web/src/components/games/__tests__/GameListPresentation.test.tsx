@@ -166,11 +166,11 @@ it.each([false, true])(
       );
     });
     await waitFor(() => expect(fetchApi).toHaveBeenCalledOnce());
-    if (accordion) {
-      expect(screen.queryByRole("button", { name: "Game information: Cascadia" })).toBeNull();
-      fireEvent.click(screen.getByRole("button", { name: "Vote summary: Cascadia" }));
-    }
-    fireEvent.click(screen.getByRole("button", { name: "Game information: Cascadia" }));
+    const summary = screen.queryByRole("button", { name: "Vote summary: Cascadia" });
+    const badge = screen.getByRole("button", { name: "Game information: Cascadia" });
+    expect(badge.querySelector(".chip")).toHaveClass(accordion ? "size-7" : "size-[22px]");
+    expect(screen.queryByText("Vote tally")).toBeNull();
+    fireEvent.click(badge);
     const popover = screen.getByRole("dialog", { name: "Cascadia" });
     expect(within(popover).getByText("2021")).toBeTruthy();
     expect(popover.querySelectorAll(".skeleton").length).toBe(2);
@@ -178,6 +178,14 @@ it.each([false, true])(
     expect(await within(popover).findByText("Animals")).toBeTruthy();
     expect(within(popover).getByText("7.83")).toBeTruthy();
     expect(popover.querySelector(".skeleton")).toBeNull();
+    if (summary) {
+      expect(summary).toHaveAttribute("aria-expanded", "false");
+      fireEvent.keyDown(popover, { key: "Escape", code: "Escape" });
+      await waitFor(() => expect(popover).not.toBeInTheDocument());
+      fireEvent.click(summary);
+      expect(screen.getByText("Vote tally")).toBeVisible();
+      expect(badge).toBeVisible();
+    }
   },
 );
 

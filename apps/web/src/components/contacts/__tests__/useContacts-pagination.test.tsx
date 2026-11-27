@@ -98,7 +98,7 @@ it("reloads cancelled first pages after a mutation without refetching loaded or 
         pageParams: [""],
       });
     }
-    client.setQueryData(["contacts", "suggestions", api, user, "device", "pages-v1"], {
+    client.setQueryData(["contacts", "suggestions", api, user, "device", "pages-v2"], {
       pages: [{ users: [], hasContacts: false, nextCursor: null }],
       pageParams: [""],
     });
@@ -387,7 +387,7 @@ it("bounds cached suggestions while preserving hasContacts and canonical off-win
     hasContacts: true,
     nextCursor: null,
   }));
-  client.setQueryData(["contacts", "suggestions", api, "viewer", "device", "pages-v1"], {
+  client.setQueryData(["contacts", "suggestions", api, "viewer", "device", "pages-v2"], {
     pages,
     pageParams: pages.map((_, i) => String(i)),
   });
@@ -465,7 +465,7 @@ it("keeps off-window block/connection IDs canonical and stable across subtab cha
       pageParams: Array.from({ length: 300 }, (_, i) => String(i)),
     });
   }
-  client.setQueryData(["contacts", "suggestions", api, "viewer", "device", "pages-v1"], {
+  client.setQueryData(["contacts", "suggestions", api, "viewer", "device", "pages-v2"], {
     pages: [
       {
         users: [person("follower-hidden"), person("blocked-hidden"), person("device")],

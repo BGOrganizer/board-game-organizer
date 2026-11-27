@@ -157,7 +157,10 @@ Event, Table and result only. See [Community visibility](community.md) and
   Confirmed / Planning / Terminated chips, initially all enabled. The main Event sections, owned
   Groups and Group-context Events replace their section chrome with the filter field when focused.
   Chips are visible in that mode. Back clears the text and restores the default chip selection.
-  The existing order selector stays below the field or chips and keeps its selection when search closes.
+  The order selector stays below the field or chips and keeps its selection when search closes.
+  Group Events support name and game date. Event-detail Tables filter by the displayed localized title
+  and sort the event's bounded list by name, scheduled date or seated players. Undated tables sort last;
+  pending invitations and the waiting list are excluded from the seated-player count.
   Group Search starts with its section guide and the results for Friends. The focused search field
   takes over the native header or sits below the fixed web navigation. The guide and top tabs are
   hidden while the search filters are visible. Back closes the search, hides the chips and restores
@@ -935,7 +938,7 @@ See [Notifications](notifications.md) for current types, messages, icons and inb
   explicit inner selection reads only that subsection. Follows and accepted friendship notices
   belong to Connections; incoming friend requests belong to Requests. Contact rows aggregate their
   actor's unread social notices. Contact top tabs additionally reflect source-backed unread markers
-  on their loaded rows, including Search results/suggestions and actors present in multiple lists.
+  on their eligible loaded rows, including discovery results and suggestions.
   This display fallback does not change subsection read targets or consume another kind of notice.
   Repeated existing follows emit no duplicate notice.
 - Counter batches contain at most 50 unique resource targets. Cache-only navigation observers reuse
@@ -972,6 +975,9 @@ One person across multiple tables counts once, with original option order as the
 with `AGREEMENT_COMPLEXITY_LIMIT`, never with an approximate fabricated agreement. Confirmation
 rechecks authoritative inputs transactionally. Administrator notifications use semantic deduplication;
 there are no repeated identical notifications or player reminders to change votes.
+
+Game rows keep BoardGameGeek information on the lower-right corner of the cover even when the
+vote summary is closed. The same badge is available on the selected game's cover in final Results.
 
 ## Results, lists and transport
 
@@ -1137,7 +1143,10 @@ contacts, followed on mobile by local unregistered contacts. It preserves permis
 feedback, paging and sharing invites from the address book. Web uses only the synchronized BGO contacts.
 Focusing the input activates header search. With at least four characters, the directory matches names,
 surnames, email addresses and usernames, including a leading @. The results are paginated across all
-eligible BGO users under the existing block rules. Back restores the address book and clears the query.
+eligible BGO users under the existing block rules. Both lists exclude friends, followers, followed
+users and profiles with an incoming or outgoing pending friend request before pagination. The Search
+view also applies known cached relationships while changes reconcile. Back restores the address book
+and clears the query.
 Each tab has a section guide card covering the connection or request legend or the combined search and
 address book behavior.
 Registered-user rows show the real @username below the display name in every Contacts section.

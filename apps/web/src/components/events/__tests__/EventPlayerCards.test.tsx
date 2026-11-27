@@ -1,6 +1,6 @@
 import { fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-import { plannedTable } from "@/test-fixtures/eventRecords";
+import { chessMetadata, plannedTable } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { EventPlayerCard } from "../EventPlayerCard";
 import { EventTableResults } from "../EventTableResults";
@@ -121,4 +121,24 @@ it("distinguishes ineligible rating updates from missing immutable history witho
   expect(screen.getByText("Historical ranking unavailable")).toBeTruthy();
   expect(screen.queryByText("Ranking not updated")).toBeNull();
   expect(fetcher).not.toHaveBeenCalled();
+});
+
+it("offers the usual game information popover on the cover in the finished results header", async () => {
+  renderWithI18n(
+    <EventTableResults
+      table={{
+        ...finalTable,
+        confirmed: { gameId: 1, playerIds: ["winner", "tied"], startsAt: "2030-06-03T18:00:00Z" },
+        gamesDetail: [chessMetadata],
+      }}
+    />,
+  );
+  const cover = screen.getByRole("button", { name: "Game information: Chess" });
+  expect(cover.querySelector(".chip")).toHaveClass("size-[22px]");
+  expect(cover.parentElement).toHaveClass("absolute", "-right-2.5", "-bottom-2.5");
+  fireEvent.click(cover);
+  const details = await screen.findByRole("dialog", { name: "Chess" });
+  expect(within(details).getByText("BGG rating:")).toBeVisible();
+  expect(within(details).getByText("7.30")).toBeVisible();
+  expect(within(details).getByText("Abstract Strategy")).toBeVisible();
 });
