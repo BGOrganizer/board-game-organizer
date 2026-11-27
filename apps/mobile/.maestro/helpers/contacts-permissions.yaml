@@ -110,5 +110,6 @@ appId: com.bgo.boardgameorganizer.dev
     notVisible: "^(Copy|Copy to clipboard|Copy link)$"
     timeout: 30000
 - openLink: bgo-dev:///contacts?tab=search
+- assertVisible: "Contact search help"
 - assertVisible:
     id: "contact-search-input"
