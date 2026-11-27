@@ -27,7 +27,7 @@ tags: [manual, performance, contacts]
     selected: true
 - openLink: bgo-dev:///contacts?tab=suggestions
 - assertVisible:
-    id: top-tab-device
+    id: top-tab-search
     selected: true
 - openLink: bgo-dev:///contacts?tab=search
 - assertVisible:

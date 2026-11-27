@@ -324,6 +324,23 @@ for (const width of [390, 1280])
       await expect(popover.getByText(copy, { exact: true })).toBeVisible();
       await page.keyboard.press("Escape");
       await expect(popover).toHaveCount(0);
+      if (tab === (it ? "Eventi" : "Events")) {
+        const search = page.getByRole("searchbox", { name: it ? "Filtra" : "Filter", exact: true });
+        const planning = page.getByRole("button", {
+          name: it ? "In pianificazione" : "Planning",
+          exact: true,
+          pressed: true,
+        });
+        await expect(planning).toHaveCount(0);
+        await search.focus();
+        await expect(planning).toBeVisible();
+        await expect(page.getByRole("tab", { name: tab, exact: true })).toHaveCount(0);
+        await page.getByRole("button", { name: it ? "Indietro" : "Back", exact: true }).click();
+        await expect(
+          page.getByRole("tab", { name: tab, exact: true, selected: true }),
+        ).toBeVisible();
+        await expect(planning).toHaveCount(0);
+      }
     }
     const groupPerson = page.getByText(handle, { exact: true });
     await expect(groupPerson).toBeVisible();

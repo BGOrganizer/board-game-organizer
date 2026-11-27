@@ -40,19 +40,22 @@ Main navigation is **History / Events / Groups / Community / Contacts**:
   Available contains other enrollable planning Events: private Events require Group membership; approved public Events do not.
   Terminated contains completed Events where you played, demonstrated, or still have management authority.
   All three lists support name or play-date ordering. Scheduled and Terminated also filter by role.
+  Event filters open in header search. Role and Group-event status chips appear while search is active.
   The role popover lists your roles. On list and detail cards, the status popover shows the chosen
   date, time and venue for confirmed and finished Events. For confirmed Events it also lists the
   Tables where you have a confirmed seat or demonstrate a game.
 - **Groups:** Private and Public show your groups with role filters and name or creation-date ordering.
+  Focusing the filter field opens header search and reveals the role chips. Ordering is available in both views.
   The ID-card popover shows your current Group role. Public group review distinguishes a rejected
   first application from rejected edits to an approved group and shows the reason when available.
   Search approved public groups by name or venue address. Friends is selected initially and includes
-  groups that a BGO friend administers, moderates or has joined. Near me limits results to venues
-  within 25 km by default after location permission. Its distance menu offers presets or a
-  custom radius from 1 to 100 km.
+  groups that a BGO friend administers, moderates or has joined. The search filters appear when
+  the search field takes over the header. After location permission, Near me defaults to 25 km
+  and offers 5, 10, 25, 50 and 100 km in its distance menu.
 - **Community:** Activities from your network, global Rankings, and the Marketplace placeholder.
-- **Contacts:** Connections, Requests, Contacts and Search. Device contacts and remote search have separate lists;
-  web shows registered contacts from the synchronized snapshot.
+- **Contacts:** Connections, Requests and Search. Search opens with synchronized BGO contacts on top
+  and other device contacts on mobile. Focus the search bar to search the BGO directory by first name,
+  last name, email or username.
 
 > [!NOTE]
 > The [Groups / Events / Tables contract](docs/groups-events-tables.md) defines domain behavior.

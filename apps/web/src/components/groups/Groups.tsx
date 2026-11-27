@@ -4,7 +4,7 @@ import { Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowLeft, Globe, LockKeyhole, Search } from "lucide-react";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { HeaderActions } from "@/components/common/layout/HeaderActions";
 import { HEADER_ICON_CLASS, headerControlClassName } from "@/components/common/layout/headerStyles";
 import { TabBar } from "@/components/common/ui/TabBar";
@@ -33,8 +33,15 @@ function GroupSearchBack({ onBack }: { onBack: () => void }) {
   );
 }
 
-function GroupTabBarVisibility({ children }: { children: ReactNode }) {
-  return <div hidden={useGroupSearchMode()}>{children}</div>;
+function GroupTabBarVisibility({
+  children,
+  ownedSearch,
+}: {
+  children: ReactNode;
+  ownedSearch: boolean;
+}) {
+  const discovery = useGroupSearchMode();
+  return <div hidden={discovery || ownedSearch}>{children}</div>;
 }
 
 export function Groups({
@@ -44,6 +51,7 @@ export function Groups({
 }) {
   const { t } = useLingui();
   const { options, section, setSection, closeSearch } = useGroupNavigation();
+  const [ownedSearch, setOwnedSearch] = useState(false);
   return (
     <NotificationAttentionScope
       options={options}
@@ -53,7 +61,7 @@ export function Groups({
         { kind: "group-list", id: "search" },
       ]}
     >
-      {initialSection === "search" ? (
+      {initialSection === "search" && !ownedSearch ? (
         <GroupSearchBack onBack={() => setSection("private")} />
       ) : null}
       <Tabs
@@ -65,7 +73,7 @@ export function Groups({
           }
         }}
       >
-        <GroupTabBarVisibility>
+        <GroupTabBarVisibility ownedSearch={ownedSearch}>
           <TabBar label={t`Groups navigation`}>
             <TabTrigger icon={LockKeyhole} id="private">
               {t`Private groups`}
@@ -82,10 +90,10 @@ export function Groups({
           </TabBar>
         </GroupTabBarVisibility>
         <Tabs.Panel id="private" className="pt-0">
-          <GroupList type="PRIVATE" />
+          <GroupList type="PRIVATE" onSearchActiveChange={setOwnedSearch} />
         </Tabs.Panel>
         <Tabs.Panel id="public" className="pt-0">
-          <GroupList type="PUBLIC" />
+          <GroupList type="PUBLIC" onSearchActiveChange={setOwnedSearch} />
         </Tabs.Panel>
         <Tabs.Panel id="search" className="pt-0">
           <GroupSearch />

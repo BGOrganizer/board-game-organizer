@@ -109,6 +109,11 @@ it("keeps Scheduled, Available and Terminated source pages separate, with Group 
   ]) {
     fireEvent.click(screen.getByRole("tab", { name: new RegExp(tab) }));
     await screen.findByRole("link", { name: `Open event: ${name}` });
+    expect(screen.queryByRole("button", { name: "Participant", pressed: true })).toBeNull();
+    const order = screen.getByRole("button", { name: "Sort by Date" });
+    fireEvent.focus(screen.getByRole("searchbox", { name: "Filter" }));
+    expect(screen.queryByRole("tablist", { name: "Events navigation" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Sort by Date" })).toBe(order);
     expect(screen.queryByRole("button", { name: "Confirmed events", pressed: true })).toBeNull();
     expect(screen.queryByRole("button", { name: "Planning", pressed: true })).toBeNull();
     expect(screen.queryByRole("button", { name: "Terminated events", pressed: true })).toBeNull();
@@ -118,7 +123,9 @@ it("keeps Scheduled, Available and Terminated source pages separate, with Group 
         expect(chip).toBeNull();
       else expect(chip).toBeVisible();
     }
-    expect(screen.getByRole("button", { name: "Sort by Date" })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.getByRole("button", { name: "Sort by Date" })).toBe(order);
+    expect(screen.queryByRole("button", { name: "Participant", pressed: true })).toBeNull();
     expect(
       fetcher.mock.calls.some(([url]) => {
         const u = new URL(url);
@@ -148,6 +155,8 @@ it("keeps Scheduled, Available and Terminated source pages separate, with Group 
   render(<Events groupId="club" canCreate={false} />);
   await screen.findByRole("link", { name: "Open event: My invitation" });
   expect(screen.queryByRole("tablist", { name: "Events navigation" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Planning", pressed: true })).toBeNull();
+  fireEvent.focus(screen.getByRole("searchbox", { name: "Filter" }));
   for (const name of ["Confirmed events", "Planning", "Terminated events"])
     expect(screen.getByRole("button", { name, pressed: true })).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Sort by Date" })).toBeNull();
@@ -185,6 +194,7 @@ it("keeps Scheduled role filters when changing the source sort and direction", a
   );
   render(<Events canCreate={false} />);
   await screen.findByRole("link", { name: "Open event: Scheduled invitation" });
+  fireEvent.focus(screen.getByRole("searchbox", { name: "Filter" }));
   fireEvent.click(screen.getByRole("button", { name: "Pending", pressed: true }));
   await screen.findByText("No events found");
   fireEvent.click(screen.getByRole("button", { name: "Sort by Date" }));
@@ -204,6 +214,11 @@ it("keeps Scheduled role filters when changing the source sort and direction", a
     expect(params?.has("cursor")).toBe(false);
   });
   expect(screen.getByRole("button", { name: "Pending", pressed: false })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  expect(screen.getByRole("button", { name: "Sort by Name" })).toBeVisible();
+  expect(
+    await screen.findByRole("link", { name: "Open event: Scheduled invitation" }),
+  ).toBeVisible();
 });
 
 it("History shows terminated player, demonstrator and currently managed tables without chips or planning legend", async () => {

@@ -11,7 +11,7 @@ tags: [manual, groups]
 - openLink: bgo-dev:///groups
 - extendedWaitUntil:
     visible:
-      id: list-filter-administrator
+      id: list-sort-field
     timeout: 120000
 - runFlow: ../helpers/check-group-list-filters.yaml
 - tapOn:
@@ -31,29 +31,32 @@ tags: [manual, groups]
     id: list-sort-field
 - assertNotVisible:
     id: list-sort-direction
-- assertVisible:
-    id: list-filter-friends
-    selected: true
-- assertVisible:
-    id: list-filter-nearby
-- tapOn:
+- assertNotVisible:
     id: list-filter-friends
 - assertNotVisible:
-    id: top-tab-search
+    id: list-filter-nearby
 - tapOn:
     id: list-search-input
-- inputText: A
-- assertVisible: '^(Back|Indietro)$'
-- tapOn: '^(Back|Indietro)$'
-- assertVisible:
+- assertNotVisible:
     id: top-tab-search
-    selected: true
 - assertVisible:
     id: list-filter-friends
     selected: true
 - assertVisible:
     id: list-filter-nearby
     selected: false
+- inputText: A
+- assertVisible: '^(Back|Indietro)$'
+- tapOn: '^(Back|Indietro)$'
+- assertVisible:
+    id: top-tab-search
+    selected: true
+- assertNotVisible:
+    id: list-filter-friends
+- assertNotVisible:
+    id: list-filter-nearby
+- tapOn:
+    id: list-search-input
 - setLocation:
     latitude: 41.9
     longitude: 12.5
@@ -79,21 +82,12 @@ tags: [manual, groups]
 - assertVisible:
     id: group-distance-50
     selected: true
-- tapOn:
+- assertNotVisible:
     id: group-distance-custom
 - tapOn:
-    id: group-custom-distance
-- eraseText: 3
-- inputText: "101"
-- assertVisible:
-    id: group-custom-distance-apply
-    enabled: false
-- eraseText: 3
-- inputText: "12"
-- tapOn:
-    id: group-custom-distance-apply
+    id: group-distance-100
 - assertNotVisible:
-    id: group-custom-distance
+    id: group-distance-100
 - tapOn:
     id: list-filter-nearby
 - assertNotVisible:
@@ -106,8 +100,6 @@ tags: [manual, groups]
     timeout: 20000
 - tapOn:
     id: group-search-distance
-- tapOn:
-    id: group-distance-custom
 - assertVisible:
-    id: group-custom-distance
-    text: "12"
+    id: group-distance-100
+    selected: true

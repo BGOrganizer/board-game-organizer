@@ -54,13 +54,18 @@ appId: com.bgo.boardgameorganizer.dev
 - extendedWaitUntil:
     notVisible: "^Follow$"
     timeout: 30000
+- tapOn: "Back"
 - tapOn: "Connections"
 - extendedWaitUntil:
     visible: "Following"
     timeout: 30000
 - assertVisible: "E2E Target"
 - assertVisible: "^@[^ ]+$"
-- tapOn: "Search"
+- runFlow:
+    file: contact-search.yaml
+    env:
+      CONTACT_EMAIL: ${EMAIL_2}
+      CONTACT_ACTIONS: "^Actions: E2E Target$"
 - tapOn: "^Actions: E2E Target$"
 - extendedWaitUntil:
     visible: "^Unfollow$"
@@ -78,6 +83,7 @@ appId: com.bgo.boardgameorganizer.dev
 - extendedWaitUntil:
     notVisible: "E2E Target"
     timeout: 30000
+- tapOn: "Back"
 - tapOn: "Requests"
 - assertNotVisible: "E2E Target"
 - tapOn: "Connections"

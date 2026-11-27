@@ -51,7 +51,9 @@ const router = {
     contactsBoundary.parameter = value.tab;
   },
 };
+const navigation = { setOptions: vi.fn() };
 vi.mock("expo-router", () => ({
+  useNavigation: () => navigation,
   useRouter: () => router,
   useLocalSearchParams: () => ({ tab: contactsBoundary.parameter }),
   // Router focus is an SDK boundary. Execute the real screen's subscribed

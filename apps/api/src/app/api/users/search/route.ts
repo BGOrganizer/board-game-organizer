@@ -18,7 +18,7 @@ const SEARCH_WINDOW_MS = 60_000;
 /**
  * GET /api/users/search?query=…
  *
- * Case-insensitive substring search over `users` name/email: surnames must
+ * Case-insensitive substring search over `users` name, email and username: surnames must
  * match even when they follow a given name. Escape user input before regex.
  * Block policy stays asymmetric:
  * - users `viewer` blocked  → excluded
@@ -61,6 +61,8 @@ export async function GET(request: Request) {
   }
 
   const { query, limit, cursor, friendsOnly } = parsed.data;
+  const text = { $regex: escapeRegex(query), $options: "i" };
+  const username = { $regex: escapeRegex(query.replace(/^@/, "")), $options: "i" };
   const db = await getDb();
   const [blockedByMe, blockedMe, following, followers, friendPairs] = await Promise.all([
     getBlockedUserIds(db, userId),
@@ -87,10 +89,7 @@ export async function GET(request: Request) {
     .collection<User>(COLLECTIONS.USERS)
     .find(
       {
-        $or: [
-          { name: { $regex: escapeRegex(query), $options: "i" } },
-          { email: { $regex: escapeRegex(query), $options: "i" } },
-        ],
+        $or: [{ name: text }, { email: text }, { username }],
         clerkId: {
           $nin: [userId, ...blockedByMeSet, ...blockedMeSet],
           ...(cursor ? { $gt: cursor } : {}),

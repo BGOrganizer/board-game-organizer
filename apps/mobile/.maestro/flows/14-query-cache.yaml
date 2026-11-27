@@ -36,8 +36,8 @@ onFlowComplete:
 - assertVisible: ${output.connectionsLabel}
 - tapOn: "Requests"
 - tapOn: "Search"
-- assertVisible: "Search users by name or email"
-- tapOn: "Contacts"
+- assertVisible:
+    id: contact-search-input
 - tapOn: "Connections"
 - takeScreenshot: cache-contacts-tabs
 # Actual process death + offline native launch: RAM cannot satisfy these rows.

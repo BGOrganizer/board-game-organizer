@@ -92,8 +92,10 @@ it("keeps owned filtering separate and finds public groups by one character of t
     }),
   ];
   await listTab("search");
-  expect(screen.getByRole("button", { name: "Friends" })).toBeSelected();
+  expect(screen.queryByRole("button", { name: "Friends" })).toBeNull();
   expect(await screen.findByText("Public list group")).toBeVisible();
+  await fireEvent(screen.getByTestId("list-search-input"), "focus", { nativeEvent: { target: 1 } });
+
   await fireEvent.changeText(screen.getByTestId("list-search-input"), "X");
   await waitFor(() =>
     expect(listFixture.reads.some((url) => url.searchParams.get("query") === "X")).toBe(true),
@@ -104,12 +106,22 @@ it("keeps owned filtering separate and finds public groups by one character of t
 });
 
 it("passes exact role selection through owned group queries and keeps discovery free of role chips", async () => {
+  const remove = vi.fn();
+  const back = vi.spyOn(BackHandler, "addEventListener").mockReturnValue({ remove });
   await render(
     <MainListFixture>
       <Groups />
     </MainListFixture>,
   );
   await screen.findByText("Private list group");
+  const input = screen.getByTestId("list-search-input");
+  const sort = screen.getByTestId("list-sort-field");
+  expect(screen.queryByTestId("list-filter-administrator")).toBeNull();
+  await fireEvent(input, "focus", { nativeEvent: { target: 1 } });
+  expect(screen.getByTestId("list-search-input")).toBe(input);
+  expect(screen.getByTestId("list-sort-field")).toBe(sort);
+  expect(screen.queryByTestId("top-tab-private")).toBeNull();
+  expect(listBoundary.setOptions).toHaveBeenLastCalledWith({ headerShown: false });
   for (const role of groupRecordMemberRoles)
     expect(screen.getByTestId(`list-filter-${role}`)).toBeSelected();
   await userEvent.setup().press(screen.getByRole("button", { name: "Admin", selected: true }));
@@ -117,10 +129,22 @@ it("passes exact role selection through owned group queries and keeps discovery 
   expect(
     listFixture.reads.some((url) => url.searchParams.get("roles") === "moderator,member,pending"),
   ).toBe(true);
+  const dismiss = back.mock.calls.at(-1)?.[1];
+  if (!dismiss) throw Error("Expected native search Back handler");
+  await act(() => {
+    expect(dismiss({} as Parameters<typeof dismiss>[0])).toBe(true);
+  });
+  expect(remove).toHaveBeenCalled();
+  expect(screen.queryByTestId("list-filter-administrator")).toBeNull();
+  expect(screen.getByTestId("list-sort-field")).toBe(sort);
+  expect(listBoundary.setOptions).toHaveBeenLastCalledWith({ headerShown: true });
   await listTab("public");
   await screen.findByText("Public list group");
+  expect(screen.queryByTestId("list-filter-administrator")).toBeNull();
+  await fireEvent(screen.getByTestId("list-search-input"), "focus", { nativeEvent: { target: 1 } });
   for (const role of groupRecordMemberRoles)
     expect(screen.getByTestId(`list-filter-${role}`)).toBeSelected();
+  await listPress("Back");
   await listTab("search");
   expect(screen.queryByTestId("list-filter-administrator")).toBeNull();
   expect(screen.queryByTestId("list-filter-pending")).toBeNull();
@@ -329,6 +353,8 @@ it("keeps the focused input mounted, restores the native header and resets to Fr
   );
   const input = screen.getByLabelText("Search groups");
   expect(screen.getByRole("heading", { name: "Group search" })).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Friends" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Near me" })).toBeNull();
   await fireEvent(input, "focus", { nativeEvent: { target: 1 } });
   expect(screen.getByLabelText("Search groups")).toBe(input);
   expect(screen.queryByTestId("top-tab-search")).toBeNull();
@@ -354,7 +380,7 @@ it("keeps the focused input mounted, restores the native header and resets to Fr
   expect(dismiss).toHaveBeenCalled();
   expect(input).toHaveDisplayValue("");
   expect(listBoundary.setOptions).toHaveBeenLastCalledWith({ headerShown: true });
-  expect(screen.getByRole("button", { name: "Friends" })).toBeSelected();
+  expect(screen.queryByRole("button", { name: "Friends" })).toBeNull();
   expect(screen.getByTestId("top-tab-search")).toBeSelected();
   await fireEvent(input, "focus", { nativeEvent: { target: 1 } });
   await listPress("Back");
@@ -371,6 +397,7 @@ it("uses Nearby with an empty query, applies both chips, and keeps Friends when 
     </MainListFixture>,
   );
   expect(listBoundary.locationPermission).not.toHaveBeenCalled();
+  await fireEvent(screen.getByTestId("list-search-input"), "focus", { nativeEvent: { target: 1 } });
   await listPress("Near me");
   expect(await screen.findByText("Location unavailable")).toBeVisible();
   expect(listBoundary.requestLocationPermission).toHaveBeenCalledOnce();
@@ -395,8 +422,8 @@ it("uses Nearby with an empty query, applies both chips, and keeps Friends when 
   expect(screen.getByLabelText("Search groups")).toHaveDisplayValue("");
   expect(screen.getByRole("button", { name: "Near me" })).toBeSelected();
   await listPress("Back");
-  expect(screen.getByRole("button", { name: "Friends" })).toBeSelected();
-  expect(screen.getByRole("button", { name: "Near me" })).not.toBeSelected();
+  expect(screen.queryByRole("button", { name: "Friends" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Near me" })).toBeNull();
 });
 
 it("changes the distance with the anchored HeroUI popover and keeps it when Nearby is toggled", async () => {
@@ -408,6 +435,7 @@ it("changes the distance with the anchored HeroUI popover and keeps it when Near
     </MainListFixture>,
   );
   expect(screen.queryByTestId("group-search-distance")).toBeNull();
+  await fireEvent(screen.getByTestId("list-search-input"), "focus", { nativeEvent: { target: 1 } });
   await listPress("Near me");
   const trigger = await screen.findByRole("button", { name: "Distance, 25 km" });
   await pressMeasuredPopover(trigger);
@@ -418,35 +446,29 @@ it("changes the distance with the anchored HeroUI popover and keeps it when Near
   );
   expect(listBoundary.position).toHaveBeenCalledOnce();
   await pressMeasuredPopover(screen.getByRole("button", { name: "Distance, 50 km" }));
-  await fireEvent.press(screen.getByTestId("group-distance-custom"));
-  const field = screen.getByTestId("group-custom-distance");
-  expect(field).toHaveDisplayValue("50");
-  await fireEvent.changeText(field, "0");
-  expect(screen.getByTestId("group-custom-distance-apply")).toBeDisabled();
+  for (const radius of [5, 10, 25, 50, 100]) {
+    expect(screen.getByTestId(`group-distance-${radius}`)).toBeVisible();
+  }
+  expect(screen.queryByTestId("group-distance-custom")).toBeNull();
+  expect(screen.getByTestId("group-distance-50")).toBeSelected();
   const dismissMenu = back.mock.calls.at(-1)?.[1];
   if (!dismissMenu) throw new Error("Expected the native popover Back handler");
   await act(() => {
     expect(dismissMenu({} as Parameters<typeof dismissMenu>[0])).toBe(true);
   });
-  expect(screen.queryByTestId("group-custom-distance")).toBeNull();
+  expect(screen.queryByTestId("group-distance-100")).toBeNull();
   await pressMeasuredPopover(screen.getByRole("button", { name: "Distance, 50 km" }));
-  await fireEvent.press(screen.getByTestId("group-distance-custom"));
-  expect(screen.getByTestId("group-custom-distance")).toHaveDisplayValue("50");
-  await fireEvent.press(screen.getByTestId("group-custom-distance-back"));
-  expect(screen.getByTestId("group-distance-50")).toBeSelected();
-  await fireEvent.press(screen.getByTestId("group-distance-custom"));
-  await fireEvent.changeText(screen.getByTestId("group-custom-distance"), "12");
-  await fireEvent.press(screen.getByTestId("group-custom-distance-apply"));
+  await fireEvent.press(screen.getByTestId("group-distance-100"));
   await waitFor(() =>
-    expect(listFixture.reads.some((url) => url.searchParams.get("radiusKm") === "12")).toBe(true),
+    expect(listFixture.reads.some((url) => url.searchParams.get("radiusKm") === "100")).toBe(true),
   );
   await listPress("Near me");
   expect(screen.queryByTestId("group-search-distance")).toBeNull();
   await listPress("Near me");
-  expect(await screen.findByRole("button", { name: "Distance, 12 km" })).toBeVisible();
+  expect(await screen.findByRole("button", { name: "Distance, 100 km" })).toBeVisible();
 });
 
-it("shows distinct discovery empty and retry paths with the filters always available", async () => {
+it("shows distinct discovery empty and retry paths in active search", async () => {
   listFixture.groups = [];
   await render(
     <MainListFixture>
@@ -457,6 +479,7 @@ it("shows distinct discovery empty and retry paths with the filters always avail
     alignItems: "center",
   });
   listFixture.statuses.set("/api/groups", 503);
+  await fireEvent(screen.getByTestId("list-search-input"), "focus", { nativeEvent: { target: 1 } });
   await listPress("Friends");
   expect(await screen.findByText("Could not load groups")).toBeVisible();
   expect(screen.queryByText("No groups found")).toBeNull();

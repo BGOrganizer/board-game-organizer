@@ -46,9 +46,11 @@ export function GroupDetail({
     q = useGroupRecord(o, groupId),
     a = useGroupRecordActions(o, groupId),
     [tab, setTab] = useState<string>(initialTab),
+    [eventSearch, setEventSearch] = useState(false),
     [confirm, setConfirm] = useState<"decline" | "cancel" | "delete" | null>(null),
     [error, setError] = useState(false);
   const group = communityAccessDenied(q.error) ? undefined : q.data;
+  const eventsSearchActive = tab === "events" && group?.canViewEvents && eventSearch;
   const changes = useNotificationChanges(
     {
       ...o,
@@ -129,26 +131,28 @@ export function GroupDetail({
         className="space-y-4"
         style={group.canEdit && tab === "info" ? floatingActionContentStyle : undefined}
       >
-        <HeaderActions back={back}>
-          {canDelete || group.myMembership?.status === "ACCEPTED" ? (
-            <Button
-              {...headerButtonProps}
-              variant="danger"
-              aria-label={canDelete ? t`Delete group` : t`Leave group`}
-              isDisabled={canDelete ? a.busy : ownBusy}
-              onPress={() => {
-                setError(false);
-                setConfirm(canDelete ? "delete" : "cancel");
-              }}
-            >
-              {canDelete ? (
-                <Trash2 className="size-5" aria-hidden="true" />
-              ) : (
-                <LogOut className="size-5" aria-hidden="true" />
-              )}
-            </Button>
-          ) : null}
-        </HeaderActions>
+        {!eventsSearchActive ? (
+          <HeaderActions back={back}>
+            {canDelete || group.myMembership?.status === "ACCEPTED" ? (
+              <Button
+                {...headerButtonProps}
+                variant="danger"
+                aria-label={canDelete ? t`Delete group` : t`Leave group`}
+                isDisabled={canDelete ? a.busy : ownBusy}
+                onPress={() => {
+                  setError(false);
+                  setConfirm(canDelete ? "delete" : "cancel");
+                }}
+              >
+                {canDelete ? (
+                  <Trash2 className="size-5" aria-hidden="true" />
+                ) : (
+                  <LogOut className="size-5" aria-hidden="true" />
+                )}
+              </Button>
+            ) : null}
+          </HeaderActions>
+        ) : null}
         {error ? (
           <p role="alert" className="text-danger">
             {failure}
@@ -156,6 +160,7 @@ export function GroupDetail({
         ) : null}
         <GroupDetailView
           group={group}
+          eventsSearchActive={eventsSearchActive}
           selectedKey={tab}
           onSelectionChange={setTab}
           titleAction={<NotificationChangesPopover model={changes} />}
@@ -223,6 +228,7 @@ export function GroupDetail({
             <Events
               groupId={group.id}
               canCreate={isGroupManagerRole(group.role) && group.canInvite}
+              onSearchActiveChange={setEventSearch}
             />
           }
           rankings={<Leaderboard key={group.id} groupId={group.id} groupName={group.name} />}

@@ -1,5 +1,7 @@
 appId: com.bgo.boardgameorganizer.dev
 ---
+- assertNotVisible:
+    id: list-filter-admin
 - assertVisible:
     id: list-sort-field
     text: ${output.status.sortByDate}
@@ -25,6 +27,11 @@ appId: com.bgo.boardgameorganizer.dev
     text: ${output.status.sortByDate}
 - tapOn:
     id: list-sort-direction
+- tapOn:
+    id: list-search-input
+- hideKeyboard
+- assertVisible:
+    id: list-sort-field
 - runFlow:
     when:
       true: ${SECTION === 'scheduled'}
@@ -84,3 +91,8 @@ appId: com.bgo.boardgameorganizer.dev
           id: list-filter-moderator
       - assertNotVisible:
           id: list-filter-participant
+- tapOn: '^(Back|Indietro)$'
+- assertNotVisible:
+    id: list-filter-admin
+- assertVisible:
+    id: list-sort-field

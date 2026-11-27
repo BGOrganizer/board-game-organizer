@@ -154,7 +154,7 @@ it("requests attention for device contacts whose existing connection is off-page
       <Contacts />
     </QueryClientProvider>,
   );
-  const device = screen.getByRole("tab", { name: "Contacts" });
+  const device = screen.getByRole("tab", { name: "Search" });
   await waitFor(() =>
     expect(within(device).getByRole("img", { name: "Needs attention" })).toBeTruthy(),
   );
@@ -202,9 +202,11 @@ it("mirrors source-backed actor markers into Connections and loaded Search resul
   expect(within(search).queryByRole("img")).toBeNull();
   fireEvent.click(search);
   mutations.searchUsers = true;
-  fireEvent.change(screen.getByRole("searchbox"), { target: { value: "target" } });
+  const input = screen.getByRole("searchbox");
+  fireEvent.focus(input);
+  fireEvent.change(input, { target: { value: "target" } });
   await screen.findByText("Target User");
-  expect(within(search).getByRole("img", { name: "Needs attention" })).toBeTruthy();
+  expect(within(search).getByRole("img", { name: "Needs attention", hidden: true })).toBeTruthy();
   expect(
     screen.getByText("Target User").closest("li")?.querySelector('[aria-label="Unread updates"]'),
   ).not.toBeNull();

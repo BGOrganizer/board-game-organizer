@@ -41,8 +41,13 @@ it("retains independently filtered scheduled/available/terminated native list ow
   expect(await screen.findByText("Terminated list event")).toBeVisible();
   expect(screen.getByTestId("list-sort-field")).toHaveAccessibleName("Sort by Date");
   expect(screen.getByTestId("list-sort-direction")).toHaveAccessibleName("Sort ascending");
+  expect(screen.queryByTestId("list-filter-participant")).toBeNull();
+  await fireEvent(screen.getByTestId("list-search-input"), "focus", { nativeEvent: { target: 1 } });
   expect(screen.getByTestId("list-filter-participant")).toBeSelected();
   expect(screen.queryByTestId("list-filter-pending")).toBeNull();
+  expect(screen.queryByTestId("top-tab-terminated")).toBeNull();
+  expect(screen.getByTestId("list-sort-field")).toHaveAccessibleName("Sort by Date");
+  await listPress("Back");
   await listTab("mine");
   expect(screen.getByTestId("list-search-input")).toBe(scheduledFilter);
   expect(scheduledFilter).toHaveDisplayValue("Scheduled");
@@ -51,6 +56,13 @@ it("retains independently filtered scheduled/available/terminated native list ow
   expect(availableFilter).toHaveDisplayValue("Available");
   expect(screen.getAllByRole("tab", { selected: true })).toHaveLength(1);
   expect(screen.queryByTestId("list-filter-PLANNING")).toBeNull();
+  await fireEvent(availableFilter, "focus", { nativeEvent: { target: 1 } });
+  expect(screen.queryByTestId("top-tab-available")).toBeNull();
+  expect(screen.queryByTestId("list-filter-participant")).toBeNull();
+  expect(screen.getByTestId("list-sort-field")).toHaveAccessibleName("Sort by Date");
+  await listPress("Back");
+  expect(availableFilter).toHaveDisplayValue("");
+  expect(screen.getByTestId("top-tab-available")).toBeSelected();
 });
 
 it("keeps the Scheduled role selection when sorting by Name in either direction", async () => {
@@ -60,6 +72,8 @@ it("keeps the Scheduled role selection when sorting by Name in either direction"
     </MainListFixture>,
   );
   await screen.findByText("Scheduled list event");
+  expect(screen.queryByTestId("list-filter-admin")).toBeNull();
+  await fireEvent(screen.getByTestId("list-search-input"), "focus", { nativeEvent: { target: 1 } });
   for (const role of scheduledEventFilterRoles)
     expect(screen.getByTestId(`list-filter-${role}`)).toBeSelected();
   await listPress("Admin");
@@ -83,6 +97,9 @@ it("keeps the Scheduled role selection when sorting by Name in either direction"
     ).toBe(true),
   );
   expect(screen.getByTestId("list-filter-admin")).not.toBeSelected();
+  await listPress("Back");
+  expect(screen.queryByTestId("list-filter-admin")).toBeNull();
+  expect(screen.getByTestId("list-sort-field")).toHaveAccessibleName("Sort by Name");
 });
 
 it("uses short debounced scoped filters rather than discovery and clears back to its authorized section", async () => {
@@ -120,9 +137,16 @@ it("keeps group-context events in their real detail list with header, status fil
   expect(screen.getByText("Group detail header")).toBeVisible();
   expect(screen.queryByTestId("top-tab-mine")).toBeNull();
   expect(screen.queryByRole("button", { name: "Create event" })).toBeNull();
+  expect(screen.queryByTestId("list-filter-PLANNING")).toBeNull();
+  await fireEvent(screen.getByTestId("list-search-input"), "focus", { nativeEvent: { target: 1 } });
+  expect(screen.queryByText("Group detail header")).toBeNull();
   expect(screen.getByTestId("list-filter-PLANNING")).toBeSelected();
   await userEvent.setup().press(screen.getByRole("button", { name: "Planning", selected: true }));
   expect(await screen.findByText("No events found")).toBeVisible();
+  await listPress("Back");
+  expect(screen.getByText("Group detail header")).toBeVisible();
+  expect(screen.queryByTestId("list-filter-PLANNING")).toBeNull();
+  expect(await screen.findByText("Group planned event")).toBeVisible();
   expect(
     listFixture.reads
       .filter((url) => url.pathname === "/api/events")

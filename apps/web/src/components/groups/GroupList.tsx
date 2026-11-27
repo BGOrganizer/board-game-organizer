@@ -31,13 +31,21 @@ import { ListSearch } from "@/components/common/ui/ListSearch";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
+import { useListSearchHeader } from "@/lib/useListSearchHeader";
 import { GroupCard } from "./GroupCard";
-export function GroupList({ type }: { type?: GroupRecord["type"] }) {
+export function GroupList({
+  type,
+  onSearchActiveChange,
+}: {
+  type?: GroupRecord["type"];
+  onSearchActiveChange?: (active: boolean) => void;
+}) {
   const { t } = useLingui();
   const options = useCommunityApi();
   const [order, setOrder] = useState<RecordListOrder>({ sort: "date", direction: "desc" });
   const filters = useListSearch(groupRecordMemberRoles, 0);
   const list = useGroupRecords(options, "mine", filters.search, filters.selected, type, order);
+  const headerSearch = useListSearchHeader(filters.reset, onSearchActiveChange);
   const items = communityAccessDenied(list.error) ? [] : list.items;
   const sentinel = useInfiniteScroll({
     hasNextPage: Boolean(list.hasNextPage),
@@ -67,7 +75,7 @@ export function GroupList({ type }: { type?: GroupRecord["type"] }) {
       targets={items.filter((row) => !row.optimistic).map((row) => ({ kind: "group", id: row.id }))}
     >
       <ListPage hasFloatingActions>
-        {sectionHelp ? (
+        {sectionHelp && !headerSearch.active ? (
           <HelpSectionCard
             title={sectionHelp.title}
             label={sectionHelp.label}
@@ -76,27 +84,30 @@ export function GroupList({ type }: { type?: GroupRecord["type"] }) {
             <p>{sectionHelp.description}</p>
           </HelpSectionCard>
         ) : null}
-        <ListSearch
-          query={filters.query}
-          onQueryChange={filters.setQuery}
-          label={t`Filter`}
-          placeholder={t`Filter groups`}
-          mode="filter"
-          showSearchGuidance={false}
-          selected={filters.selected}
-          onToggle={filters.toggle}
-          options={[
-            {
-              key: "administrator",
-              label: t({ id: "list.filter.admin", message: "Admin" }),
-              icon: Crown,
-            },
-            { key: "moderator", label: t`Moderator`, icon: ShieldCheck },
-            { key: "member", label: t`Member`, icon: Check },
-            { key: "pending", label: t`Pending`, icon: Clock3 },
-          ]}
-        />
-        <ListOrdering order={order} onChange={setOrder} />
+        <div className="space-y-2">
+          <ListSearch
+            headerSearch={headerSearch}
+            query={filters.query}
+            onQueryChange={filters.setQuery}
+            label={t`Filter`}
+            placeholder={t`Filter groups`}
+            mode="filter"
+            showSearchGuidance={false}
+            selected={filters.selected}
+            onToggle={filters.toggle}
+            options={[
+              {
+                key: "administrator",
+                label: t({ id: "list.filter.admin", message: "Admin" }),
+                icon: Crown,
+              },
+              { key: "moderator", label: t`Moderator`, icon: ShieldCheck },
+              { key: "member", label: t`Member`, icon: Check },
+              { key: "pending", label: t`Pending`, icon: Clock3 },
+            ]}
+          />
+          <ListOrdering order={order} onChange={setOrder} />
+        </div>
         {list.isPending ? (
           <div className="space-y-3">
             {[1, 2, 3].map((key) => (

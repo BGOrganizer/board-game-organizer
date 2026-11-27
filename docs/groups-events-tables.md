@@ -154,15 +154,18 @@ Event, Table and result only. See [Community visibility](community.md) and
   History has no status-filter chips. Name filters have an
   accessible label, a clear action, no character minimum and a 300 ms debounce. Escaped name
   filtering and section eligibility run before source pagination. Group-context Events have
-  Confirmed / Planning / Terminated chips, initially all enabled.
-  Group Search starts with its section guide, filters and the results for Friends. The focused
-  search field takes over the native header or sits below the fixed web navigation, with the guide
-  and top tabs hidden. Back closes the search and restores the initial filters. Returning from
-  a Group detail preserves query and filters. Empty results use the centered list state.
-  Friends comes before Near me. While Near me is active, the distance button appears after it
-  and opens an anchored menu on web and mobile. Presets are 5, 10, 25, 50 and 100 km. Custom
-  distance accepts a whole number from 1 to 100 km. The choice persists in the current search
-  session when toggling Near me off and on.
+  Confirmed / Planning / Terminated chips, initially all enabled. The main Event sections, owned
+  Groups and Group-context Events replace their section chrome with the filter field when focused.
+  Chips are visible in that mode. Back clears the text and restores the default chip selection.
+  The existing order selector stays below the field or chips and keeps its selection when search closes.
+  Group Search starts with its section guide and the results for Friends. The focused search field
+  takes over the native header or sits below the fixed web navigation. The guide and top tabs are
+  hidden while the search filters are visible. Back closes the search, hides the chips and restores
+  the initial Friends results. Returning from a Group detail preserves query and filters. Empty
+  results use the centered list state.
+  Friends comes before Near me. While Near me is active, the distance button appears after it and
+  opens an anchored menu on web and mobile with presets of 5, 10, 25, 50 and 100 km. The choice
+  persists in the current search session when toggling Near me off and on.
   Current lifecycle comes from
   persisted Event state, never guessed from dates. Legacy API period parameters remain supported.
   Retained Query pages remain authoritative while local presentation reveals bounded pages progressively.
@@ -928,7 +931,7 @@ See [Notifications](notifications.md) for current types, messages, icons and inb
   Explicit informational Mark as read/Mark all as read skip actionable pending invitations and never
   vote, accept invitations or change domain state. Existing explicit confirmed deletion keeps its
   separate policy; pending invitation and missing-vote states remain independently visible.
-- Contacts has Connections / Requests / Contacts / Search. Entering main Contacts reads nothing in bulk;
+- Contacts has Connections / Requests / Search. Entering main Contacts reads nothing in bulk;
   explicit inner selection reads only that subsection. Follows and accepted friendship notices
   belong to Connections; incoming friend requests belong to Requests. Contact rows aggregate their
   actor's unread social notices. Contact top tabs additionally reflect source-backed unread markers
@@ -1127,14 +1130,16 @@ there are no repeated identical notifications or player reminders to change vote
   BGG retains its existing valid staged workflow and atomic snapshot publication, not a transaction
   held open across external provider requests. No live migration, reset or backfill is performed.
 
-### Contacts tab separation and change alerts
+### Contacts navigation and change alerts
 
-Contacts navigation is Connections / Requests / Contacts / Search. Contacts owns consented device contacts,
-including existing social connections, local unregistered rows, permission/synchronization feedback and paging.
-Web shows the authenticated synced registered contacts available to that client; it does not request a browser
-address book. Search owns only its query and remote results, initially empty and cleared below four characters.
-Each tab has a section guide card. The guide includes the connection or request legend, address
-book guidance, or the search rules for that tab.
+Contacts navigation is Connections / Requests / Search. Search initially shows consented synchronized BGO
+contacts, followed on mobile by local unregistered contacts. It preserves permission and synchronization
+feedback, paging and sharing invites from the address book. Web uses only the synchronized BGO contacts.
+Focusing the input activates header search. With at least four characters, the directory matches names,
+surnames, email addresses and usernames, including a leading @. The results are paginated across all
+eligible BGO users under the existing block rules. Back restores the address book and clears the query.
+Each tab has a section guide card covering the connection or request legend or the combined search and
+address book behavior.
 Registered-user rows show the real @username below the display name in every Contacts section.
 Unregistered address-book rows have no invented handle. Contacts derives attention from its loaded actor
 rows without inventing a server read subsection.

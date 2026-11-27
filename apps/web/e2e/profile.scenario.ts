@@ -155,7 +155,9 @@ for (const width of [390, 1280]) {
     await main.getByRole("tab", { name: it ? "Ricerca" : "Search", exact: true }).click();
     await main
       .getByRole("searchbox", {
-        name: it ? "Cerca utenti per nome o email" : "Search users by name or email",
+        name: it
+          ? "Cerca utenti per nome, email o username"
+          : "Search users by name, email, or username",
         exact: true,
       })
       .fill(targetName);

@@ -44,6 +44,13 @@ it("debounces trimmed searches, clears undersized input, and restores canonical 
   act(() => result.current.toggle("requested"));
   act(() => result.current.toggle("admin"));
   expect(result.current.selected).toEqual([]);
+  act(() => result.current.setQuery(" another "));
+  act(() => vi.advanceTimersByTime(300));
+  expect(result.current.search).toBe("another");
+  act(() => result.current.reset());
+  expect(result.current.query).toBe("");
+  expect(result.current.search).toBe("");
+  expect(result.current.selected).toEqual(available);
   unmount();
 });
 

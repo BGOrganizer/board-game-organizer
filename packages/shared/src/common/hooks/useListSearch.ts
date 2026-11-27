@@ -23,11 +23,17 @@ export function useListSearch<Filter extends string>(available: readonly Filter[
       ),
     [available],
   );
+  const reset = useCallback(() => {
+    setQuery("");
+    setSearch("");
+    setSelected([...available]);
+  }, [available]);
   return {
     query,
     setQuery,
     search,
     selected,
     toggle,
+    reset,
   };
 }

@@ -80,6 +80,7 @@ vi.mock("@clerk/expo", () => ({
 vi.mock("expo-router", () => ({
   useRouter: () => boundary,
   useNavigation: () => ({ getState: () => ({ type: "stack" }) }),
+  useFocusEffect: () => {},
   useLocalSearchParams: () => boundary.params,
   Stack: {
     Screen: ({ options: config }: { options: { headerRight?: () => ReactNode } }) => (

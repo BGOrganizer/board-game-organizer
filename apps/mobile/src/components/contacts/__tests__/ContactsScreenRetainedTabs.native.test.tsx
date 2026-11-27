@@ -44,7 +44,9 @@ const Session = createContext({
 // Platform/session and API hooks are boundaries. The screen, native lists,
 // HeroUI tabs/inputs, retained panels, rows, badges and attention scope are real.
 vi.mock("@clerk/expo", () => ({ useAuth: () => useContext(Session) }));
+const navigation = { setOptions: vi.fn() };
 vi.mock("expo-router", () => ({
+  useNavigation: () => navigation,
   useRouter: () => router,
   useLocalSearchParams: () => ({ tab: boundary.parameter }),
   // Focus/permission journeys have separate device acceptance. This suite owns
@@ -247,7 +249,7 @@ it("retains visited contact viewports, keeps tab semantics and shares one API/pe
   expect(screen.getByText("Ada owner")).toBeVisible();
   expect(screen.getByRole("button", { name: "Connections: Icon legend" })).toBeVisible();
   expect(screen.getByText("@adaowner")).toBeVisible();
-  expect(screen.getAllByRole("tab")).toHaveLength(4);
+  expect(screen.getAllByRole("tab")).toHaveLength(3);
   const friendName = screen.getByText("Ada owner");
   const connections = nativeScrollHost(friendName);
   await select("requests");
@@ -258,21 +260,27 @@ it("retains visited contact viewports, keeps tab semantics and shares one API/pe
   const requestName = screen.getByText("Grace owner");
   const requestList = nativeScrollHost(requestName);
   const lateRequestScroll = requestList.props.onScroll;
-  await select("device");
+  await select("search");
   expect(screen.getByText("Linus owner")).toBeVisible();
   expect(screen.queryByText("Device Contacts")).toBeNull();
   expect(screen.getByText("Section guide")).toBeVisible();
-  expect(screen.getByRole("button", { name: "Contacts help" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Contact search help" })).toBeVisible();
   await act(() => lateRequestScroll(bottomScroll));
   expect(model.pending.fetchNextPage).not.toHaveBeenCalled();
-  await select("search");
-  expect(screen.getByTestId("contact-search-input")).toBeVisible();
-  expect(screen.getByText("Section guide")).toBeVisible();
-  expect(screen.getByRole("button", { name: "Contact search help" })).toBeVisible();
-  expect(screen.queryByText("Search users by name or email")).toBeNull();
-  await fireEvent.changeText(screen.getByTestId("contact-search-input"), "Alex");
-  expect(screen.getByText("Alex owner")).toBeVisible();
-  await waitFor(() => expect(model.runSearch).toHaveBeenCalledWith("Alex"));
+  const input = screen.getByTestId("contact-search-input");
+  expect(input).toBeVisible();
+  await fireEvent(input, "focus");
+  expect(navigation.setOptions).toHaveBeenLastCalledWith({ headerShown: false });
+  expect(screen.getByTestId("contact-search-input")).toBe(input);
+  expect(screen.queryByText("Linus owner")).toBeNull();
+  expect(screen.queryByTestId("top-tab-search")).toBeNull();
+  await fireEvent.changeText(input, "Alex");
+  expect(await screen.findByText("Alex owner")).toBeVisible();
+  expect(model.runSearch).toHaveBeenCalledWith("Alex");
+  await fireEvent.press(screen.getByRole("button", { name: "Back" }));
+  expect(navigation.setOptions).toHaveBeenLastCalledWith({ headerShown: true });
+  expect(input).toHaveDisplayValue("");
+  expect(screen.getByText("Linus owner")).toBeVisible();
   await select("connections");
   expect(screen.getByText("Ada owner")).toBeVisible();
   expect(screen.getByText("Ada owner")).toBe(friendName);
@@ -283,7 +291,7 @@ it("retains visited contact viewports, keeps tab semantics and shares one API/pe
   await fireEvent.press(screen.getByRole("button", { name: "Load more" }));
   expect(model.pending.fetchNextPage).toHaveBeenCalledOnce();
   await select("search");
-  expect(screen.getByTestId("contact-search-input")).toHaveDisplayValue("Alex");
+  expect(screen.getByTestId("contact-search-input")).toHaveDisplayValue("");
   expect(boundary.permissions).toHaveBeenCalledOnce();
   expect(boundary.requestPermissions).not.toHaveBeenCalled();
   expect(boundary.readContacts).not.toHaveBeenCalled();
@@ -309,7 +317,7 @@ it("consumes repeated deep links while preserving local selection and retained i
         : requested === "blocked"
           ? "requests"
           : Array.isArray(requested)
-            ? "device"
+            ? "search"
             : requested;
     expect(screen.getByTestId(`top-tab-${selected}`)).toBeSelected();
     expect(boundary.parameter).toBeUndefined();
@@ -322,7 +330,7 @@ it("consumes repeated deep links while preserving local selection and retained i
   await view.unmount();
   boundary.parameter = "device";
   await render(<Fixture />);
-  expect(screen.getByTestId("top-tab-device")).toBeSelected();
+  expect(screen.getByTestId("top-tab-search")).toBeSelected();
   expect(boundary.parameter).toBeUndefined();
 });
 
@@ -330,8 +338,9 @@ it("evicts every retained private viewport and draft when the API or account own
   const view = await render(<Fixture />);
   await select("requests");
   await select("search");
-  await fireEvent.changeText(screen.getByTestId("contact-search-input"), "Alex");
   const oldSearch = screen.getByTestId("contact-search-input");
+  await fireEvent(oldSearch, "focus");
+  await fireEvent.changeText(oldSearch, "Alex");
   const oldFriend = screen.getByText("Ada owner", { includeHiddenElements: true });
   await view.rerender(<Fixture owner="other" />);
   expect(screen.getByText("Ada other")).toBeVisible();

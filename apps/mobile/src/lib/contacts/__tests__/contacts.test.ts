@@ -7,7 +7,8 @@ describe("contactTab", () => {
     expect(contactTab("requests")).toBe("requests");
     expect(contactTab(["friends", "requests"])).toBe("connections");
     expect(contactTab("blocked")).toBe("requests");
-    expect(contactTab("suggestions")).toBe("device");
+    expect(contactTab("suggestions")).toBe("search");
+    expect(contactTab("device")).toBe("search");
     expect(contactTab("search")).toBe("search");
   });
 

@@ -1,5 +1,12 @@
 appId: com.bgo.boardgameorganizer.dev
 ---
+- assertNotVisible:
+    id: list-filter-administrator
+- assertVisible:
+    id: list-sort-field
+- tapOn:
+    id: list-search-input
+- hideKeyboard
 - assertVisible:
     id: list-filter-administrator
     selected: true
@@ -48,3 +55,8 @@ appId: com.bgo.boardgameorganizer.dev
 - extendedWaitUntil:
     visible: '^(No groups found|Nessun gruppo trovato)$'
     timeout: 30000
+- tapOn: '^(Back|Indietro)$'
+- assertNotVisible:
+    id: list-filter-administrator
+- assertVisible:
+    id: list-sort-field

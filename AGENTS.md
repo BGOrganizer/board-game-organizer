@@ -191,11 +191,18 @@ Report unavailable kernel limits separately from the application limits actually
   button; do not add a submit button. Main Events/Tables, owned Private/Public Groups and Group-context
   Events instead use Filter inputs with an accessible name, no visible label or inline help, no
   minimum length, a 300 ms debounce and a clear action. Their escaped name query stays inside the
-  selected authorized list before paging. Group Search starts with Friends selected, accepts one
+  selected authorized list before paging. Owned Groups, main Events and Group-context Events use
+  active header search to show their filter chips. Back restores the list and resets the text and
+  chips. Existing ordering stays available directly below the controls in both views.
+  Group Search starts with Friends selected, accepts one
   character or an empty filter-only request, and matches approved names and venue addresses.
   Apply discovery filters before pagination. Request Nearby location on tap and keep discovery
-  text and coordinates out of native persistence. Use an anchored distance menu after the Nearby
-  chip and scope the active proximity query to its selected radius.
+  text and coordinates out of native persistence. Show discovery chips only while the search field
+  takes over the header. Use an anchored distance menu after the Nearby chip with presets up to
+  100 km, and scope the active proximity query to its selected radius.
+- Contacts has Connections, Requests and Search. The Search tab opens with registered BGO contacts
+  first and local unregistered contacts on mobile. Header search pages through the authorized BGO
+  directory by name, surname, email or username. Back clears the query and restores the address book.
 - Use the platform's shared `FilterChips` for compact list filters. Keep the visible chip compact
   and its native or coarse-pointer touch target at least 44 px.
 - Use `ListOrdering` for the name/date selector and direction action in Group and Event lists.

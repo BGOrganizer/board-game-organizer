@@ -93,7 +93,7 @@ it("evicts a visited discovery owner on account and API changes without reusing 
   expect(otherFilter).toHaveDisplayValue("");
   expect(screen.queryByText("Public list group")).toBeNull();
   expect(await screen.findByText("New owner discovery")).toBeVisible();
-  expect(screen.getByTestId("list-filter-friends")).toBeSelected();
+  expect(screen.queryByTestId("list-filter-friends")).toBeNull();
   await fireEvent.changeText(otherFilter, "New owner");
   const otherList = screen.getByTestId("groups-scroll");
   expect(otherList).not.toBe(originalList);

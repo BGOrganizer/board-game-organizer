@@ -37,8 +37,15 @@ import { NotificationAttentionScope } from "@/components/notifications/Notificat
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
+import { useListSearchHeader } from "@/lib/useListSearchHeader";
 import { GroupCard } from "./GroupCard";
-export function GroupList({ type }: { type: GroupRecord["type"] }) {
+export function GroupList({
+  type,
+  onSearchActiveChange,
+}: {
+  type: GroupRecord["type"];
+  onSearchActiveChange?: (active: boolean) => void;
+}) {
   const t = useT(),
     { _: translate } = useLingui(),
     router = useRouter(),
@@ -49,6 +56,10 @@ export function GroupList({ type }: { type: GroupRecord["type"] }) {
   const [order, setOrder] = useState<RecordListOrder>({ sort: "date", direction: "desc" });
   const filters = useListSearch(groupRecordMemberRoles, 0),
     list = useGroupRecords(options, "mine", filters.search, filters.selected, type, order);
+  const headerSearch = useListSearchHeader<(typeof list.items)[number]>(
+    filters.reset,
+    onSearchActiveChange,
+  );
   const items = communityAccessDenied(list.error) ? [] : list.items;
   const verify = useCallback(() => void list.refetch({ cancelRefetch: false }), [list.refetch]);
   const renderItem = useCallback(
@@ -83,37 +94,42 @@ export function GroupList({ type }: { type: GroupRecord["type"] }) {
           };
     return (
       <View style={{ gap: 12 }}>
-        <HelpSectionCard
-          title={sectionHelp.title}
-          label={sectionHelp.label}
-          icon={sectionHelp.icon}
-        >
-          <Typography className="text-foreground">{sectionHelp.description}</Typography>
-        </HelpSectionCard>
-        <ListSearch
-          query={query}
-          onQueryChange={setQuery}
-          label={t("Filter")}
-          placeholder={t("Filter groups")}
-          mode="filter"
-          showSearchGuidance={false}
-          selected={selected}
-          onToggle={toggle}
-          options={[
-            {
-              key: "administrator",
-              label: translate({ id: "list.filter.admin", message: "Admin" }),
-              icon: Crown,
-            },
-            { key: "moderator", label: t("Moderator"), icon: ShieldCheck },
-            { key: "member", label: t("Member"), icon: Check },
-            { key: "pending", label: t("Pending"), icon: Clock3 },
-          ]}
-        />
-        <ListOrdering order={order} onChange={setOrder} />
+        {!headerSearch.active ? (
+          <HelpSectionCard
+            title={sectionHelp.title}
+            label={sectionHelp.label}
+            icon={sectionHelp.icon}
+          >
+            <Typography className="text-foreground">{sectionHelp.description}</Typography>
+          </HelpSectionCard>
+        ) : null}
+        <View style={{ gap: 8 }}>
+          <ListSearch
+            headerSearch={headerSearch}
+            query={query}
+            onQueryChange={setQuery}
+            label={t("Filter")}
+            placeholder={t("Filter groups")}
+            mode="filter"
+            showSearchGuidance={false}
+            selected={selected}
+            onToggle={toggle}
+            options={[
+              {
+                key: "administrator",
+                label: translate({ id: "list.filter.admin", message: "Admin" }),
+                icon: Crown,
+              },
+              { key: "moderator", label: t("Moderator"), icon: ShieldCheck },
+              { key: "member", label: t("Member"), icon: Check },
+              { key: "pending", label: t("Pending"), icon: Clock3 },
+            ]}
+          />
+          <ListOrdering order={order} onChange={setOrder} />
+        </View>
       </View>
     );
-  }, [type, order, query, selected, setQuery, toggle, t, translate]);
+  }, [type, order, query, selected, setQuery, toggle, t, translate, headerSearch]);
   return (
     <NotificationAttentionScope
       options={options}
@@ -121,13 +137,14 @@ export function GroupList({ type }: { type: GroupRecord["type"] }) {
     >
       <ListPage>
         <InputFlatList
+          ref={headerSearch.listRef}
           testID="groups-scroll"
           style={{ flex: 1 }}
           data={items}
           keyExtractor={(group) => group.id}
           contentContainerStyle={{
             ...listPageContentStyle,
-            paddingTop: 8,
+            paddingTop: headerSearch.active ? headerSearch.top + 4 : 8,
             paddingBottom: layout.paddingBottom,
           }}
           keyboardShouldPersistTaps="handled"

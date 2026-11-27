@@ -268,19 +268,22 @@ it("paginates a connection source through the real list control and keeps previo
   ).toBe(true);
 });
 
-it("debounces real user discovery, distinguishes failures and empty results, and clears retained search state", async () => {
+it("debounces real user discovery, distinguishes failures and empty results, and clears search on Back", async () => {
   await renderContacts();
   await contactsReady();
   await contactTab("search");
+  await fireEvent(screen.getByTestId("contact-search-input"), "focus");
   await fireEvent.changeText(screen.getByTestId("contact-search-input"), "Tar");
   expect(contactsFixture.reads.filter((url) => url.pathname === "/api/users/search")).toHaveLength(
     0,
   );
   await fireEvent.changeText(screen.getByTestId("contact-search-input"), "Target");
   expect(await screen.findByText("Target Player")).toBeVisible();
+  await contactPress("Back");
   await contactTab("connections");
   await contactTab("search");
-  expect(screen.getByTestId("contact-search-input")).toHaveDisplayValue("Target");
+  expect(screen.getByTestId("contact-search-input")).toHaveDisplayValue("");
+  await fireEvent(screen.getByTestId("contact-search-input"), "focus");
   contactsFixture.searchStatus = 503;
   await fireEvent.changeText(screen.getByTestId("contact-search-input"), "Failure");
   expect(await screen.findByText("Could not load contacts")).toBeVisible();
@@ -293,8 +296,13 @@ it("debounces real user discovery, distinguishes failures and empty results, and
   expect(screen.getByTestId("contact-search-input")).toHaveDisplayValue("");
   expect(screen.queryByText("No users found")).toBeNull();
   expect(
-    contactsFixture.client?.getQueryState(["contacts", "search:Empty result", contactsApi, "owner"])
-      ?.status,
+    contactsFixture.client?.getQueryState([
+      "contacts",
+      "search:Empty result",
+      contactsApi,
+      "owner",
+      "pages",
+    ])?.status,
   ).toBe("success");
 });
 

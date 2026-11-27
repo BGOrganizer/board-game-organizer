@@ -18,9 +18,8 @@ tags: [manual, cards]
 - back
 - tapOn:
     id: top-tab-search
-- assertVisible:
+- assertNotVisible:
     id: list-filter-friends
-    selected: true
 - assertNotVisible: ${output.groupSearchFieldHelp}
 - tapOn: ${output.groupSearchListHelp}
 - assertVisible: ${output.groupSearchListRule}

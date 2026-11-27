@@ -67,17 +67,6 @@ tags: [manual, performance, navigation]
           selected: true
       - tapOn:
           waitToSettleTimeoutMs: 500
-          id: top-tab-device
-      - assertVisible:
-          id: top-tab-device
-          selected: true
-      - swipe:
-          from:
-            id: top-tab-scroll
-          direction: LEFT
-          waitToSettleTimeoutMs: 500
-      - tapOn:
-          waitToSettleTimeoutMs: 500
           id: top-tab-search
       - assertVisible:
           id: contact-search-input

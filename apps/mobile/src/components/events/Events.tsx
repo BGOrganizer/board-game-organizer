@@ -27,6 +27,7 @@ export function Events({
   const t = useT();
   const options = useCommunityApi();
   const [selectedSection, setSection] = useState<EventListSection>(initialSection);
+  const [searchActive, setSearchActive] = useState(false);
   if (groupId) return <EventList groupId={groupId} canCreate={canCreate} header={header} />;
   return (
     <NotificationAttentionScope
@@ -45,30 +46,36 @@ export function Events({
         }}
         style={{ flex: 1 }}
       >
-        <MainTabBar>
-          <TabTrigger icon={CalendarCheck} value="mine" style={{ flexDirection: "row", gap: 6 }}>
-            <Tabs.Label numberOfLines={1}>{t("Scheduled")}</Tabs.Label>
-            <NotificationTabBadge target={{ kind: "event-list", id: "mine" }} />
-          </TabTrigger>
-          <TabTrigger
-            icon={CalendarSearch}
-            value="available"
-            style={{ flexDirection: "row", gap: 6 }}
-          >
-            <Tabs.Label numberOfLines={1}>{t("Available")}</Tabs.Label>
-            <NotificationTabBadge target={{ kind: "event-list", id: "available" }} />
-          </TabTrigger>
-          <TabTrigger icon={Flag} value="terminated" style={{ flexDirection: "row", gap: 6 }}>
-            <Tabs.Label numberOfLines={1}>{t("Terminated events")}</Tabs.Label>
-            <NotificationTabBadge target={{ kind: "event-list", id: "terminated" }} />
-          </TabTrigger>
-        </MainTabBar>
+        {!searchActive ? (
+          <MainTabBar>
+            <TabTrigger icon={CalendarCheck} value="mine" style={{ flexDirection: "row", gap: 6 }}>
+              <Tabs.Label numberOfLines={1}>{t("Scheduled")}</Tabs.Label>
+              <NotificationTabBadge target={{ kind: "event-list", id: "mine" }} />
+            </TabTrigger>
+            <TabTrigger
+              icon={CalendarSearch}
+              value="available"
+              style={{ flexDirection: "row", gap: 6 }}
+            >
+              <Tabs.Label numberOfLines={1}>{t("Available")}</Tabs.Label>
+              <NotificationTabBadge target={{ kind: "event-list", id: "available" }} />
+            </TabTrigger>
+            <TabTrigger icon={Flag} value="terminated" style={{ flexDirection: "row", gap: 6 }}>
+              <Tabs.Label numberOfLines={1}>{t("Terminated events")}</Tabs.Label>
+              <NotificationTabBadge target={{ kind: "event-list", id: "terminated" }} />
+            </TabTrigger>
+          </MainTabBar>
+        ) : null}
         {(["mine", "available", "terminated"] as const).map((section) => (
           <RetainedTabPanel
             key={JSON.stringify([options.apiUrl, options.userId, groupId, section])}
             active={selectedSection === section}
           >
-            <MemoizedEventList section={section} canCreate={canCreate} />
+            <MemoizedEventList
+              section={section}
+              canCreate={canCreate}
+              onSearchActiveChange={setSearchActive}
+            />
           </RetainedTabPanel>
         ))}
       </Tabs>

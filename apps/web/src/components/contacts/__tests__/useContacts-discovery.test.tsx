@@ -57,7 +57,7 @@ afterEach(() => {
 it.each(["unfriend", "unfollow"] as const)(
   "refreshes loaded discovery after %s from another hook, without reopening tabs or refreshing unrelated owners/APIs",
   async (action) => {
-    const { client, getToken, wrapper } = setup(action === "unfriend");
+    const { getToken, wrapper } = setup(action === "unfriend");
     let following = true,
       friend = action === "unfriend",
       finish: ((response: Response) => void) | undefined;
@@ -165,4 +165,41 @@ it("does not invent address-book eligibility when removal commits but the discov
   expect(hook.result.current.suggestions.data?.users).toEqual([]);
   expect(hook.result.current.following.data).toEqual([]);
   expect(hook.result.current.unfriend.isSuccess).toBe(true);
+});
+
+it("pages through the directory with a fresh token and resets the visible results on close", async () => {
+  const { client, getToken, wrapper } = setup();
+  const next = { ...target, id: "next", name: "Mario Second" };
+  const fetch = vi.fn(async (input: string) => {
+    const url = new URL(input);
+    if (url.pathname !== "/api/users/search") return Response.json({ rows: [], nextCursor: null });
+    return url.searchParams.get("cursor") === "next+page"
+      ? Response.json({ users: [next], nextCursor: null })
+      : Response.json({ users: [target], nextCursor: "next+page" });
+  });
+  vi.stubGlobal("fetch", fetch);
+  const hook = renderHook(() => useContacts(api, "snapshot", getToken, undefined, actor), {
+    wrapper,
+  });
+  act(() => hook.result.current.runSearch("  @Mario  "));
+  await waitFor(() => expect(hook.result.current.search.data?.users).toEqual([target]));
+  expect(hook.result.current.search.hasNextPage).toBe(true);
+  expect(fetch.mock.calls.map(([input]) => new URL(input).searchParams.get("query"))).toEqual([
+    "@Mario",
+  ]);
+  getToken.mockResolvedValueOnce("next-rotated-token");
+  await act(async () => {
+    await hook.result.current.search.fetchNextPage();
+  });
+  await waitFor(() => expect(hook.result.current.search.data?.users).toEqual([target, next]));
+  expect(hook.result.current.search.hasNextPage).toBe(false);
+  expect(getToken).toHaveBeenCalledTimes(2);
+  const [cursorRequest] = fetch.mock.lastCall ?? [];
+  expect(new URL(cursorRequest ?? "").searchParams.get("cursor")).toBe("next+page");
+
+  act(() => hook.result.current.runSearch(""));
+  expect(hook.result.current.search.data).toBeUndefined();
+  expect(client.getQueryData(["contacts", "search:@Mario", api, actor, "pages"])).toMatchObject({
+    pageParams: ["", "next+page"],
+  });
 });

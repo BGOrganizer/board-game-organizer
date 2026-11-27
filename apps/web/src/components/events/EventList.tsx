@@ -41,15 +41,20 @@ import { WindowedList } from "@/components/common/ui/WindowedList";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
+import { useListSearchHeader } from "@/lib/useListSearchHeader";
 import { EventCard } from "./EventCard";
+
+const noEventRoles: readonly EventListFilterRole[] = [];
 export function EventList({
   groupId,
   canCreate = true,
   section = "mine",
+  onSearchActiveChange,
 }: {
   groupId?: string;
   canCreate?: boolean;
   section?: EventListSection;
+  onSearchActiveChange?: (active: boolean) => void;
 }) {
   const [order, setOrder] = useState<RecordListOrder>(eventListDefaultOrder[section]);
   const roles =
@@ -57,7 +62,7 @@ export function EventList({
       ? scheduledEventFilterRoles
       : section === "terminated"
         ? terminatedEventFilterRoles
-        : [];
+        : noEventRoles;
   const { t } = useLingui(),
     o = useCommunityApi(),
     filters = useListSearch<EventListStatus | EventListFilterRole>(
@@ -84,6 +89,7 @@ export function EventList({
       isFetchNextPageError: list.isFetchNextPageError,
       fetchNextPage: list.fetchNextPage,
     });
+  const headerSearch = useListSearchHeader(filters.reset, onSearchActiveChange);
   // Share the creation picker's bounded, source-filtered cache before navigation.
   useGroupRecords({ ...o, enabled: o.enabled !== false && !groupId && canCreate }, "mine", "", [
     "admin",
@@ -122,7 +128,7 @@ export function EventList({
         .map((row) => ({ kind: "event", id: row.id }))}
     >
       <ListPage hasFloatingActions={canCreate}>
-        {groupId ? null : (
+        {!groupId && !headerSearch.active ? (
           <HelpSectionCard
             title={sectionHelp.title}
             label={sectionHelp.label}
@@ -130,26 +136,29 @@ export function EventList({
           >
             <p>{sectionHelp.description}</p>
           </HelpSectionCard>
-        )}
-        <ListSearch
-          query={filters.query}
-          onQueryChange={filters.setQuery}
-          label={t`Filter`}
-          placeholder={t`Filter events`}
-          mode="filter"
-          selected={filters.selected}
-          onToggle={filters.toggle}
-          options={
-            !groupId
-              ? roles.map((key) => ({ key, ...roleLabels[key] }))
-              : [
-                  { key: "CONFIRMED", label: t`Confirmed events`, icon: CalendarCheck2 },
-                  { key: "PLANNING", label: t`Planning`, icon: CalendarClock },
-                  { key: "TERMINATED", label: t`Terminated events`, icon: Flag },
-                ]
-          }
-        />
-        {!groupId ? <ListOrdering order={order} onChange={setOrder} /> : null}
+        ) : null}
+        <div className="space-y-2">
+          <ListSearch
+            headerSearch={headerSearch}
+            query={filters.query}
+            onQueryChange={filters.setQuery}
+            label={t`Filter`}
+            placeholder={t`Filter events`}
+            mode="filter"
+            selected={filters.selected}
+            onToggle={filters.toggle}
+            options={
+              !groupId
+                ? roles.map((key) => ({ key, ...roleLabels[key] }))
+                : [
+                    { key: "CONFIRMED", label: t`Confirmed events`, icon: CalendarCheck2 },
+                    { key: "PLANNING", label: t`Planning`, icon: CalendarClock },
+                    { key: "TERMINATED", label: t`Terminated events`, icon: Flag },
+                  ]
+            }
+          />
+          {!groupId ? <ListOrdering order={order} onChange={setOrder} /> : null}
+        </div>
         <WindowedList
           key={`${groupId ?? section}:${filters.search}`}
           items={communityAccessDenied(list.error) ? [] : list.items}

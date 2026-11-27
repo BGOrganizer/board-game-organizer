@@ -45,6 +45,7 @@ import { NotificationAttentionScope } from "@/components/notifications/Notificat
 import { useT } from "@/lib/i18n";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useFloatingActionLayout } from "@/lib/useFloatingActionLayout";
+import { useListSearchHeader } from "@/lib/useListSearchHeader";
 import { EventCard } from "./EventCard";
 
 const noEventRoles: readonly EventListFilterRole[] = [];
@@ -53,10 +54,12 @@ export function EventList({
   canCreate = true,
   section = "mine",
   header,
+  onSearchActiveChange,
 }: {
   groupId?: string;
   canCreate?: boolean;
   section?: EventListSection;
+  onSearchActiveChange?: (active: boolean) => void;
   header?: ReactNode;
 }) {
   const [order, setOrder] = useState<RecordListOrder>(eventListDefaultOrder[section]);
@@ -91,6 +94,10 @@ export function EventList({
       roles: groupId ? undefined : roles.filter((role) => filters.selected.includes(role)),
       order: groupId ? undefined : order,
     });
+  const headerSearch = useListSearchHeader<(typeof list.items)[number]>(
+    filters.reset,
+    onSearchActiveChange,
+  );
   // Warm the same source-filtered first page used by the creation picker; never scan all Groups.
   useGroupRecords({ ...o, enabled: o.enabled !== false && !groupId && canCreate }, "mine", "", [
     "admin",
@@ -143,8 +150,8 @@ export function EventList({
     };
     return (
       <View style={{ gap: 12 }}>
-        {header === undefined || header === null || header === false ? null : <View>{header}</View>}
-        {groupId ? null : (
+        {!headerSearch.active && header != null && header !== false ? <View>{header}</View> : null}
+        {!groupId && !headerSearch.active ? (
           <HelpSectionCard
             title={sectionHelp.title}
             label={sectionHelp.label}
@@ -152,29 +159,45 @@ export function EventList({
           >
             <Typography className="text-foreground">{sectionHelp.description}</Typography>
           </HelpSectionCard>
-        )}
-        <ListSearch
-          query={query}
-          onQueryChange={setQuery}
-          label={t("Filter")}
-          placeholder={t("Filter events")}
-          mode="filter"
-          selected={selected}
-          onToggle={toggle}
-          options={
-            !groupId
-              ? roles.map((key) => ({ key, ...roleLabels[key] }))
-              : [
-                  { key: "CONFIRMED", label: t("Confirmed events"), icon: CalendarCheck2 },
-                  { key: "PLANNING", label: t("Planning"), icon: CalendarClock },
-                  { key: "TERMINATED", label: t("Terminated events"), icon: Flag },
-                ]
-          }
-        />
-        {!groupId ? <ListOrdering order={order} onChange={setOrder} /> : null}
+        ) : null}
+        <View style={{ gap: 8 }}>
+          <ListSearch
+            headerSearch={headerSearch}
+            query={query}
+            onQueryChange={setQuery}
+            label={t("Filter")}
+            placeholder={t("Filter events")}
+            mode="filter"
+            selected={selected}
+            onToggle={toggle}
+            options={
+              !groupId
+                ? roles.map((key) => ({ key, ...roleLabels[key] }))
+                : [
+                    { key: "CONFIRMED", label: t("Confirmed events"), icon: CalendarCheck2 },
+                    { key: "PLANNING", label: t("Planning"), icon: CalendarClock },
+                    { key: "TERMINATED", label: t("Terminated events"), icon: Flag },
+                  ]
+            }
+          />
+          {!groupId ? <ListOrdering order={order} onChange={setOrder} /> : null}
+        </View>
       </View>
     );
-  }, [header, groupId, section, roles, order, query, selected, setQuery, toggle, t, translate]);
+  }, [
+    header,
+    groupId,
+    section,
+    roles,
+    order,
+    query,
+    selected,
+    setQuery,
+    toggle,
+    t,
+    translate,
+    headerSearch,
+  ]);
   return (
     <NotificationAttentionScope
       options={o}
@@ -184,6 +207,7 @@ export function EventList({
     >
       <View style={{ flex: 1 }}>
         <InputFlatList
+          ref={headerSearch.listRef}
           style={{ flex: 1 }}
           keyboardShouldPersistTaps="handled"
           initialNumToRender={groupId ? 1 : undefined}
@@ -192,7 +216,7 @@ export function EventList({
           keyExtractor={(row) => row.id}
           contentContainerStyle={{
             padding: 20,
-            paddingTop: groupId ? 0 : 8,
+            paddingTop: headerSearch.active ? headerSearch.top + 4 : groupId ? 0 : 8,
             gap: 12,
             flexGrow: 1,
             paddingBottom: layout.paddingBottom,

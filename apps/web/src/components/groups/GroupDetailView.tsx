@@ -21,6 +21,7 @@ export function GroupDetailView({
   members,
   events,
   rankings,
+  eventsSearchActive = false,
 }: {
   group: GroupRecordResponse;
   selectedKey: string;
@@ -31,6 +32,7 @@ export function GroupDetailView({
   members?: ReactNode;
   events?: ReactNode;
   rankings?: ReactNode;
+  eventsSearchActive?: boolean;
 }) {
   const { t } = useLingui();
   const availableTabs = [
@@ -41,32 +43,34 @@ export function GroupDetailView({
   ];
   return (
     <>
-      <GroupIdentityCard group={group} titleAction={titleAction} />
+      {!eventsSearchActive ? <GroupIdentityCard group={group} titleAction={titleAction} /> : null}
       <Tabs
         selectedKey={availableTabs.includes(selectedKey) ? selectedKey : "info"}
         onSelectionChange={(key) => onSelectionChange(String(key))}
       >
-        <TabBar label={t`Group sections`}>
-          <TabTrigger icon={Info} id="info">
-            {t`Details`}
-            {tabAdornments?.info}
-          </TabTrigger>
-          {group.canViewMembers ? (
-            <TabTrigger icon={UsersRound} id="members">
-              {t`Members`}
-              {tabAdornments?.members}
+        <div hidden={eventsSearchActive} className={eventsSearchActive ? undefined : "contents"}>
+          <TabBar label={t`Group sections`}>
+            <TabTrigger icon={Info} id="info">
+              {t`Details`}
+              {tabAdornments?.info}
             </TabTrigger>
-          ) : null}
-          {group.canViewEvents ? (
-            <TabTrigger icon={CalendarDays} id="events">
-              {t`Events`}
-              {tabAdornments?.events}
-            </TabTrigger>
-          ) : null}
-          {group.canViewRankings ? (
-            <TabTrigger icon={ChartNoAxesCombined} id="rankings">{t`Rankings`}</TabTrigger>
-          ) : null}
-        </TabBar>
+            {group.canViewMembers ? (
+              <TabTrigger icon={UsersRound} id="members">
+                {t`Members`}
+                {tabAdornments?.members}
+              </TabTrigger>
+            ) : null}
+            {group.canViewEvents ? (
+              <TabTrigger icon={CalendarDays} id="events">
+                {t`Events`}
+                {tabAdornments?.events}
+              </TabTrigger>
+            ) : null}
+            {group.canViewRankings ? (
+              <TabTrigger icon={ChartNoAxesCombined} id="rankings">{t`Rankings`}</TabTrigger>
+            ) : null}
+          </TabBar>
+        </div>
         <Tabs.Panel id="info" className="space-y-4 pt-0">
           <GroupSectionHeader group={group} section="info" />
           <GroupDetailsCard group={group} identity={null} venueHelp={false} />
@@ -80,7 +84,7 @@ export function GroupDetailView({
         ) : null}
         {group.canViewEvents ? (
           <Tabs.Panel id="events" className="space-y-4 pt-0">
-            <GroupSectionHeader group={group} section="events" />
+            {!eventsSearchActive ? <GroupSectionHeader group={group} section="events" /> : null}
             {events}
           </Tabs.Panel>
         ) : null}

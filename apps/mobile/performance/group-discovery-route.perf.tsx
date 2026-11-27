@@ -87,7 +87,7 @@ it("Group search route: finds groups with Friends and a single character", async
       },
       scenario: async () => {
         expect(screen.getByRole("tab", { name: "Search" })).toBeSelected();
-        expect(screen.getByTestId("list-filter-friends")).toBeSelected();
+        expect(screen.queryByTestId("list-filter-friends")).toBeNull();
         expect(await screen.findByText("No public groups with your friends")).toBeVisible();
         const input = screen.getByTestId("list-search-input");
         await fireEvent.changeText(input, "a");

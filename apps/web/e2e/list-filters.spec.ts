@@ -104,6 +104,13 @@ test("owned Groups combine role filters with Name and Date ordering in both tabs
 
   for (const tab of ["Private groups", "Public groups"] as const) {
     await page.getByRole("tab", { name: tab, exact: true }).click();
+    for (const role of roles) await expect(filter(role, true)).toHaveCount(0);
+    const filterInput = activePanel().getByRole("searchbox", { name: "Filter", exact: true });
+    await expect(
+      activePanel().getByRole("button", { name: "Sort by Date", exact: true }),
+    ).toBeVisible();
+    await filterInput.focus();
+    await expect(page.getByRole("tab", { name: tab, exact: true })).toHaveCount(0);
     for (const role of roles) await expect(filter(role, true)).toBeVisible();
     await expect(firstGroup()).toHaveAccessibleName(
       tab === "Public groups"
@@ -130,16 +137,25 @@ test("owned Groups combine role filters with Name and Date ordering in both tabs
     ).toHaveCount(tab === "Public groups" ? 1 : 0);
     await filter("Pending", true).click();
     await expect(activePanel().getByText("No groups found", { exact: true })).toBeVisible();
+    await activePanel().getByRole("button", { name: "Back", exact: true }).click();
+    await expect(page.getByRole("tab", { name: tab, selected: true })).toBeVisible();
+    for (const role of roles) await expect(filter(role, true)).toHaveCount(0);
+    await expect(
+      activePanel().getByRole("button", { name: "Sort by Date", exact: true }),
+    ).toBeVisible();
   }
 
   await page.getByRole("tab", { name: "Search", exact: true }).click();
   for (const role of roles) await expect(filter(role, true)).toHaveCount(0);
   await expect(activePanel().getByRole("button", { name: /^Sort by / })).toHaveCount(0);
   const search = activePanel().getByRole("searchbox", { name: "Search groups", exact: true });
-  await expect(activePanel().getByRole("button", { name: "Friends", pressed: true })).toBeVisible();
-  await expect(
-    activePanel().getByRole("button", { name: "Near me", pressed: false }),
-  ).toBeVisible();
+  const friends = activePanel().getByRole("button", { name: "Friends", exact: true });
+  const nearby = activePanel().getByRole("button", { name: "Near me", exact: true });
+  await expect(friends).toHaveCount(0);
+  await expect(nearby).toHaveCount(0);
+  await search.focus();
+  await expect(friends).toHaveAttribute("aria-pressed", "true");
+  await expect(nearby).toHaveAttribute("aria-pressed", "false");
   const discoveryResponse = page.waitForResponse((response) => {
     const { pathname, searchParams } = new URL(response.url());
     return (
@@ -164,7 +180,9 @@ test("owned Groups combine role filters with Name and Date ordering in both tabs
 
   await context.grantPermissions(["geolocation"], { origin: new URL(page.url()).origin });
   await context.setGeolocation({ latitude: 41.9, longitude: 12.5 });
-  const nearby = activePanel().getByRole("button", { name: "Near me", exact: true });
+  await expect(friends).toHaveCount(0);
+  await expect(nearby).toHaveCount(0);
+  await search.focus();
   const waitForRadius = (radius: string | null) =>
     page.waitForResponse((response) => {
       const { pathname, searchParams } = new URL(response.url());
@@ -187,15 +205,12 @@ test("owned Groups combine role filters with Name and Date ordering in both tabs
   await preset;
   await expect(menu).toBeHidden();
   await activePanel().getByRole("button", { name: "Distance, 50 km" }).click();
-  await menu.getByRole("button", { name: "Custom distance" }).click();
-  await menu.getByLabel("Custom distance").fill("101");
-  await expect(menu.getByRole("button", { name: "Apply" })).toBeDisabled();
-  await menu.getByLabel("Custom distance").fill("12");
-  const custom = waitForRadius("12");
-  await menu.getByRole("button", { name: "Apply" }).click();
-  await custom;
+  await expect(menu.getByRole("button")).toHaveText(["5 km", "10 km", "25 km", "50 km", "100 km"]);
+  const maximum = waitForRadius("100");
+  await menu.getByRole("button", { name: "100 km" }).click();
+  await maximum;
   await nearby.click();
   await expect(activePanel().getByRole("button", { name: /^Distance,/ })).toHaveCount(0);
   await nearby.click();
-  await expect(activePanel().getByRole("button", { name: "Distance, 12 km" })).toBeVisible();
+  await expect(activePanel().getByRole("button", { name: "Distance, 100 km" })).toBeVisible();
 });

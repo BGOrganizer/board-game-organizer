@@ -91,16 +91,32 @@ it("shows three exclusive tabs, with owned lists distinct from friend discovery"
   expect(screen.getByRole("tab", { name: "Private groups", selected: true })).toBeTruthy();
   await screen.findByRole("link", { name: "Open group: Friday group" });
   expect(screen.getByRole("link", { name: "Create group" })).toBeTruthy();
+  const filter = screen.getByRole("searchbox", { name: "Filter" });
+  const order = screen.getByRole("button", { name: "Sort by Date" });
+  expect(screen.queryByRole("button", { name: "Admin", pressed: true })).toBeNull();
+  fireEvent.focus(filter);
+  expect(screen.getByRole("searchbox", { name: "Filter" })).toBe(filter);
+  expect(screen.queryByRole("tablist")).toBeNull();
+  expect(screen.getByRole("button", { name: "Sort by Date" })).toBe(order);
   for (const name of ["Admin", "Moderator", "Member", "Pending"])
     expect(screen.getByRole("button", { name, pressed: true })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  expect(screen.queryByRole("button", { name: "Admin", pressed: true })).toBeNull();
   expect(new URL(fetcher.mock.calls[0][0]).searchParams.get("type")).toBe("PRIVATE");
   expect(new URL(fetcher.mock.calls[0][0]).searchParams.get("roles")).toBe(
     groupRecordMemberRoles.join(","),
   );
   fireEvent.click(screen.getByRole("tab", { name: "Public groups" }));
   await screen.findByRole("link", { name: "Open group: Public owned group" });
+  const publicFilter = screen.getByRole("searchbox", { name: "Filter" });
+  expect(screen.queryByRole("button", { name: "Admin", pressed: true })).toBeNull();
+  fireEvent.focus(publicFilter);
+  fireEvent.keyDown(publicFilter, { key: "ArrowLeft" });
   for (const name of ["Admin", "Moderator", "Member", "Pending"])
     expect(screen.getByRole("button", { name, pressed: true })).toBeVisible();
+  fireEvent.keyDown(publicFilter, { key: "Escape" });
+  expect(screen.getByRole("tab", { name: "Public groups", selected: true })).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Admin", pressed: true })).toBeNull();
   expect(screen.queryByRole("link", { name: "Open group: Friday group" })).toBeNull();
   expect(screen.getByRole("link", { name: "Create group" })).toBeTruthy();
   expect(screen.queryByText("Enter at least 4 characters to search")).toBeNull();
@@ -111,8 +127,8 @@ it("shows three exclusive tabs, with owned lists distinct from friend discovery"
   expect(screen.queryByRole("link", { name: "Back" })).toBeNull();
   expect(screen.queryByRole("link", { name: "Create group" })).toBeNull();
   await screen.findByRole("link", { name: "Open group: Public owned group" });
-  expect(screen.getByRole("button", { name: "Friends", pressed: true })).toBeVisible();
-  expect(screen.getByRole("button", { name: "Near me", pressed: false })).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Friends" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Near me" })).toBeNull();
   const discovery = fetcher.mock.calls
     .map(([input]) => new URL(input))
     .find((url) => url.searchParams.get("scope") === "public")?.searchParams;
@@ -261,6 +277,8 @@ it("keeps the input mounted when focused, searches from one character, and reset
   expect(screen.getByRole("searchbox", { name: "Search groups" })).toBe(field);
   expect(screen.queryByRole("tab", { name: "Search" })).toBeNull();
   expect(screen.queryByRole("heading", { name: "Group search" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Friends", pressed: true })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Near me", pressed: false })).toBeVisible();
   fireEvent.change(field, { target: { value: " R " } });
   await waitFor(() =>
     expect(
@@ -271,7 +289,8 @@ it("keeps the input mounted when focused, searches from one character, and reset
   fireEvent.click(screen.getByRole("button", { name: "Back" }));
   expect(field).toHaveValue("");
   expect(screen.getByRole("tab", { name: "Search", selected: true })).toBeVisible();
-  expect(screen.getByRole("button", { name: "Friends", pressed: true })).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Friends" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Near me" })).toBeNull();
   expect(screen.getByRole("heading", { name: "Group search" })).toBeVisible();
   expect(screen.getByText("No public groups with your friends")).toBeVisible();
 });
@@ -307,10 +326,10 @@ it("combines empty and one-character searches with the two independently selecta
   renderGroups("search");
   await screen.findByText("No public groups with your friends");
   expect(getCurrentPosition).not.toHaveBeenCalled();
+  const field = screen.getByRole("searchbox", { name: "Search groups" });
+  fireEvent.focus(field);
   fireEvent.click(screen.getByRole("button", { name: "Near me" }));
   expect(await screen.findByRole("button", { name: "Near me", pressed: true })).toBeVisible();
-  const field = screen.getByRole("searchbox", { name: "Search groups" });
-  expect(field).not.toHaveFocus();
   fireEvent.change(field, { target: { value: "z" } });
   await waitFor(() => {
     const params = new URL(fetcher.mock.calls.at(-1)![0]).searchParams;
@@ -338,7 +357,7 @@ it("requests and caches each distance independently through the anchored distanc
   const rows = new Map([
     ["25", "Default radius club"],
     ["50", "Wider radius club"],
-    ["12", "Custom radius club"],
+    ["100", "Maximum radius club"],
   ]);
   const fetcher = vi.fn(async (url: string) => {
     const name = rows.get(new URL(url).searchParams.get("radiusKm") ?? "");
@@ -353,6 +372,7 @@ it("requests and caches each distance independently through the anchored distanc
   );
   stubGeolocation(getCurrentPosition);
   renderGroups("search");
+  fireEvent.focus(screen.getByRole("searchbox", { name: "Search groups" }));
   const friends = screen.getByRole("button", { name: "Friends" });
   const nearby = screen.getByRole("button", { name: "Near me" });
   expect(screen.queryByRole("button", { name: /^Distance,/ })).toBeNull();
@@ -367,40 +387,34 @@ it("requests and caches each distance independently through the anchored distanc
   fireEvent.click(trigger);
   const menu = await screen.findByRole("dialog", { name: "Distance" });
   expect(within(menu).getByRole("button", { name: "25 km", pressed: true })).toBeVisible();
+  expect(
+    within(menu)
+      .getAllByRole("button")
+      .map((option) => option.textContent),
+  ).toEqual(["5 km", "10 km", "25 km", "50 km", "100 km"]);
   fireEvent.click(within(menu).getByRole("button", { name: "50 km" }));
   expect(await screen.findByRole("link", { name: "Open group: Wider radius club" })).toBeVisible();
   expect(getCurrentPosition).toHaveBeenCalledOnce();
   fireEvent.click(screen.getByRole("button", { name: "Distance, 50 km" }));
-  fireEvent.click(
-    within(await screen.findByRole("dialog")).getByRole("button", { name: "Custom distance" }),
-  );
-  let form = within(screen.getByRole("dialog"));
-  fireEvent.change(form.getByLabelText("Custom distance"), { target: { value: "101" } });
-  expect(form.getByRole("button", { name: "Apply" })).toBeDisabled();
-  const customForm = form.getByLabelText("Custom distance").closest("form");
-  if (!customForm) throw new Error("The custom distance requires a form");
-  fireEvent.submit(customForm);
-  expect(form.getByLabelText("Custom distance")).toHaveValue("101");
-  fireEvent.keyDown(form.getByLabelText("Custom distance"), { key: "Escape" });
+  const reopened = await screen.findByRole("dialog", { name: "Distance" });
+  expect(within(reopened).getByRole("button", { name: "50 km", pressed: true })).toBeVisible();
+  fireEvent.keyDown(within(reopened).getByRole("button", { name: "50 km" }), { key: "Escape" });
   await waitFor(() => expect(screen.queryByRole("dialog", { name: "Distance" })).toBeNull());
   fireEvent.click(screen.getByRole("button", { name: "Distance, 50 km" }));
-  form = within(await screen.findByRole("dialog", { name: "Distance" }));
-  fireEvent.click(form.getByRole("button", { name: "Custom distance" }));
-  expect(form.getByLabelText("Custom distance")).toHaveValue("50");
-  fireEvent.click(form.getByRole("button", { name: "Back" }));
-  expect(form.getByRole("button", { name: "50 km", pressed: true })).toBeVisible();
-  fireEvent.click(form.getByRole("button", { name: "Custom distance" }));
-  form = within(screen.getByRole("dialog"));
-  expect(form.getByLabelText("Custom distance")).toHaveValue("50");
-  fireEvent.change(form.getByLabelText("Custom distance"), { target: { value: "12" } });
-  fireEvent.click(form.getByRole("button", { name: "Apply" }));
-  expect(await screen.findByRole("link", { name: "Open group: Custom radius club" })).toBeVisible();
+  fireEvent.click(
+    within(await screen.findByRole("dialog")).getByRole("button", { name: "100 km" }),
+  );
+  expect(
+    await screen.findByRole("link", { name: "Open group: Maximum radius club" }),
+  ).toBeVisible();
   fireEvent.click(nearby);
   expect(screen.queryByRole("button", { name: /^Distance,/ })).toBeNull();
   expect(await screen.findByText("No public groups with your friends")).toBeVisible();
   fireEvent.click(nearby);
-  expect(await screen.findByRole("button", { name: "Distance, 12 km" })).toBeVisible();
-  expect(await screen.findByRole("link", { name: "Open group: Custom radius club" })).toBeVisible();
+  expect(await screen.findByRole("button", { name: "Distance, 100 km" })).toBeVisible();
+  expect(
+    await screen.findByRole("link", { name: "Open group: Maximum radius club" }),
+  ).toBeVisible();
 });
 
 it("keeps Friends usable on browsers without geolocation", async () => {
@@ -415,6 +429,7 @@ it("keeps Friends usable on browsers without geolocation", async () => {
     }),
   );
   renderGroups("search");
+  fireEvent.focus(screen.getByRole("searchbox", { name: "Search groups" }));
   fireEvent.click(screen.getByRole("button", { name: "Near me" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("Location unavailable");
   expect(screen.getByRole("button", { name: "Friends", pressed: true })).toBeVisible();
@@ -501,6 +516,7 @@ it("reports location denial and ignores a position delivered after closing", asy
   stubGeolocation(getCurrentPosition);
   renderGroups("search");
   await screen.findByText("No public groups with your friends");
+  fireEvent.focus(screen.getByRole("searchbox", { name: "Search groups" }));
   fireEvent.click(screen.getByRole("button", { name: "Near me" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("Location unavailable");
   expect(screen.getByRole("button", { name: "Friends", pressed: true })).toBeVisible();
@@ -510,7 +526,7 @@ it("reports location denial and ignores a position delivered after closing", asy
   await act(async () =>
     deliver?.({ coords: { latitude: 45, longitude: 7 } } as GeolocationPosition),
   );
-  expect(screen.getByRole("button", { name: "Near me", pressed: false })).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Near me" })).toBeNull();
   expect(screen.queryByRole("alert")).toBeNull();
   expect(fetcher.mock.calls.every(([input]) => !new URL(input).searchParams.has("nearLat"))).toBe(
     true,
@@ -601,6 +617,7 @@ it("applies and restores a role chip within the current authorized group source"
   );
   renderGroups("private");
   await screen.findByRole("link", { name: `Open group: ${groupRecord.name}` });
+  fireEvent.focus(screen.getByRole("searchbox", { name: "Filter" }));
   const admin = screen.getByRole("button", { name: "Admin", pressed: true });
   fireEvent.click(admin);
   expect(await screen.findByText("No groups found")).toBeVisible();

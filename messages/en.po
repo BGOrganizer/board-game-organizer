@@ -7922,21 +7922,15 @@ msgid "No public groups with your friends"
 msgstr "No public groups with your friends"
 
 #: apps/web/src/components/groups/GroupSearchDistance.tsx
-msgid "1–100 km"
-msgstr "1–100 km"
-
-#: apps/web/src/components/groups/GroupSearchDistance.tsx
-msgid "Apply"
-msgstr "Apply"
-
-#: apps/web/src/components/groups/GroupSearchDistance.tsx
-msgid "Custom distance"
-msgstr "Custom distance"
-
-#: apps/web/src/components/groups/GroupSearchDistance.tsx
 msgid "Distance"
 msgstr "Distance"
 
 #: apps/web/src/components/groups/GroupSearchDistance.tsx
 msgid "Distance, {value}"
 msgstr "Distance, {value}"
+
+msgid "Search users by name, email, or username"
+msgstr "Search users by name, email, or username"
+
+msgid "Find BGO users by first name, last name, email, or username, including people outside your contacts."
+msgstr "Find BGO users by first name, last name, email, or username, including people outside your contacts."

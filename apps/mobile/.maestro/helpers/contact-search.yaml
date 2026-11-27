@@ -19,8 +19,9 @@ appId: com.bgo.boardgameorganizer.dev
     id: "contact-search-input"
     text: ${output.contactEmailPattern}
 - hideKeyboard
-# Search now owns only remote results; the address book is in its separate tab.
-- assertNotVisible: "Contacts help"
+# Search takes over the header and shows directory results.
+- assertNotVisible: "Contact search help"
+- assertVisible: "Back"
 - extendedWaitUntil:
     visible: ${CONTACT_ACTIONS}
     timeout: 90000

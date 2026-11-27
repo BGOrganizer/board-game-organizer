@@ -262,13 +262,14 @@ test(searchScenario, async () => {
             "aria-selected",
             "true",
           );
-          expect(screen.getByRole("button", { name: "Friends", pressed: true })).toBeVisible();
+          expect(screen.queryByRole("button", { name: "Friends" })).toBeNull();
           const search = screen.getByRole("searchbox", { name: "Search groups" });
           fireEvent.focus(search);
+          expect(screen.getByRole("button", { name: "Friends", pressed: true })).toBeVisible();
           expect(screen.queryByRole("tab", { name: "Search" })).toBeNull();
           fireEvent.click(screen.getByRole("button", { name: "Back" }));
           expect(search).toHaveValue("");
-          expect(screen.getByRole("button", { name: "Friends", pressed: true })).toBeVisible();
+          expect(screen.queryByRole("button", { name: "Friends" })).toBeNull();
           expect(current().fixture.reads).toEqual([]);
         },
       },

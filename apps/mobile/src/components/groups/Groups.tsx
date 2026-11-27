@@ -56,7 +56,10 @@ export function Groups({
             {section === "search" ? (
               <GroupSearch onActiveChange={setSearchActive} />
             ) : (
-              <MemoizedGroupList type={section === "private" ? "PRIVATE" : "PUBLIC"} />
+              <MemoizedGroupList
+                type={section === "private" ? "PRIVATE" : "PUBLIC"}
+                onSearchActiveChange={setSearchActive}
+              />
             )}
           </RetainedTabPanel>
         ))}

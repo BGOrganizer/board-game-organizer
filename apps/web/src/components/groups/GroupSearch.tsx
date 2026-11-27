@@ -113,14 +113,16 @@ export function GroupSearch() {
             },
           }}
         />
-        <GroupSearchFilters
-          friends={search.friends}
-          nearby={search.nearby}
-          radiusKm={search.radiusKm}
-          toggleFriends={search.toggleFriends}
-          toggleNearby={search.toggleNearby}
-          setRadiusKm={search.setRadiusKm}
-        />
+        {search.active ? (
+          <GroupSearchFilters
+            friends={search.friends}
+            nearby={search.nearby}
+            radiusKm={search.radiusKm}
+            toggleFriends={search.toggleFriends}
+            toggleNearby={search.toggleNearby}
+            setRadiusKm={search.setRadiusKm}
+          />
+        ) : null}
         {search.locating ? <p role="status">{t`Loading…`}</p> : null}
         {search.locationError ? (
           <p role="alert" className="text-danger">{t`Location unavailable`}</p>

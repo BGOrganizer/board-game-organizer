@@ -184,13 +184,15 @@ export function GroupSearch({ onActiveChange }: { onActiveChange: (active: boole
             leadingAction={active ? <HeaderBackButton onPress={finish} /> : undefined}
             inputStyle={active ? { flex: 1 } : undefined}
           />
-          <GroupSearchFilters
-            friends={friends}
-            nearby={nearby}
-            radiusKm={radiusKm}
-            onToggle={filter}
-            onDistanceChange={changeDistance}
-          />
+          {active ? (
+            <GroupSearchFilters
+              friends={friends}
+              nearby={nearby}
+              radiusKm={radiusKm}
+              onToggle={filter}
+              onDistanceChange={changeDistance}
+            />
+          ) : null}
           {locating ? (
             <Skeleton
               accessibilityLabel={t("Loading…")}

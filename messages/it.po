@@ -7921,21 +7921,15 @@ msgid "No public groups with your friends"
 msgstr "Nessun gruppo pubblico con i tuoi amici"
 
 #: apps/web/src/components/groups/GroupSearchDistance.tsx
-msgid "1–100 km"
-msgstr "1–100 km"
-
-#: apps/web/src/components/groups/GroupSearchDistance.tsx
-msgid "Apply"
-msgstr "Applica"
-
-#: apps/web/src/components/groups/GroupSearchDistance.tsx
-msgid "Custom distance"
-msgstr "Distanza personalizzata"
-
-#: apps/web/src/components/groups/GroupSearchDistance.tsx
 msgid "Distance"
 msgstr "Distanza"
 
 #: apps/web/src/components/groups/GroupSearchDistance.tsx
 msgid "Distance, {value}"
 msgstr "Distanza, {value}"
+
+msgid "Search users by name, email, or username"
+msgstr "Cerca utenti per nome, email o username"
+
+msgid "Find BGO users by first name, last name, email, or username, including people outside your contacts."
+msgstr "Cerca utenti BGO per nome, cognome, email o username, anche se non sono nella tua rubrica."

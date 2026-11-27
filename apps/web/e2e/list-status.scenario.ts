@@ -324,6 +324,14 @@ for (const width of [390, 1280])
       await page.keyboard.press("Escape");
       await expect(sectionPopover).toHaveCount(0);
       const filter = main.getByRole("searchbox", { name: labels.filter, exact: true });
+      const ordering = main.getByRole("button", { name: /^(Sort by|Ordina per) / });
+      const searchBack = main.getByRole("button", { name: it ? "Indietro" : "Back", exact: true });
+      if (current.resource === "events") {
+        await expect(ordering).toBeVisible();
+        await expect(
+          main.getByRole("button", { name: it ? "Partecipante" : "Participant", pressed: true }),
+        ).toHaveCount(0);
+      }
       const matches = (url: string, text: string) => {
         const parsed = new URL(url);
         return (
@@ -338,6 +346,13 @@ for (const width of [390, 1280])
       };
       const received = page.waitForResponse((response) => matches(response.url(), query));
       await filter.fill(query);
+      if (current.resource === "events") {
+        await expect(searchBack).toBeVisible();
+        await expect(ordering).toBeVisible();
+        await expect(
+          main.getByRole("tab", { name: labels[current.section], exact: true }),
+        ).toHaveCount(0);
+      }
       const initialResponse = await received;
       expect(initialResponse.ok()).toBe(true);
       const initialOrder = new URL(initialResponse.url()).searchParams;
@@ -540,6 +555,14 @@ for (const width of [390, 1280])
       await expect(main.getByText(emptyText, { exact: true })).toBeVisible();
       await filter.fill(query);
       await expect(link).toBeVisible();
+      if (current.resource === "events") {
+        await searchBack.click();
+        await expect(filter).toHaveValue("");
+        await expect(ordering).toBeVisible();
+        await expect(
+          main.getByRole("tab", { name: labels[current.section], exact: true, selected: true }),
+        ).toBeVisible();
+      }
       expect(writes).toEqual([]);
       expect(await main.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
     });

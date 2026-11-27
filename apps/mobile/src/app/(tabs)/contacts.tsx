@@ -39,6 +39,7 @@ import {
 } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, Linking, Pressable, Share, View } from "react-native";
+import { HeaderBackButton } from "@/components/common/layout/HeaderBackButton";
 import { ConfirmDialog } from "@/components/common/ui/ConfirmDialog";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
@@ -69,6 +70,7 @@ import { unregisteredContacts } from "@/lib/contacts/unregisteredContacts";
 import { useContactTab } from "@/lib/contacts/useContactTab";
 import type { FriendRequestContext, UserActionKey } from "@/lib/contacts/user-actions";
 import { useT } from "@/lib/i18n";
+import { useListSearchHeader } from "@/lib/useListSearchHeader";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 import { useSessionAuth } from "@/lib/useSessionAuth";
 
@@ -133,12 +135,11 @@ function ContactsContent() {
     feedback: mutationFeedback,
   };
   const attentionRead = useReadNotificationAttention(attentionOptions);
-  const readSection = (id: ContactTab) => {
-    if (id !== "device") attentionRead.read({ kind: "contacts", id });
-  };
+  const readSection = (id: ContactTab) => attentionRead.read({ kind: "contacts", id });
   const { tab, setTab } = useContactTab();
   const [token, setToken] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [submittedQuery, setSubmittedQuery] = useState("");
   const [menuUser, setMenuUser] = useState<ContactUser | null>(null);
   const [menuFriendRequest, setMenuFriendRequest] = useState<FriendRequestContext>();
   const [initialConfirmAction, setInitialConfirmAction] = useState<UserActionConfirmation>();
@@ -163,7 +164,6 @@ function ContactsContent() {
   } | null>(null);
   const contactsPromptShownRef = useRef(false);
   const initialSyncRef = useRef(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(
     () => () => {
       deviceGenerationRef.current += 1;
@@ -522,21 +522,25 @@ function ContactsContent() {
     void syncContactsData(false);
   }, [contactsPermission, syncContactsData, token]);
 
-  // Auto-search on input: fires 300ms after the user stops typing, only when
-  // at least 4 characters are present (min prefix length per product spec).
+  const resetSearch = useCallback(() => {
+    setQuery("");
+    setSubmittedQuery("");
+    contacts.runSearch("");
+  }, [contacts.runSearch]);
+  const headerSearch =
+    useListSearchHeader<ReturnType<typeof contactDeviceRows>[number]>(resetSearch);
+  const validQuery = query.trim().length >= 4;
+  const searchPending =
+    validQuery && (query.trim() !== submittedQuery || contacts.search.isLoading);
   useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (tab !== "search" || query.trim().length < 4) {
-      debounceRef.current = null;
-      return;
-    }
-    debounceRef.current = setTimeout(() => {
+    if (tab !== "search" && headerSearch.active) headerSearch.close();
+    if (!headerSearch.active || tab !== "search" || !validQuery) return;
+    const timer = setTimeout(() => {
       contacts.runSearch(query);
+      setSubmittedQuery(query.trim());
     }, 300);
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [contacts.runSearch, query, tab]);
+    return () => clearTimeout(timer);
+  }, [contacts.runSearch, headerSearch.active, headerSearch.close, query, tab, validQuery]);
 
   const followingRows = contacts.following.data ?? [];
   const followersRows = contacts.followers.data ?? [];
@@ -553,7 +557,8 @@ function ContactsContent() {
   const suggestions = contacts.suggestions.data?.users ?? [];
   const visibleSuggestions =
     contacts.suggestions.isLoading || contactsPermission === "checking" ? [] : suggestions;
-  const searchResults = query.trim().length >= 4 ? (contacts.search.data?.users ?? []) : [];
+  const searchResults =
+    headerSearch.active && validQuery && !searchPending ? (contacts.search.data?.users ?? []) : [];
   const connections = contactConnections(
     friendsRows,
     followingRows,
@@ -679,57 +684,105 @@ function ContactsContent() {
           }}
           variant="primary"
         >
-          <MainTabBar>
-            <TabTrigger
-              icon={UsersRound}
-              value="connections"
-              style={{ flexDirection: "row", gap: 6 }}
-            >
-              <Tabs.Label>{t("Connections")}</Tabs.Label>
-              <ContactSectionBadge
-                section="connections"
-                userIds={connections
-                  .filter((row) => row.key !== "device")
-                  .flatMap((row) => row.users.map((user) => user.id))}
-              />
-            </TabTrigger>
-            <TabTrigger
-              icon={UserRoundPlus}
-              value="requests"
-              style={{ flexDirection: "row", gap: 6 }}
-            >
-              <Tabs.Label>{t("Requests")}</Tabs.Label>
-              <ContactSectionBadge
-                section="requests"
-                userIds={[...pendingRows, ...sentRows].flatMap((row) =>
-                  row.profile ? [row.profile.id] : [],
-                )}
-              />
-            </TabTrigger>
-            <TabTrigger icon={BookUser} value="device" style={{ flexDirection: "row", gap: 6 }}>
-              <Tabs.Label>{t("Contacts")}</Tabs.Label>
-              <ContactSectionBadge section="device" userIds={bgoContacts.map((user) => user.id)} />
-            </TabTrigger>
-            <TabTrigger icon={Search} value="search" style={{ flexDirection: "row", gap: 6 }}>
-              <Tabs.Label>{t("Search")}</Tabs.Label>
-              <ContactSectionBadge
-                section="search"
-                userIds={searchResults.map((user) => user.id)}
-              />
-            </TabTrigger>
-          </MainTabBar>
+          <View style={headerSearch.active ? { display: "none" } : undefined}>
+            <MainTabBar>
+              <TabTrigger
+                icon={UsersRound}
+                value="connections"
+                style={{ flexDirection: "row", gap: 6 }}
+              >
+                <Tabs.Label>{t("Connections")}</Tabs.Label>
+                <ContactSectionBadge
+                  section="connections"
+                  userIds={connections
+                    .filter((row) => row.key !== "device")
+                    .flatMap((row) => row.users.map((user) => user.id))}
+                />
+              </TabTrigger>
+              <TabTrigger
+                icon={UserRoundPlus}
+                value="requests"
+                style={{ flexDirection: "row", gap: 6 }}
+              >
+                <Tabs.Label>{t("Requests")}</Tabs.Label>
+                <ContactSectionBadge
+                  section="requests"
+                  userIds={[...pendingRows, ...sentRows].flatMap((row) =>
+                    row.profile ? [row.profile.id] : [],
+                  )}
+                />
+              </TabTrigger>
+              <TabTrigger icon={Search} value="search" style={{ flexDirection: "row", gap: 6 }}>
+                <Tabs.Label>{t("Search")}</Tabs.Label>
+                <ContactSectionBadge
+                  section="search"
+                  userIds={[...bgoContacts, ...searchResults].map((user) => user.id)}
+                />
+              </TabTrigger>
+            </MainTabBar>
+          </View>
 
           <RetainedTabPanel
-            key={JSON.stringify([attentionOptions.apiUrl, userId, "device"])}
-            active={tab === "device"}
+            key={JSON.stringify([attentionOptions.apiUrl, userId, "search"])}
+            active={tab === "search"}
           >
             <Tabs.Content
               forceMount
-              aria-hidden={tab !== "device"}
-              value="device"
+              aria-hidden={tab !== "search"}
+              value="search"
               style={{ flex: 1, paddingHorizontal: 20, paddingBottom: 20 }}
             >
+              <View style={{ gap: 8, paddingTop: headerSearch.active ? headerSearch.top + 4 : 8 }}>
+                {!headerSearch.active ? (
+                  <HelpSectionCard
+                    title={t("Search")}
+                    icon={Search}
+                    label={t("Contact search help")}
+                  >
+                    <Typography className="text-foreground">
+                      {t(
+                        "Find BGO users by first name, last name, email, or username, including people outside your contacts.",
+                      )}
+                    </Typography>
+                    <Typography className="text-foreground">
+                      {t("Type at least 4 characters to search")}
+                    </Typography>
+                    <Typography className="text-foreground">
+                      {t(
+                        "After you allow address book access, this tab shows your matched contacts and people you can invite.",
+                      )}
+                    </Typography>
+                    <Typography className="text-foreground">
+                      {t(
+                        "Send a friend request to someone on Board Game Organizer or share an invitation with someone who has not joined yet.",
+                      )}
+                    </Typography>
+                  </HelpSectionCard>
+                ) : null}
+                <SearchInput
+                  testID="contact-search-input"
+                  value={query}
+                  onChange={(value) => {
+                    setQuery(value);
+                    if (value.trim().length < 4) {
+                      setSubmittedQuery("");
+                      contacts.runSearch("");
+                    }
+                  }}
+                  label={t("Search users by name, email, or username")}
+                  placeholder={t("Search users")}
+                  maxLength={120}
+                  onFocus={headerSearch.open}
+                  leadingAction={
+                    headerSearch.active ? (
+                      <HeaderBackButton onPress={headerSearch.close} />
+                    ) : undefined
+                  }
+                  inputStyle={headerSearch.active ? { flex: 1 } : undefined}
+                />
+              </View>
               <InputFlatList
+                ref={headerSearch.listRef}
                 style={{ flex: 1 }}
                 contentContainerStyle={{
                   gap: 8,
@@ -738,9 +791,19 @@ function ContactsContent() {
                   paddingBottom: 24,
                 }}
                 keyboardShouldPersistTaps="handled"
-                data={deviceRows}
+                data={headerSearch.active ? contactDeviceRows(searchResults, []) : deviceRows}
                 keyExtractor={(row) => row.id}
                 onEndReached={() => {
+                  if (headerSearch.active) {
+                    if (
+                      !searchPending &&
+                      contacts.search.hasNextPage &&
+                      !contacts.search.isFetchingNextPage &&
+                      !contacts.search.isFetchNextPageError
+                    )
+                      void contacts.search.fetchNextPage();
+                    return;
+                  }
                   if (contacts.suggestions.hasNextPage) {
                     if (
                       !contacts.suggestions.isFetchingNextPage &&
@@ -754,93 +817,111 @@ function ContactsContent() {
                 maxToRenderPerBatch={12}
                 windowSize={7}
                 ListFooterComponent={
-                  <>
-                    {loadingDevicePage ||
-                    syncingContacts ||
-                    contacts.suggestions.isFetchingNextPage ? (
-                      <ContactListSkeleton count={2} />
-                    ) : null}
-                    {contacts.suggestions.isFetchNextPageError ? (
-                      <Button
-                        variant="ghost"
-                        onPress={() => void contacts.suggestions.fetchNextPage()}
-                      >
-                        <Typography>{t("Retry")}</Typography>
-                      </Button>
-                    ) : null}
-                  </>
+                  headerSearch.active ? (
+                    <>
+                      {contacts.search.isFetchingNextPage ? (
+                        <ContactListSkeleton count={2} />
+                      ) : null}
+                      {contacts.search.isFetchNextPageError ? (
+                        <Button
+                          variant="ghost"
+                          onPress={() => void contacts.search.fetchNextPage()}
+                        >
+                          <Typography>{t("Retry")}</Typography>
+                        </Button>
+                      ) : null}
+                    </>
+                  ) : (
+                    <>
+                      {loadingDevicePage ||
+                      syncingContacts ||
+                      contacts.suggestions.isFetchingNextPage ? (
+                        <ContactListSkeleton count={2} />
+                      ) : null}
+                      {contacts.suggestions.isFetchNextPageError ? (
+                        <Button
+                          variant="ghost"
+                          onPress={() => void contacts.suggestions.fetchNextPage()}
+                        >
+                          <Typography>{t("Retry")}</Typography>
+                        </Button>
+                      ) : null}
+                    </>
+                  )
                 }
                 ListHeaderComponent={
-                  <View style={{ gap: 8 }}>
-                    <HelpSectionCard
-                      title={t("Contacts")}
-                      icon={BookUser}
-                      label={t("Contacts help")}
-                    >
-                      <Typography className="text-foreground">
-                        {t(
-                          "After you allow address book access, this tab shows your matched contacts and people you can invite.",
-                        )}
-                      </Typography>
-                      <Typography className="text-foreground">
-                        {t(
-                          "Send a friend request to someone on Board Game Organizer or share an invitation with someone who has not joined yet.",
-                        )}
-                      </Typography>
-                    </HelpSectionCard>
-                    {contactsPermission !== "granted" && contactsPermission !== "checking" ? (
-                      <Button
-                        isIconOnly
-                        variant="outline"
-                        accessibilityLabel={t("Add contacts")}
-                        onPress={confirmAndRequestContacts}
-                        isDisabled={requestingContacts || syncingContacts}
-                        testID="enable-contacts-btn"
-                        style={{ alignSelf: "flex-end" }}
-                      >
-                        <BookUser size={18} color={foreground} />
-                      </Button>
-                    ) : null}
-                    {contacts.suggestions.isLoading || contactsPermission === "checking" ? (
+                  headerSearch.active ? (
+                    !validQuery ? (
+                      <EmptyList icon={<Search size={28} color={muted} />}>
+                        {t("Type at least 4 characters to search")}
+                      </EmptyList>
+                    ) : searchPending ? (
                       <ContactListSkeleton count={2} />
-                    ) : null}
-                    {contacts.suggestions.isError ? (
+                    ) : contacts.search.isError && !contacts.search.isFetchNextPageError ? (
                       <Typography accessibilityRole="alert" className="text-danger">
                         {t("Could not load contacts")}
                       </Typography>
-                    ) : null}
-                    {contactsPermission !== "granted" && contactsPermission !== "checking" ? (
-                      <Typography className="text-muted">
-                        {t("Allow address book access to find your friends here.")}
-                      </Typography>
-                    ) : null}
-                    {contactsPermission === "granted" &&
-                    (contacts.syncContacts.isError || contactsReadError) ? (
-                      <Button variant="outline" onPress={() => void syncContactsData()}>
-                        <Typography>{t("Could not synchronize contacts. Retry")}</Typography>
-                      </Button>
-                    ) : null}
-                    {contactsPermission === "granted" &&
-                    !syncingContacts &&
-                    !contacts.syncContacts.isError &&
-                    !contactsReadError &&
-                    !loadingDevicePage &&
-                    !hasMoreDeviceContacts &&
-                    !contacts.suggestions.isLoading &&
-                    !contacts.suggestions.isError &&
-                    !contacts.suggestions.hasNextPage &&
-                    bgoContacts.length === 0 &&
-                    unregistered.length === 0 ? (
-                      <EmptyList icon={<BookUser size={28} color={muted} />}>
-                        {t("No contacts to invite")}
+                    ) : searchResults.length === 0 && !contacts.search.hasNextPage ? (
+                      <EmptyList icon={<SearchX size={28} color={muted} />}>
+                        {t("No users found")}
                       </EmptyList>
-                    ) : null}
-                    {invite.isError ? (
-                      <Typography className="text-danger">
-                        {t("Could not create the invite. Try again.")}
-                      </Typography>
-                    ) : null}
-                  </View>
+                    ) : null
+                  ) : (
+                    <View style={{ gap: 8 }}>
+                      {contactsPermission !== "granted" && contactsPermission !== "checking" ? (
+                        <Button
+                          isIconOnly
+                          variant="outline"
+                          accessibilityLabel={t("Add contacts")}
+                          onPress={confirmAndRequestContacts}
+                          isDisabled={requestingContacts || syncingContacts}
+                          testID="enable-contacts-btn"
+                          style={{ alignSelf: "flex-end" }}
+                        >
+                          <BookUser size={18} color={foreground} />
+                        </Button>
+                      ) : null}
+                      {contacts.suggestions.isLoading || contactsPermission === "checking" ? (
+                        <ContactListSkeleton count={2} />
+                      ) : null}
+                      {contacts.suggestions.isError ? (
+                        <Typography accessibilityRole="alert" className="text-danger">
+                          {t("Could not load contacts")}
+                        </Typography>
+                      ) : null}
+                      {contactsPermission !== "granted" && contactsPermission !== "checking" ? (
+                        <Typography className="text-muted">
+                          {t("Allow address book access to find your friends here.")}
+                        </Typography>
+                      ) : null}
+                      {contactsPermission === "granted" &&
+                      (contacts.syncContacts.isError || contactsReadError) ? (
+                        <Button variant="outline" onPress={() => void syncContactsData()}>
+                          <Typography>{t("Could not synchronize contacts. Retry")}</Typography>
+                        </Button>
+                      ) : null}
+                      {contactsPermission === "granted" &&
+                      !syncingContacts &&
+                      !contacts.syncContacts.isError &&
+                      !contactsReadError &&
+                      !loadingDevicePage &&
+                      !hasMoreDeviceContacts &&
+                      !contacts.suggestions.isLoading &&
+                      !contacts.suggestions.isError &&
+                      !contacts.suggestions.hasNextPage &&
+                      bgoContacts.length === 0 &&
+                      unregistered.length === 0 ? (
+                        <EmptyList icon={<BookUser size={28} color={muted} />}>
+                          {t("No contacts to invite")}
+                        </EmptyList>
+                      ) : null}
+                      {invite.isError ? (
+                        <Typography className="text-danger">
+                          {t("Could not create the invite. Try again.")}
+                        </Typography>
+                      ) : null}
+                    </View>
+                  )
                 }
                 renderItem={({ item }) => {
                   if (item.kind === "bgo") {
@@ -878,77 +959,6 @@ function ContactsContent() {
                     </GroupedList>
                   );
                 }}
-              />
-            </Tabs.Content>
-          </RetainedTabPanel>
-
-          <RetainedTabPanel
-            key={JSON.stringify([attentionOptions.apiUrl, userId, "search"])}
-            active={tab === "search"}
-          >
-            <Tabs.Content
-              forceMount
-              aria-hidden={tab !== "search"}
-              value="search"
-              style={{ flex: 1, paddingHorizontal: 20, paddingBottom: 20 }}
-            >
-              <InputFlatList
-                style={{ flex: 1 }}
-                contentContainerStyle={{ gap: 8, paddingTop: 8, paddingBottom: 24 }}
-                keyboardShouldPersistTaps="handled"
-                data={searchResults}
-                keyExtractor={(user) => user.id}
-                ListHeaderComponent={
-                  <View style={{ marginBottom: 12, gap: 8 }}>
-                    <HelpSectionCard
-                      title={t("Search")}
-                      icon={Search}
-                      label={t("Contact search help")}
-                    >
-                      <Typography className="text-foreground">
-                        {t(
-                          "Find people on Board Game Organizer by entering their name or email address.",
-                        )}
-                      </Typography>
-                      <Typography className="text-foreground">
-                        {t("Type at least 4 characters to search")}
-                      </Typography>
-                    </HelpSectionCard>
-                    <SearchInput
-                      testID="contact-search-input"
-                      value={query}
-                      onChange={(value) => {
-                        setQuery(value);
-                        if (value.trim().length < 4) contacts.runSearch("");
-                      }}
-                      label={t("Search users by name or email")}
-                      placeholder={t("Search users")}
-                    />
-
-                    {query.trim().length < 4 && (
-                      <EmptyList icon={<Search size={28} color={muted} />}>
-                        {t("Type at least 4 characters to search")}
-                      </EmptyList>
-                    )}
-                    {contacts.search.isLoading && <ContactListSkeleton count={2} />}
-                    {query.trim().length >= 4 &&
-                      !contacts.search.isLoading &&
-                      !contacts.search.isError &&
-                      searchResults.length === 0 && (
-                        <EmptyList icon={<SearchX size={28} color={muted} />}>
-                          {t("No users found")}
-                        </EmptyList>
-                      )}
-                    {contacts.search.isError ? (
-                      <Typography className="text-danger">
-                        {t("Could not load contacts")}
-                      </Typography>
-                    ) : null}
-                  </View>
-                }
-                renderItem={({ item }) => (
-                  <GroupedList style={{ overflow: "visible" }}>{contactRow(item)}</GroupedList>
-                )}
               />
             </Tabs.Content>
           </RetainedTabPanel>
@@ -1126,7 +1136,7 @@ function ContactSectionBadge({
   return (
     <NotificationCountBadge
       count={
-        (section === "device" ? 0 : attention?.get({ kind: "contacts", id: section })?.count) ||
+        attention?.get({ kind: "contacts", id: section })?.count ||
         Number(userIds.some((id) => (attention?.get({ kind: "contact", id })?.count ?? 0) > 0))
       }
     />

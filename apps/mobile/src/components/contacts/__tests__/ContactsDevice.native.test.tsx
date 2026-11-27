@@ -44,7 +44,7 @@ const syncWrites = () =>
   contactsFixture.writes.filter((write) => write.path === "/api/contacts/sync");
 const invites = () => contactsFixture.writes.filter((write) => write.path === "/api/invites");
 async function deviceTab() {
-  await contactTab("device");
+  await contactTab("search");
 }
 async function consent() {
   await contactPress("Add contacts");
