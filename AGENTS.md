@@ -231,7 +231,8 @@ Report unavailable kernel limits separately from the application limits actually
   before slicing. Reset local presentation for a changed API/user/query/snapshot; reject stale
   callbacks, coalesce duplicate end events and guard any in-flight fetch. Reuse stable row identities,
   callbacks and memoized derivation; tune virtualization without assuming fixed row heights.
-  Reset-to-top is valid when the flow allows it; do not keep a full hidden picker mounted solely
+  Keep Web viewport measurements current and commit viewport-driven updates when the visible row
+  range changes. Reset-to-top is valid when the flow allows it; do not keep a full hidden picker mounted solely
   for speed. Follow [client responsiveness defaults](README.md#client-responsiveness-defaults).
 - Profile both entry/reentry and Back/selection-to-form transitions. Query/MMKV cache hits avoid
   data reloads, not React/native subtree mounting, validation, serialization or layout work. Keep

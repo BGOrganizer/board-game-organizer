@@ -189,7 +189,8 @@ Read [AGENTS.md](AGENTS.md) before changing code.
 Clients retain cached data while refreshing and use bounded lists and optimistic mutation feedback.
 Web pages scroll as documents beneath the persistent main navigation. Secondary-page Back controls
 and contextual actions share a page toolbar; game collections and pickers retain windowed rendering
-without their own scrolling viewport. Popups and selects keep bounded internal scrolling.
+without their own scrolling viewport. Web lists commit viewport-driven updates when the visible
+row range changes. Popups and selects keep bounded internal scrolling.
 Group, Event and game collection filters use compact, reusable chips with full-size touch targets.
 Native Query data persists in an account/API-scoped encrypted cache; restoration does not grant authentication
 or permission. Native cache retention, build requirements and implementation rules live in

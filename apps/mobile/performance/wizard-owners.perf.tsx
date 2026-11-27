@@ -24,7 +24,12 @@ import {
 } from "@board-game-organizer/shared";
 import { useAppStore } from "@board-game-organizer/store";
 import { measureRenders } from "@callstack/reassure-measure";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  defaultScheduler,
+  notifyManager,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
 import { act, fireEvent, screen, userEvent, waitFor } from "@testing-library/react-native";
 import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
 import { DeviceEventEmitter, View } from "react-native";
@@ -427,6 +432,8 @@ it.each(["group", "event"] as const)(
         </NativeTestProviders>
       </QueryClientProvider>
     );
+    // Flush seeded Query observer notifications with the corresponding native interaction.
+    notifyManager.setScheduler(queueMicrotask);
     try {
       const result = await measureRenders(
         kind === "event" ? <EventWizardScreen /> : <GroupWizardScreen />,
@@ -486,6 +493,7 @@ it.each(["group", "event"] as const)(
       );
       assertRenderMeasurement(result);
     } finally {
+      notifyManager.setScheduler(defaultScheduler);
       client.clear();
     }
   },

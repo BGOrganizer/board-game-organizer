@@ -12,7 +12,9 @@ reserved for the game picker. Existing ownership, privacy and authorization rule
 - **Bound presentation independently from cache.** Keep source paging and virtualized rendering.
   On entry/reentry, expose a bounded cached page/window and reveal more cached pages before fetching.
   Derive only that window, not a full-cache flatten followed by a slice. Preserve cached pages,
-  stable row keys/callbacks, accessibility and loading/error states. Reset-to-top is acceptable when
+  stable row keys/callbacks, accessibility and loading/error states. Web windowed lists retain the
+  latest viewport and commit a viewport-driven render when the visible row range changes.
+  Reset-to-top is acceptable when
   the flow allows it. The mobile game picker exposes eight source items initially, retaining six-row
   render batches and its seven-screen window. It reveals cached chunks on scroll or an accessible
   load-more action, not on an automatic initial `onEndReached`. These are picker-specific budgets,
