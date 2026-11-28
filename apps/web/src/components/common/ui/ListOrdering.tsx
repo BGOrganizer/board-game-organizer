@@ -4,7 +4,7 @@ import type { HistoryTableListSortField, RecordListOrder } from "@board-game-org
 import { Button, Dropdown, Label } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowDown, ArrowUp, CalendarDays, ListOrdered, UsersRound } from "lucide-react";
-import { memo } from "react";
+import { memo, useState } from "react";
 
 function ListOrderingControl<Field extends HistoryTableListSortField>({
   order: { sort, direction },
@@ -16,6 +16,7 @@ function ListOrderingControl<Field extends HistoryTableListSortField>({
   fields: readonly Field[];
 }) {
   const { t } = useLingui();
+  const [hasOpened, setHasOpened] = useState(false);
   const fields = {
     name: { label: t`Name`, Icon: ListOrdered },
     date: { label: t`Date`, Icon: CalendarDays },
@@ -28,7 +29,11 @@ function ListOrderingControl<Field extends HistoryTableListSortField>({
     <div className="mb-3 flex flex-wrap items-center justify-between gap-x-2">
       <span className="text-sm text-muted">{t`Sort by`}</span>
       <div className="flex items-center gap-1">
-        <Dropdown>
+        <Dropdown
+          onOpenChange={(open) => {
+            if (open && !hasOpened) setHasOpened(true);
+          }}
+        >
           <Button
             size="sm"
             variant="ghost"
@@ -40,30 +45,32 @@ function ListOrderingControl<Field extends HistoryTableListSortField>({
               {label}
             </span>
           </Button>
-          <Dropdown.Popover placement="bottom end">
-            <Dropdown.Menu
-              aria-label={t`Sort by`}
-              selectionMode="single"
-              disallowEmptySelection
-              selectedKeys={[sort]}
-            >
-              {availableFields.map((field) => {
-                const { Icon, label } = fields[field];
-                return (
-                  <Dropdown.Item
-                    key={field}
-                    id={field}
-                    textValue={label}
-                    onAction={() => onChange({ sort: field, direction })}
-                  >
-                    <Icon className="size-4 text-accent" aria-hidden />
-                    <Label>{label}</Label>
-                    <Dropdown.ItemIndicator />
-                  </Dropdown.Item>
-                );
-              })}
-            </Dropdown.Menu>
-          </Dropdown.Popover>
+          {hasOpened ? (
+            <Dropdown.Popover placement="bottom end">
+              <Dropdown.Menu
+                aria-label={t`Sort by`}
+                selectionMode="single"
+                disallowEmptySelection
+                selectedKeys={[sort]}
+              >
+                {availableFields.map((field) => {
+                  const { Icon, label } = fields[field];
+                  return (
+                    <Dropdown.Item
+                      key={field}
+                      id={field}
+                      textValue={label}
+                      onAction={() => onChange({ sort: field, direction })}
+                    >
+                      <Icon className="size-4 text-accent" aria-hidden />
+                      <Label>{label}</Label>
+                      <Dropdown.ItemIndicator />
+                    </Dropdown.Item>
+                  );
+                })}
+              </Dropdown.Menu>
+            </Dropdown.Popover>
+          ) : null}
         </Dropdown>
         <Button
           isIconOnly

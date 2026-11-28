@@ -21,7 +21,6 @@ import { ListSearch } from "@/components/common/ui/ListSearch";
 import { WindowedList } from "@/components/common/ui/WindowedList";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { useCommunityApi } from "@/lib/useCommunityApi";
-import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
 import { useListSearchHeader } from "@/lib/useListSearchHeader";
 import { EventTableCard } from "./EventTableCard";
 
@@ -32,18 +31,13 @@ export function TableList() {
   const { t } = useLingui(),
     o = useCommunityApi(),
     f = useListSearch(noFilters, 0),
-    q = useRecordTables(o, null, { query: f.search, statuses: ["TERMINATED"], order }),
-    end = useInfiniteScroll({
-      hasNextPage: !!q.hasNextPage,
-      isFetchingNextPage: q.isFetchingNextPage,
-      isFetchNextPageError: q.isFetchNextPageError,
-      fetchNextPage: q.fetchNextPage,
-    });
+    q = useRecordTables(o, null, { query: f.search, statuses: ["TERMINATED"], order });
   const headerSearch = useListSearchHeader(f.reset);
+  const items = communityAccessDenied(q.error) ? [] : q.items;
   return (
     <NotificationAttentionScope
       options={o}
-      targets={(communityAccessDenied(q.error) ? [] : q.items).map((row) => ({
+      targets={items.map((row) => ({
         kind: "table",
         id: row.id,
       }))}
@@ -68,18 +62,20 @@ export function TableList() {
           />
           <ListOrdering fields={historyTableListSortFields} order={order} onChange={setOrder} />
         </div>
-        <WindowedList
-          key={JSON.stringify([f.search, order])}
-          items={communityAccessDenied(q.error) ? [] : q.items}
-          itemKey={(row) => row.id}
-          label={t`History`}
-          estimatedRowHeight={260}
-          gap={12}
-          onEndReached={() => {
-            if (q.hasNextPage && !q.isFetching && !q.isFetchNextPageError) void q.fetchNextPage();
-          }}
-          renderItem={(row) => <EventTableCard table={row} context="personal" />}
-        />
+        {items.length ? (
+          <WindowedList
+            key={JSON.stringify([f.search, order])}
+            items={items}
+            itemKey={(row) => row.id}
+            label={t`History`}
+            estimatedRowHeight={260}
+            gap={12}
+            onEndReached={() => {
+              if (q.hasNextPage && !q.isFetching && !q.isFetchNextPageError) void q.fetchNextPage();
+            }}
+            renderItem={(row) => <EventTableCard table={row} context="personal" />}
+          />
+        ) : null}
         {q.isPending ? (
           <Skeleton className="h-32 w-full rounded-xl" />
         ) : !q.isError && !q.hasNextPage && !q.items.length ? (
@@ -91,7 +87,6 @@ export function TableList() {
             <Button variant="outline" onPress={() => void q.refetch()}>{t`Try again`}</Button>
           </div>
         ) : null}
-        <div ref={end} />
         {q.isFetchingNextPage ? (
           <Skeleton className="h-24 w-full rounded-xl" />
         ) : q.hasNextPage ? (
