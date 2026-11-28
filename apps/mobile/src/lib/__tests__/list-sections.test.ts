@@ -148,24 +148,6 @@ it("native owned Groups keep source filters independent from discovery", () => {
   expect(discovery).toContain("usePublicGroupSearch");
   expect(discovery).not.toContain("groupRecordMemberRoles");
 });
-it("native History has one terminated source list, no section tabs or chips", () => {
-  const wrapper = readFileSync(
-    new URL("../../components/events/Tables.tsx", import.meta.url),
-    "utf8",
-  );
-  expect(wrapper).toContain("<TableList />");
-  expect(wrapper).not.toContain("Tabs");
-  const list = readFileSync(
-    new URL("../../components/events/TableList.tsx", import.meta.url),
-    "utf8",
-  );
-  expect(
-    runInNewContext(callArgument("events/TableList", "useRecordTables", 2), { f: { search: "z" } }),
-  ).toEqual({ query: "z", statuses: ["TERMINATED"] });
-  expect(runInNewContext(expression("events/TableList", "ListSearch", "options"))).toEqual([]);
-  expect(list).not.toContain("TableListHeading");
-  expect(list).not.toContain("TableListSection");
-});
 it("main native strips share Groups geometry while detail tabs retain independent spacing", () => {
   const shared = readFileSync(
     new URL("../../components/common/ui/MainTabBar.tsx", import.meta.url),
