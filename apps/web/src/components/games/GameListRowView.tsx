@@ -106,7 +106,7 @@ export function GameListRowView({
   const coverWithBadge = (
     <div className="relative shrink-0">
       {image}
-      {coverBadge ? <div className="absolute -right-2 -bottom-2 z-10">{coverBadge}</div> : null}
+      {coverBadge ? <div className="absolute -end-4 -bottom-4 z-10">{coverBadge}</div> : null}
     </div>
   );
   if (disclosure)
@@ -143,7 +143,9 @@ export function GameListRowView({
           </div>
         )}
         {onPress && coverBadge ? (
-          <div className="absolute top-1/2 left-[26px] z-10 mt-0.5">{coverBadge}</div>
+          <div className="pointer-events-none absolute start-0 top-1/2 z-10 size-12 -translate-y-1/2">
+            <div className="pointer-events-auto absolute -end-4 -bottom-4">{coverBadge}</div>
+          </div>
         ) : null}
       </div>
       {actions}

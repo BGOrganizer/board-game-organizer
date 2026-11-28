@@ -5,6 +5,7 @@ import type {
   EventRecord,
   EventVoter,
   GroupRecord,
+  HistoryTableListOrder,
   RecordListOrder,
   TableRecord,
   TableRegistration,
@@ -31,6 +32,19 @@ export interface EventRecordPage extends Partial<RecordListOrder> {
   roles?: readonly EventListFilterRole[];
   section?: "mine" | "available" | "waiting" | "terminated";
 }
+export interface PersonalTablePage
+  extends Omit<EventRecordPage, "sort" | "direction">,
+    Partial<HistoryTableListOrder> {}
+
+type PersonalTableRow = TableRecord & { listSortValue?: string | number | Date };
+
+export function personalTableCursor(row: PersonalTableRow, sort: PersonalTablePage["sort"]) {
+  const value = row.listSortValue;
+  if (!sort) return `${row.createdAt}|${row.id}`;
+  const cursorValue = value instanceof Date ? value.toISOString() : value;
+  return `${sort}:${cursorValue}|${row.id}`;
+}
+
 export class EventRecordsRepository {
   private events;
   private tables;
@@ -1079,7 +1093,7 @@ export class EventRecordsRepository {
     );
     return this.events.aggregate<EventRecord & { listDate?: Date }>(pipeline, this.opts).toArray();
   }
-  async personalTables(userId: string, page: EventRecordPage) {
+  async personalTables(userId: string, page: PersonalTablePage) {
     const pipeline: Record<string, unknown>[] = [
       { $match: { removedAt: { $exists: false } } },
       {
@@ -1163,10 +1177,9 @@ export class EventRecordsRepository {
         : []),
       ...eventPeriodStages(page.periods, Date.now(), "event."),
     ];
-    if (page.query) {
-      const regex = page.query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const number = { $toString: { $add: ["$order", 1] } };
+    if (page.query || page.sort === "name") {
       // Match the projected name after access checks and before cursor/limit, including both app locales.
-      const number = { $toString: { $add: ["$order", 1] } };
       pipeline.push(
         {
           $set: {
@@ -1184,54 +1197,82 @@ export class EventRecordsRepository {
             as: "_titleGames",
           },
         },
-        {
-          $match: {
-            $expr: {
-              $let: {
-                vars: { game: { $ifNull: [{ $arrayElemAt: ["$_titleGames.name", 0] }, ""] } },
-                in: {
-                  $cond: [
-                    { $ne: ["$$game", ""] },
-                    { $regexMatch: { input: "$$game", regex, options: "i" } },
-                    {
-                      $or: [
-                        {
-                          $regexMatch: {
-                            input: { $concat: ["Table #", number] },
-                            regex,
-                            options: "i",
-                          },
+      );
+    }
+    if (page.query) {
+      const regex = page.query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      pipeline.push({
+        $match: {
+          $expr: {
+            $let: {
+              vars: { game: { $ifNull: [{ $arrayElemAt: ["$_titleGames.name", 0] }, ""] } },
+              in: {
+                $cond: [
+                  { $ne: ["$$game", ""] },
+                  { $regexMatch: { input: "$$game", regex, options: "i" } },
+                  {
+                    $or: [
+                      {
+                        $regexMatch: {
+                          input: { $concat: ["Table #", number] },
+                          regex,
+                          options: "i",
                         },
-                        {
-                          $regexMatch: {
-                            input: { $concat: ["Tavolo #", number] },
-                            regex,
-                            options: "i",
-                          },
+                      },
+                      {
+                        $regexMatch: {
+                          input: { $concat: ["Tavolo #", number] },
+                          regex,
+                          options: "i",
                         },
-                      ],
-                    },
-                  ],
-                },
+                      },
+                    ],
+                  },
+                ],
               },
             },
           },
         },
-      );
+      });
     }
-    if (page.cursor) {
-      const [createdAt, id] = page.cursor.split("|");
+    const { sort, direction, cursor } = page;
+    const order = direction === "asc" ? 1 : -1;
+    const field = sort ? "listSortValue" : "createdAt";
+    if (sort) {
+      const fields = {
+        name: {
+          $toLower: {
+            $ifNull: [{ $arrayElemAt: ["$_titleGames.name", 0] }, { $concat: ["Table #", number] }],
+          },
+        },
+        date: { $toDate: { $ifNull: ["$confirmed.startsAt", "$createdAt"] } },
+        participants: { $size: { $ifNull: ["$confirmed.playerIds", []] } },
+      };
+      pipeline.push({ $set: { listSortValue: fields[sort] } });
+    }
+    if (cursor) {
+      const separator = cursor.lastIndexOf("|");
+      const raw = cursor.slice(sort ? sort.length + 1 : 0, separator);
+      const value = sort === "date" ? new Date(raw) : sort === "participants" ? Number(raw) : raw;
+      const id = cursor.slice(separator + 1);
+      const comparison = order === 1 ? "$gt" : "$lt";
       pipeline.push({
-        $match: { $or: [{ createdAt: { $lt: createdAt } }, { createdAt, id: { $lt: id } }] },
+        $match: {
+          $or: [{ [field]: { [comparison]: value } }, { [field]: value, id: { [comparison]: id } }],
+        },
       });
     }
     pipeline.push(
-      { $sort: { createdAt: -1, id: -1 } },
+      { $sort: { [field]: order, id: order } },
       { $limit: page.limit + 1 },
-      { $replaceWith: "$originalTable" },
+      {
+        $replaceWith: sort
+          ? { $mergeObjects: ["$originalTable", { listSortValue: "$listSortValue" }] }
+          : "$originalTable",
+      },
       { $project: { _id: 0, event: 0, ownRows: 0 } },
     );
-    return this.tables.aggregate<TableRecord>(pipeline, this.opts).toArray();
+    return this.tables.aggregate<PersonalTableRow>(pipeline, this.opts).toArray();
   }
   registrationsPage(
     tableId: string,

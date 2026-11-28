@@ -195,9 +195,10 @@ Report unavailable kernel limits separately from the application limits actually
   minimum length, a 300 ms debounce and a clear action. Their escaped name query stays inside the
   selected authorized list before paging. Owned Groups, main Events and Group-context Events use
   active header search to show their filter chips. Back restores the list and resets the text and
-  chips. Ordering stays available directly below the controls in both views. Event-detail Tables use
-  the same header search and sort the bounded, authorized table list locally by title, date or seated
-  player count.
+  chips. Ordering stays available directly below the controls in both views. History uses header
+  search and sorts the authorized source by game name, confirmed start or seated player count before
+  pagination. Event-detail Tables use the same search and sort the bounded list locally by title or
+  seated player count.
   Group Search starts with Friends selected, accepts one
   character or an empty filter-only request, and matches approved names and venue addresses.
   Apply discovery filters before pagination. Request Nearby location on tap and keep discovery

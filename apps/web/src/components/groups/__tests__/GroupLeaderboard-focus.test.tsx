@@ -26,13 +26,15 @@ it("keeps the exact focused search input mounted through each debounced game-que
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const view = renderWithI18n(
     <QueryClientProvider client={client}>
+      <header data-app-header />
       <Leaderboard groupId="11111111-1111-4111-8111-111111111111" />
     </QueryClientProvider>,
   );
   try {
     fireEvent.click(await screen.findByRole("button", { name: /Board game/ }));
     const input = await screen.findByRole("searchbox", { name: "Search board games" });
-    input.focus();
+    await act(() => input.focus());
+    expect(input.closest("[data-ranking-search-docked]")).toHaveStyle({ top: "8px" });
     for (const query of ["casc", "casca", "cascad", "zzzz"]) {
       fireEvent.change(input, { target: { value: query } });
       await waitFor(() => expect(requests.has(query)).toBe(true));
@@ -45,6 +47,9 @@ it("keeps the exact focused search input mounted through each debounced game-que
       expect(more?.disabled ?? true).toBe(true);
       expect(screen.queryByText("No games found")).toBeNull();
     }
+    await act(() => input.blur());
+    expect(input.closest("[data-ranking-search-docked]")).toBeNull();
+    expect(screen.getByRole("searchbox", { name: "Search board games" })).toBe(input);
   } finally {
     view.unmount();
     await act(async () => client.clear());

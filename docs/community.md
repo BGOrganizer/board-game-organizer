@@ -6,11 +6,13 @@ localized Coming soon placeholder.
 
 ## Global rankings
 
-Community standings use player-row spacing in the compact accordion and the desktop table.
+Group and global standings share player-row spacing in the compact accordion and the desktop table.
 
 The authenticated `GET /api/community/leaderboard` uses the same game selection, source pagination
 and sorting as Group Rankings. It returns eligible games when no game is selected and player rows
-for the selected game. The picker starts empty, searches on the server and can be cleared.
+for the selected game. The picker starts empty, searches on the server and can be cleared. In both
+rankings, focusing the search moves the same picker below the app header. On blur it returns to
+its anchored position. The search keeps an accessible name without a visible caption or help icon.
 OpenSkill is the initial sort, highest first. Players can also sort by completed games, wins or
 ND in either direction. ND means an unfinished game and is counted separately from completed
 games. Rank badges sit before the avatar and reflect descending OpenSkill position in the visible

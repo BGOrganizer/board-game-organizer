@@ -1,12 +1,12 @@
 "use client";
 
-import type { EventTableListSortField, RecordListOrder } from "@board-game-organizer/schemas";
+import type { HistoryTableListSortField, RecordListOrder } from "@board-game-organizer/schemas";
 import { Button, Dropdown, Label } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowDown, ArrowUp, CalendarDays, ListOrdered, UsersRound } from "lucide-react";
 import { memo } from "react";
 
-function ListOrderingControl<Field extends EventTableListSortField>({
+function ListOrderingControl<Field extends HistoryTableListSortField>({
   order: { sort, direction },
   onChange,
   fields: availableFields,

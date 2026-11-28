@@ -25,7 +25,6 @@ import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } fro
 import { FlatList, type ListRenderItemInfo, View } from "react-native";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
-import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { SearchInput } from "@/components/common/ui/SearchInput";
 import { SectionHeaderCard } from "@/components/common/ui/SectionHeaderCard";
 import { useT } from "@/lib/i18n";
@@ -319,16 +318,15 @@ export function Leaderboard({
                 )
               }
             >
-              <SearchInput
-                value={search}
-                onChange={setSearch}
-                label={t("Search board games")}
-                placeholder={t("Search board games")}
-              />
-              <SearchHelpLabel
-                label={t("Search board games")}
-                help={t("Type at least 4 characters to search")}
-              />
+              {(focus) => (
+                <SearchInput
+                  {...focus}
+                  value={search}
+                  onChange={setSearch}
+                  label={t("Search board games")}
+                  placeholder={t("Search board games")}
+                />
+              )}
             </RatingGameSelect>
           )}
           {gameId !== null && !games.isError && hasGames ? (

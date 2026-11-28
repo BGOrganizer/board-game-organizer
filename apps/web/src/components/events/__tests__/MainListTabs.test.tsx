@@ -332,6 +332,34 @@ it.each([false, true])(
   },
 );
 
+it("keeps the History ordering visible before, during and after filtering", async () => {
+  const reads: URL[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string) => {
+      const url = new URL(input);
+      if (url.pathname === "/api/tables") reads.push(url);
+      return attention(url) ?? Response.json({ items: [], nextCursor: null });
+    }),
+  );
+  render(<Tables />);
+  await screen.findByText("No tables found");
+  expect(screen.getByRole("button", { name: "Table history help" })).toBeVisible();
+  fireEvent.focus(screen.getByRole("searchbox", { name: "Filter" }));
+  expect(screen.queryByRole("button", { name: "Table history help" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Sort by Date" }));
+  expect(await screen.findByRole("menuitemradio", { name: "Name" })).toBeVisible();
+  fireEvent.click(screen.getByRole("menuitemradio", { name: "Number of players" }));
+  fireEvent.click(screen.getByRole("button", { name: "Sort ascending" }));
+  await waitFor(() => {
+    expect(reads.at(-1)?.searchParams.get("sort")).toBe("participants");
+    expect(reads.at(-1)?.searchParams.get("direction")).toBe("asc");
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  expect(screen.getByRole("button", { name: "Table history help" })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Sort by Number of players" })).toBeVisible();
+});
+
 it.each(["mine", "available", "terminated", "history"] as const)(
   "%s keeps debounced text filtering, clearing and no minimum length",
   async (section) => {

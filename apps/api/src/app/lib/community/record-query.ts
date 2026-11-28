@@ -4,6 +4,7 @@ import {
   groupDiscoveryRadiusInputSchema,
   groupRecordListRoles,
   groupTypeSchema,
+  historyTableListSortFields,
   recordListSortFields,
   scheduledEventFilterRoles,
   tableListSections,
@@ -148,9 +149,34 @@ export const eventListQuery = eventFilterPageQuery
         value.groupId !== undefined) &&
       (value.cursor === undefined || value.cursor.startsWith("name:") === (value.sort === "name")),
   );
-export const personalTablesQuery = eventFilterPageQuery.extend({
-  section: z.enum(tableListSections).optional(),
-});
+const historyCursorValue = {
+  name: z.string().min(1),
+  date: instant,
+  participants: z
+    .string()
+    .regex(/^\d+$/)
+    .refine((value) => Number.isSafeInteger(Number(value))),
+};
+export const personalTablesQuery = eventFilterPageQuery
+  .extend({
+    section: z.enum(tableListSections).optional(),
+    sort: z.enum(historyTableListSortFields).optional(),
+    direction: z.enum(["asc", "desc"]).optional(),
+    cursor: z.string().max(600).optional(),
+  })
+  .refine(({ section, sort, direction, cursor: value }) => {
+    if (!sort) return !direction && (value === undefined || cursor.safeParse(value).success);
+    if (section) return false;
+    if (value === undefined) return true;
+    const prefix = `${sort}:`;
+    const separator = value.lastIndexOf("|");
+    return (
+      value.startsWith(prefix) &&
+      separator >= prefix.length &&
+      historyCursorValue[sort].safeParse(value.slice(prefix.length, separator)).success &&
+      id.safeParse(value.slice(separator + 1)).success
+    );
+  });
 export const eventTablesQuery = recordPageQuery.extend({
   cursor: z
     .string()

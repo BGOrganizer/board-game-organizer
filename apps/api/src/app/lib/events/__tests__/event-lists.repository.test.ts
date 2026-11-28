@@ -537,6 +537,36 @@ describe("EventRecordsRepository main-list and historical-table source guards", 
     ]);
   });
 
+  it.each([
+    ["name", "asc", "game | expansion", "$gt"],
+    ["date", "desc", new Date(now), "$lt"],
+    ["participants", "desc", 4, "$lt"],
+  ] as const)("uses a typed History boundary for %s", async (sort, direction, value, operator) => {
+    const fixture = setup();
+    const token = [sort + ":" + (value instanceof Date ? value.toISOString() : value), id].join(
+      "|",
+    );
+    await fixture.repo.personalTables("user_viewer", { limit: 3, sort, direction, cursor: token });
+    const pipeline = fixture.aggregate.mock.calls[0][1];
+    expect(pipeline.at(-6)?.$set.listSortValue).toBeDefined();
+    expect(pipeline.slice(-5)).toEqual([
+      {
+        $match: {
+          $or: [
+            { listSortValue: { [operator]: value } },
+            { listSortValue: value, id: { [operator]: id } },
+          ],
+        },
+      },
+      { $sort: { listSortValue: direction === "asc" ? 1 : -1, id: direction === "asc" ? 1 : -1 } },
+      { $limit: 4 },
+      { $replaceWith: { $mergeObjects: ["$originalTable", { listSortValue: "$listSortValue" }] } },
+      { $project: { _id: 0, event: 0, ownRows: 0 } },
+    ]);
+    expect(pipeline.some((stage) => stage.$lookup?.from === COLLECTIONS.BOARD_GAMES)).toBe(
+      sort === "name",
+    );
+  });
   it("does not convert a source authorization/query failure into successful empty history", async () => {
     const fixture = setup();
     const error = new Error("Mongo aggregate failed");

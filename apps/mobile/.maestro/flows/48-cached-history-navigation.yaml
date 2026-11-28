@@ -7,6 +7,19 @@ tags: [manual, performance, history]
 - openLink: bgo-dev:///tables
 - assertVisible:
     id: list-search-input
+- assertVisible:
+    id: list-sort-field
+- tapOn:
+    id: list-search-input
+- assertVisible:
+    id: list-sort-field
+- tapOn:
+    id: list-sort-field
+- tapOn: ${output.history.playerCount}
+- tapOn:
+    id: list-sort-direction
+- tapOn: ${output.history.back}
+- assertVisible: ${output.history.sortByPlayers}
 - scrollUntilVisible:
     element: ${output.history.openTable}
     direction: DOWN

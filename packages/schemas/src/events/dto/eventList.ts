@@ -12,7 +12,14 @@ export const eventListDefaultOrder = {
   available: { sort: "date", direction: "asc" },
   terminated: { sort: "date", direction: "desc" },
 } as const satisfies Record<EventListSection, RecordListOrder>;
-export const eventTableListSortFields = [...recordListSortFields, "participants"] as const;
+export const eventTableListSortFields = ["name", "participants"] as const;
+export const historyTableListSortFields = [...recordListSortFields, "participants"] as const;
+export type HistoryTableListSortField = (typeof historyTableListSortFields)[number];
+export type HistoryTableListOrder = RecordListOrder<HistoryTableListSortField>;
+export const historyTableListDefaultOrder = {
+  sort: "date",
+  direction: "desc",
+} as const satisfies HistoryTableListOrder;
 export type EventTableListSortField = (typeof eventTableListSortFields)[number];
 export type EventTableListOrder = RecordListOrder<EventTableListSortField>;
 export const eventTableListDefaultOrder = {

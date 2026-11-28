@@ -123,7 +123,9 @@ it("filters authorized event tables by title and keeps ordering available in hea
   fireEvent.focus(filter);
   expect(screen.queryByRole("button", { name: "Event tables help" })).toBeNull();
   fireEvent.click(sort);
-  fireEvent.click(await screen.findByRole("menuitemradio", { name: "Number of players" }));
+  expect(await screen.findByRole("menuitemradio", { name: "Name" })).toBeVisible();
+  expect(screen.queryByRole("menuitemradio", { name: "Date" })).toBeNull();
+  fireEvent.click(screen.getByRole("menuitemradio", { name: "Number of players" }));
   expect(await screen.findByRole("button", { name: "Sort by Number of players" })).toBeVisible();
   const sorted = await screen.findAllByRole("link", { name: /^Open table:/ });
   expect(sorted.map((link) => link.getAttribute("aria-label"))).toEqual([

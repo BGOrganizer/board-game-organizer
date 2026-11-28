@@ -2431,7 +2431,7 @@ describe("unified groups/events on the real MongoDB replica set", () => {
         query: "History fixture",
       }),
     ).toEqual({ items: [], nextCursor: null });
-    const history = async () => {
+    const history = async (sort?: "name" | "date" | "participants") => {
       const rows: string[] = [];
       let cursor: string | undefined;
       do {
@@ -2439,19 +2439,24 @@ describe("unified groups/events on the real MongoDB replica set", () => {
           limit: 1,
           query: "History catalog game",
           cursor,
+          sort,
+          direction: sort ? "asc" : undefined,
         });
         expect(page.items.every((row) => row.name === "History catalog game")).toBe(true);
         rows.push(...page.items.map((row) => row.id));
         cursor = page.nextCursor ?? undefined;
+        if (cursor && sort) expect(cursor.startsWith(sort + ":")).toBe(true);
       } while (cursor);
-      return rows.sort();
+      return rows;
     };
-    expect(await history()).toEqual(
-      fixtures
-        .filter((row) => ["player", "demonstrator"].includes(row.kind))
-        .map((row) => row.tableId)
-        .sort(),
-    );
+    const playedHistory = fixtures
+      .filter((row) => ["player", "demonstrator"].includes(row.kind))
+      .map((row) => row.tableId)
+      .sort();
+    expect((await history()).sort()).toEqual(playedHistory);
+    for (const sort of ["name", "date", "participants"] as const) {
+      expect(await history(sort)).toEqual(playedHistory);
+    }
     const noticeIds = await services().notifications.notifyMany(
       fixtures.map((fixture) => ({
         kind: "event_updated" as const,
@@ -2496,7 +2501,7 @@ describe("unified groups/events on the real MongoDB replica set", () => {
     expect((await list("terminated", ["participant"])).map((row) => row.id).sort()).toEqual(
       ids(["player", "demonstrator"]),
     );
-    expect(await history()).toEqual(
+    expect((await history()).sort()).toEqual(
       fixtures
         .filter((row) => finishedKinds.includes(row.kind))
         .map((row) => row.tableId)

@@ -214,3 +214,48 @@ test("owned Groups combine role filters with Name and Date ordering in both tabs
   await nearby.click();
   await expect(activePanel().getByRole("button", { name: "Distance, 100 km" })).toBeVisible();
 });
+
+test("History keeps its sort when entering and leaving header search", async ({ page }) => {
+  const email = process.env.E2E_EMAIL;
+  if (!email) throw new Error("E2E_EMAIL required for History list ordering");
+  await setupClerkTestingToken({ page });
+  await page.goto("/");
+  await clerk.signIn({ page, emailAddress: email });
+  await page.goto("/tables");
+  await completeMobileNumberIfNeeded(page);
+  const requests = (sort: string, direction: string, query?: string) =>
+    page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return (
+        response.ok() &&
+        url.pathname === "/api/tables" &&
+        url.searchParams.get("sort") === sort &&
+        url.searchParams.get("direction") === direction &&
+        url.searchParams.get("query") === (query ?? null)
+      );
+    });
+
+  const help = page.getByRole("button", { name: "Table history help" });
+  const input = page.getByRole("searchbox", { name: "Filter", exact: true });
+  await expect(help).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sort by Date", exact: true })).toBeVisible();
+  await input.focus();
+  await expect(help).toHaveCount(0);
+  await page.getByRole("button", { name: "Sort by Date", exact: true }).click();
+  await expect(page.getByRole("menuitemradio", { name: "Name", exact: true })).toBeVisible();
+  const initial = requests("participants", "desc");
+  await page.getByRole("menuitemradio", { name: "Number of players", exact: true }).click();
+  await initial;
+  const ascending = requests("participants", "asc");
+  await page.getByRole("button", { name: "Sort ascending", exact: true }).click();
+  await ascending;
+  const filtered = requests("participants", "asc", "z");
+  await input.fill("z");
+  await filtered;
+  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await expect(input).toHaveValue("");
+  await expect(help).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Sort by Number of players", exact: true }),
+  ).toBeVisible();
+});

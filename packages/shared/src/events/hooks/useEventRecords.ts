@@ -5,6 +5,7 @@ import type {
   EventListFilterRole,
   EventListSection,
   EventListStatus,
+  HistoryTableListOrder,
   PlannedEventResponse,
   PlannedTableResponse,
   RecordListOrder,
@@ -15,6 +16,7 @@ import type {
 import {
   eventListDefaultOrder,
   eventListStatuses,
+  historyTableListDefaultOrder,
   scheduledEventFilterRoles,
   terminatedEventFilterRoles,
 } from "@board-game-organizer/schemas";
@@ -56,7 +58,14 @@ type ListFilters = {
 };
 type TableFilters = Omit<ListFilters, "groupId" | "section" | "roles" | "order"> & {
   section?: TableListSection;
+  order?: HistoryTableListOrder;
 };
+
+function tableHistoryOrder(eventId: string | null, filters: TableFilters) {
+  return eventId === null && !filters.section
+    ? (filters.order ?? historyTableListDefaultOrder)
+    : undefined;
+}
 
 function eventListOrder(filters: ListFilters) {
   return filters.order ?? (filters.groupId ? eventListDefaultOrder.mine : undefined);
@@ -115,6 +124,7 @@ export const eventRecordKeys = {
                 (!filters.statuses || filters.statuses.includes(status)),
             ),
         query: filters.query?.trim() ?? "",
+        ...(id === null && !filters.section ? { order: tableHistoryOrder(id, filters) } : {}),
       },
     ] as const,
   root: (o: KeyOwner) => ["events", o.apiUrl, o.userId] as const,
@@ -284,6 +294,7 @@ export function recordTablesQuery(
                   periods: filters.periods?.join(","),
                   statuses: filters.statuses?.join(","),
                   section: filters.section,
+                  ...tableHistoryOrder(id, filters),
                 }
               : {}),
           },

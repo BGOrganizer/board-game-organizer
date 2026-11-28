@@ -4,12 +4,13 @@ import { useThemeColor } from "heroui-native/hooks";
 import { Select } from "heroui-native/select";
 import { Typography } from "heroui-native/text";
 import { X } from "lucide-react-native";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { InputFlatList } from "@/components/common/ui/InputFlatList";
 import { useT } from "@/lib/i18n";
 import { useKeyboardHeight } from "@/lib/useKeyboardHeight";
+import { useOptionalHeaderHeight } from "@/lib/useOptionalHeaderHeight";
 import { LeaderboardGameCover } from "./LeaderboardGameCover";
 
 export function RatingGameSelect({
@@ -29,7 +30,7 @@ export function RatingGameSelect({
   onChange: (id: number | null) => void;
   onClose?: () => void;
   onEndReached?: () => void;
-  children: ReactNode;
+  children: ReactNode | ((focus: { onFocus: () => void; onBlur: () => void }) => ReactNode);
   footer?: ReactNode;
   empty?: ReactNode;
 }) {
@@ -38,9 +39,12 @@ export function RatingGameSelect({
   const keyboardHeight = useKeyboardHeight(),
     insets = useSafeAreaInsets(),
     { height } = useWindowDimensions();
+  const headerHeight = useOptionalHeaderHeight();
+  const [searchFocused, setSearchFocused] = useState(false);
+  const searchTop = searchFocused ? Math.max(headerHeight, insets.top) + 8 : undefined;
   const listHeight = Math.min(
     320,
-    Math.max(80, height - keyboardHeight - insets.top - insets.bottom - 24),
+    Math.max(80, height - keyboardHeight - (searchTop ?? insets.top) - insets.bottom - 24),
   );
   return (
     <View style={{ gap: 8 }}>
@@ -55,7 +59,10 @@ export function RatingGameSelect({
           }
           onValueChange={(item) => onChange(item ? Number(item.value) : null)}
           onOpenChange={(open) => {
-            if (!open) onClose?.();
+            if (!open) {
+              setSearchFocused(false);
+              onClose?.();
+            }
           }}
         >
           <Select.Trigger
@@ -80,13 +87,27 @@ export function RatingGameSelect({
               presentation="popover"
               width="trigger"
               insets={{ top: insets.top + 8, bottom: insets.bottom + keyboardHeight + 8 }}
-              style={{ height: listHeight, maxHeight: listHeight, overflow: "hidden" }}
+              style={{
+                ...(searchTop === undefined ? {} : { top: searchTop }),
+                height: listHeight,
+                maxHeight: listHeight,
+                overflow: "hidden",
+              }}
             >
               <InputFlatList
                 testID="rating-game-select-list"
                 keyboardAvoidance="external"
                 style={{ flex: 1, minHeight: 0, width: "100%" }}
-                ListHeaderComponent={<>{children}</>}
+                ListHeaderComponent={
+                  <>
+                    {typeof children === "function"
+                      ? children({
+                          onFocus: () => setSearchFocused(true),
+                          onBlur: () => setSearchFocused(false),
+                        })
+                      : children}
+                  </>
+                }
                 data={games}
                 keyExtractor={(game) => String(game.id)}
                 keyboardShouldPersistTaps="handled"

@@ -151,16 +151,17 @@ Event, Table and result only. See [Community visibility](community.md) and
   confirmed tables. Available Events have no role filters. Main Events support name or play-date
   ordering before pagination. Use the confirmed date or the earliest proposed start in planning.
   Scheduled and Available default to earliest first, Terminated to latest first.
-  History has no status-filter chips. Name filters have an
+  History has no status-filter chips. It uses header search and sorts by game name, locked start
+  or number of seated players before cursor pagination. The default is latest game first. Name filters have an
   accessible label, a clear action, no character minimum and a 300 ms debounce. Escaped name
   filtering and section eligibility run before source pagination. Group-context Events have
   Confirmed / Planning / Terminated chips, initially all enabled. The main Event sections, owned
-  Groups and Group-context Events replace their section chrome with the filter field when focused.
+  Groups, History and Group-context Events replace their section chrome with the filter field when focused.
   Chips are visible in that mode. Back clears the text and restores the default chip selection.
   The order selector stays below the field or chips and keeps its selection when search closes.
   Group Events support name and game date. Event-detail Tables filter by the displayed localized title
-  and sort the event's bounded list by name, scheduled date or seated players. Undated tables sort last;
-  pending invitations and the waiting list are excluded from the seated-player count.
+  and sort the event's bounded list by name or seated players. Pending invitations and the waiting
+  list are excluded from the seated-player count.
   Group Search starts with its section guide and the results for Friends. The focused search field
   takes over the native header or sits below the fixed web navigation. The guide and top tabs are
   hidden while the search filters are visible. Back closes the search, hides the chips and restores

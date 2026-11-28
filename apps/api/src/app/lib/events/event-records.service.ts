@@ -100,7 +100,12 @@ import { publicUserName } from "../users/public-user-name";
 import type { UsersRepository } from "../users/users.repository";
 import { eventCardSummary, tableCardSummary } from "./event-card-summary";
 import { personalEventProjection, personalTableProjection } from "./event-personal-projection";
-import type { EventRecordPage, EventRecordsRepository } from "./event-records.repository";
+import {
+  type EventRecordPage,
+  type EventRecordsRepository,
+  type PersonalTablePage,
+  personalTableCursor,
+} from "./event-records.repository";
 import { sharedEventResults, sharedTableResults } from "./event-results-projection";
 import { confirmedTableGameId, tableTitleProjection } from "./table-title";
 
@@ -2309,9 +2314,10 @@ export class EventRecordsService {
       nextCursor: after.length > page.limit ? String(items[items.length - 1].order) : null,
     };
   }
-  async personalTables(userId: string, page: EventRecordPage) {
+  async personalTables(userId: string, page: PersonalTablePage) {
     const items: PlannedTableResponse[] = [];
     let cursor = page.cursor;
+    let nextCursor: string | null = null;
     // Agreement can move accepted players between seats and queue. Reuse the canonical projection
     // in bounded source chunks, before emitting a page; never filter an already paginated UI page.
     // ponytail: sparse sections can scan extra chunks; materialize agreement positions only if measured necessary.
@@ -2327,15 +2333,12 @@ export class EventRecordsService {
               !(isFrozenTableParticipant(table, userId) || table.canManage)
         )
           continue;
+        if (items.length === page.limit) return { items, nextCursor };
         items.push(table);
-        if (items.length > page.limit) {
-          const last = items[page.limit - 1];
-          return { items: items.slice(0, page.limit), nextCursor: `${last.createdAt}|${last.id}` };
-        }
+        nextCursor = personalTableCursor(row, page.sort);
       }
       if (rows.length <= page.limit) return { items, nextCursor: null };
-      const last = rows[page.limit - 1];
-      cursor = `${last.createdAt}|${last.id}`;
+      cursor = personalTableCursor(rows[page.limit - 1], page.sort);
     }
   }
   private async registrationTarget(

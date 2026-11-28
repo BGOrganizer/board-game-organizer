@@ -115,7 +115,7 @@ export function EventTableResults({
                     </Avatar>
                     <View
                       pointerEvents="box-none"
-                      style={{ position: "absolute", right: -10, bottom: -10, zIndex: 2 }}
+                      style={{ position: "absolute", end: -16, bottom: -16, zIndex: 2 }}
                     >
                       <GameCatalogMetadata game={game} name={game.name} visible />
                     </View>

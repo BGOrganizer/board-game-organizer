@@ -68,7 +68,7 @@ export function Groups({
         selectedKey={section}
         onSelectionChange={(key) => {
           if (key === "private" || key === "public" || key === "search") {
-            if (key !== "search") closeSearch();
+            if (section === "search" && key !== "search") closeSearch();
             setSection(key);
           }
         }}

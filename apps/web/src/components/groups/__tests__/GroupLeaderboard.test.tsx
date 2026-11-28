@@ -257,15 +257,12 @@ it.each([false, true])(
       );
       const statistics = row.getByRole("button", { name: /Game statistics: @grace/ });
       expect(statistics).toHaveAttribute("aria-expanded", "false");
-      if (global) {
-        expect(statistics).toHaveClass("py-3", "pe-3");
-        expect(statistics.closest(".ps-4")).toBeVisible();
-      }
+      expect(position.closest(".ps-4")).toHaveClass("py-3", "pe-3");
       for (const label of ["Played", "Wins", "ND"]) expect(row.queryByText(label)).toBeNull();
       fireEvent.click(statistics);
       expect(statistics).toHaveAttribute("aria-expanded", "true");
       for (const label of ["Played", "Wins", "ND"]) expect(row.getByText(label)).toBeVisible();
-      if (global) expect(row.getByText("Wins").closest(".pb-3")).toHaveClass("ps-4");
+      expect(row.getByText("Wins").closest(".pb-3")).toHaveClass("ps-4");
       fireEvent.click(statistics);
       expect(statistics).toHaveAttribute("aria-expanded", "false");
       expect(row.queryByText("ND")).toBeNull();

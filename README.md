@@ -35,6 +35,7 @@ the Web app and Android releases.
 Main navigation is **History / Events / Groups / Community / Contacts**:
 
 - **History:** completed, actually confirmed tables where you played, demonstrated, or currently have management authority.
+  Search from the header and sort by game name, play date or number of seated players.
   The flag on each card opens the winners, with one player per row.
 - **Events:** Scheduled contains your active registrations, invitations, demonstrations and managed Events.
   Available contains other enrollable planning Events: private Events require Group membership; approved public Events do not.
@@ -63,7 +64,7 @@ Main navigation is **History / Events / Groups / Community / Contacts**:
 > [verification requirements](docs/verification-and-acceptance.md).
 
 Group event lists can be sorted by name or game date. An event’s Tables tab supports title search and
-sorting by name, date or seated players. Game covers show the BoardGameGeek details badge in table
+sorting by game name or seated players. Game covers show the BoardGameGeek details badge in table
 votes and finished results.
 
 ## Get started

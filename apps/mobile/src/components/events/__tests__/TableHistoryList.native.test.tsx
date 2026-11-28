@@ -56,6 +56,10 @@ it("filters history with a short debounced query and clears it without discoveri
     </MainListFixture>,
   );
   await screen.findByText("History list table");
+  expect(screen.getByTestId("list-sort-field")).toHaveTextContent("Date");
+  await fireEvent(screen.getByTestId("list-search-input"), "focus");
+  expect(screen.queryByLabelText("Table history help")).toBeNull();
+  expect(screen.getByTestId("list-sort-field")).toHaveTextContent("Date");
   await fireEvent.changeText(screen.getByTestId("list-search-input"), "H");
   await waitFor(() =>
     expect(
@@ -65,6 +69,11 @@ it("filters history with a short debounced query and clears it without discoveri
     ).toBe(true),
   );
   await listPress("Clear filter");
+  await listPress("Sort ascending");
+  await waitFor(() => expect(listFixture.reads.at(-1)?.searchParams.get("direction")).toBe("asc"));
+  await listPress("Back");
+  expect(screen.getByLabelText("Table history help")).toBeOnTheScreen();
+  expect(screen.getByTestId("list-sort-field")).toHaveTextContent("Date");
   expect(screen.getByTestId("list-search-input")).toHaveDisplayValue("");
   expect(
     listFixture.reads

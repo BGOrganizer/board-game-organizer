@@ -45,7 +45,7 @@ export function EventFinalResults({
                   <Dices aria-hidden className="size-4" />
                 </Avatar.Fallback>
               </Avatar>
-              <div className="absolute -right-2.5 -bottom-2.5 z-10">{renderGameMetadata(game)}</div>
+              <div className="absolute -end-4 -bottom-4 z-10">{renderGameMetadata(game)}</div>
             </div>
           }
         />

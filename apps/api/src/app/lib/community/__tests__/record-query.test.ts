@@ -257,6 +257,33 @@ describe("unified request boundaries", () => {
       "INVALID_QUERY",
     );
   });
+  it("accepts History ordering and validates cursors against the sort field", () => {
+    for (const [sort, value] of [
+      ["name", "a|b"],
+      ["date", cursor.split("|")[0]],
+      ["participants", "4"],
+    ]) {
+      const token = [sort + ":" + value, id].join("|");
+      expect(personalTablesQuery.parse({ sort, direction: "asc", cursor: token })).toMatchObject({
+        sort,
+        direction: "asc",
+        cursor: token,
+      });
+      expect(personalTablesQuery.parse({ sort }).sort).toBe(sort);
+    }
+    for (const invalid of [
+      { direction: "asc" },
+      { section: "mine", sort: "name" },
+      { sort: "name", cursor },
+      { sort: "name", cursor: "name:|" + id },
+      { sort: "name", cursor: "name:test|not-an-id" },
+      { sort: "participants", cursor: "participants:-1|" + id },
+      { sort: "participants", cursor: "participants:9007199254740992|" + id },
+      { sort: "date", cursor: "date:invalid|" + id },
+      { cursor: "invalid-cursor" },
+    ])
+      expect(personalTablesQuery.safeParse(invalid).success).toBe(false);
+  });
   it.each(["", "CONFIRMED", "PLANNING,TERMINATED", "TERMINATED,CONFIRMED,PLANNING"])(
     "combines lifecycle and literal name filters without changing cursors: %s",
     (statuses) => {

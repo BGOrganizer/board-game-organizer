@@ -635,6 +635,29 @@ it("keeps paged accepted/pending seats distinct and filters optimistic cancellat
   expect(q.result.current.items[0].userId).toBe("guest");
   expect(new URL(fetch.mock.calls[0][0]).searchParams.get("pending")).toBe("false");
 });
+it("keys History ordering separately while preserving the default warmup and personal sections", () => {
+  const { options } = setup();
+  const date = recordTablesQuery(options, null, {
+    order: { sort: "date", direction: "desc" },
+  });
+  const players = recordTablesQuery(options, null, {
+    order: { sort: "participants", direction: "desc" },
+  });
+  expect(date.queryKey).toEqual(recordTablesQuery(options, null).queryKey);
+  expect(players.queryKey).not.toEqual(date.queryKey);
+  expect(
+    recordTablesQuery(options, eventId, {
+      order: { sort: "participants", direction: "asc" },
+    }).queryKey,
+  ).toEqual(recordTablesQuery(options, eventId).queryKey);
+  expect(
+    recordTablesQuery(options, null, {
+      section: "mine",
+      order: { sort: "participants", direction: "asc" },
+    }).queryKey,
+  ).toEqual(recordTablesQuery(options, null, { section: "mine" }).queryKey);
+});
+
 it("keeps network failures observable, does not fetch disabled identities and pages personal versus event table endpoints", async () => {
   const { options, wrapper } = setup();
   const fetch = vi.fn(async (_url: string) => new Response("{}", { status: 503 }));

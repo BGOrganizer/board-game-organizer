@@ -1,4 +1,4 @@
-import type { EventTableListSortField, RecordListOrder } from "@board-game-organizer/schemas";
+import type { HistoryTableListSortField, RecordListOrder } from "@board-game-organizer/schemas";
 import { Button } from "heroui-native/button";
 import { useThemeColor } from "heroui-native/hooks";
 import { Menu } from "heroui-native/menu";
@@ -17,7 +17,7 @@ const face = {
   gap: 4,
 } as const;
 
-function ListOrderingControl<Field extends EventTableListSortField>({
+function ListOrderingControl<Field extends HistoryTableListSortField>({
   order: { sort, direction },
   onChange,
   fields: availableFields,

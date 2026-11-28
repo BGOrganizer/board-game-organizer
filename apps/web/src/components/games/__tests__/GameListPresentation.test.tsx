@@ -169,6 +169,7 @@ it.each([false, true])(
     const summary = screen.queryByRole("button", { name: "Vote summary: Cascadia" });
     const badge = screen.getByRole("button", { name: "Game information: Cascadia" });
     expect(badge.querySelector(".chip")).toHaveClass(accordion ? "size-7" : "size-[22px]");
+    expect(badge.closest('[class~="-end-4"]')).toHaveClass("-bottom-4");
     expect(screen.queryByText("Vote tally")).toBeNull();
     fireEvent.click(badge);
     const popover = screen.getByRole("dialog", { name: "Cascadia" });

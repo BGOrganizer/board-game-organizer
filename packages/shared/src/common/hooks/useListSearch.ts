@@ -8,12 +8,12 @@ export function useListSearch<Filter extends string>(available: readonly Filter[
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Filter[]>(() => [...available]);
   useEffect(() => {
-    const timer = setTimeout(
-      () => setSearch(query.trim().length >= minLength ? query.trim() : ""),
-      300,
-    );
+    const trimmed = query.trim();
+    const next = trimmed.length >= minLength ? trimmed : "";
+    if (next === search) return;
+    const timer = setTimeout(() => setSearch(next), 300);
     return () => clearTimeout(timer);
-  }, [query, minLength]);
+  }, [query, minLength, search]);
   const toggle = useCallback(
     (value: Filter) =>
       setSelected((current) =>

@@ -58,6 +58,14 @@ export function GameListRow({
       size={disclosure ? "md" : "sm"}
     />
   ) : null;
+  const coverInfo = coverBadge ? (
+    <View
+      pointerEvents="box-none"
+      style={{ position: "absolute", end: -16, bottom: -16, zIndex: 2 }}
+    >
+      {coverBadge}
+    </View>
+  ) : null;
   const identity = (
     <Identity
       onPress={disclosure ? undefined : onPress}
@@ -109,14 +117,7 @@ export function GameListRow({
             <Gamepad2 size={20} color={muted} accessible={false} />
           )}
         </View>
-        {Identity === View && coverBadge ? (
-          <View
-            pointerEvents="box-none"
-            style={{ position: "absolute", right: -8, bottom: -8, zIndex: 2 }}
-          >
-            {coverBadge}
-          </View>
-        ) : null}
+        {Identity === View ? coverInfo : null}
       </View>
       <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
         <View style={{ minWidth: 0, flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -147,9 +148,17 @@ export function GameListRow({
         {Identity === Pressable && coverBadge ? (
           <View
             pointerEvents="box-none"
-            style={{ position: "absolute", left: 26, top: "50%", marginTop: 2, zIndex: 2 }}
+            style={{
+              position: "absolute",
+              start: 0,
+              top: "50%",
+              marginTop: -24,
+              width: 48,
+              height: 48,
+              zIndex: 2,
+            }}
           >
-            {coverBadge}
+            {coverInfo}
           </View>
         ) : null}
       </View>

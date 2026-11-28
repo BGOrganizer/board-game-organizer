@@ -76,8 +76,9 @@ export const LeaderboardPlayerCard = memo(function LeaderboardPlayerCard({
               flexDirection: "row",
               alignItems: "center",
               gap: 8,
-              paddingStart: group ? 8 : 16,
-              paddingBottom: roles.length ? 8 : 0,
+              paddingStart: 16,
+              paddingEnd: 12,
+              paddingVertical: 12,
             }}
           >
             <View style={{ minWidth: 24, alignItems: "center" }}>
@@ -113,8 +114,6 @@ export const LeaderboardPlayerCard = memo(function LeaderboardPlayerCard({
                 flexDirection: "row",
                 alignItems: "center",
                 gap: 6,
-                paddingVertical: group ? 8 : 12,
-                paddingEnd: group ? 8 : 12,
               }}
             >
               <View style={{ alignItems: "flex-end" }}>
@@ -148,10 +147,10 @@ export const LeaderboardPlayerCard = memo(function LeaderboardPlayerCard({
           </View>
           <Accordion.Content
             style={{
-              paddingStart: group ? 8 : 16,
-              paddingEnd: group ? 8 : 12,
+              paddingStart: 16,
+              paddingEnd: 12,
               paddingTop: 0,
-              paddingBottom: group ? 8 : 12,
+              paddingBottom: 12,
             }}
           >
             <View
