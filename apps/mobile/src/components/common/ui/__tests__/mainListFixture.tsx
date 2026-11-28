@@ -328,7 +328,7 @@ export async function listTab(tab: string) {
 export async function listPress(name: string) {
   await userEvent.setup().press(screen.getByRole("button", { name }));
 }
-export async function listChooseSortField(name: "Name" | "Date") {
+export async function listChooseSortField(name: "Name" | "Date" | "Number of players") {
   await installNativePopoverMeasurements();
   await fireEvent.press(screen.getByTestId("list-sort-field"));
   const menus = () =>
