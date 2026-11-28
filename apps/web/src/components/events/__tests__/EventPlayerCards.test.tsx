@@ -135,7 +135,7 @@ it("offers the usual game information popover on the cover in the finished resul
   );
   const cover = screen.getByRole("button", { name: "Game information: Chess" });
   expect(cover.querySelector(".chip")).toHaveClass("size-[22px]");
-  expect(cover.parentElement).toHaveClass("absolute", "-right-2.5", "-bottom-2.5");
+  expect(cover.parentElement).toHaveClass("absolute", "-end-4", "-bottom-4");
   fireEvent.click(cover);
   const details = await screen.findByRole("dialog", { name: "Chess" });
   expect(within(details).getByText("BGG rating:")).toBeVisible();
