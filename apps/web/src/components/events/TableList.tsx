@@ -73,7 +73,9 @@ export function TableList() {
             renderItem={(row) => <EventTableCard table={row} context="personal" />}
           />
         </NotificationAttentionScope>
-      ) : null}
+      ) : (
+        <ul aria-label={t`History`} />
+      )}
       {q.isPending ? (
         <Skeleton className="h-32 w-full rounded-xl" />
       ) : !q.isError && !q.hasNextPage && !q.items.length ? (
