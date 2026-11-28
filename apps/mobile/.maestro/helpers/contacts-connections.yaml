@@ -41,11 +41,15 @@ appId: com.bgo.boardgameorganizer.dev
 - extendedWaitUntil:
     notVisible: "Friends"
     timeout: 30000
+- assertVisible: "Followers"
 - runFlow:
     file: contact-search.yaml
     env:
       CONTACT_EMAIL: ${EMAIL_2}
-      CONTACT_ACTIONS: "^Actions: E2E Target$"
+      CONTACT_ACTIONS: "^No users found$"
+- assertNotVisible: "E2E Target"
+- tapOn: "Back"
+- tapOn: "Connections"
 - tapOn: "^Actions: E2E Target$"
 - extendedWaitUntil:
     visible: "^Follow$"
@@ -54,13 +58,11 @@ appId: com.bgo.boardgameorganizer.dev
 - extendedWaitUntil:
     notVisible: "^Follow$"
     timeout: 30000
-- tapOn: "Connections"
 - extendedWaitUntil:
     visible: "Following"
     timeout: 30000
 - assertVisible: "E2E Target"
 - assertVisible: "^@[^ ]+$"
-- tapOn: "Search"
 - tapOn: "^Actions: E2E Target$"
 - extendedWaitUntil:
     visible: "^Unfollow$"
@@ -76,7 +78,7 @@ appId: com.bgo.boardgameorganizer.dev
       ACTION_LABEL: "^Block$"
       CONFIRM_ID: "confirm-block-btn"
 - extendedWaitUntil:
-    notVisible: "E2E Target"
+    visible: "Blocked"
     timeout: 30000
 - tapOn: "Requests"
 - assertNotVisible: "E2E Target"
@@ -91,7 +93,29 @@ appId: com.bgo.boardgameorganizer.dev
       CONTACT_ACTIONS: "^Actions: E2E Target$"
       ACTION_LABEL: "^Unblock$"
       CONFIRM_ID: "confirm-unblock-btn"
-- extendedWaitUntil:
-    notVisible: "E2E Target"
-    timeout: 30000
 - assertNotVisible: "Blocked"
+- assertVisible: "Followers"
+# Remove the remaining follow from the actor who owns it.
+- runFlow:
+    file: switch-actor.yaml
+    env:
+      AUTH_EMAIL: ${EMAIL_2}
+      AUTH_PASSWORD: ${PASSWORD_2}
+- openLink: bgo-dev:///contacts?tab=connections
+- tapOn: "^Actions: E2E Test$"
+- tapOn: "^Unfollow$"
+- extendedWaitUntil:
+    notVisible: "E2E Test"
+    timeout: 30000
+- runFlow:
+    file: switch-actor.yaml
+    env:
+      AUTH_EMAIL: ${EMAIL}
+      AUTH_PASSWORD: ${PASSWORD}
+- runFlow:
+    file: contact-search.yaml
+    env:
+      CONTACT_EMAIL: ${EMAIL_2}
+      CONTACT_ACTIONS: "^Actions: E2E Target$"
+- tapOn: "Back"
+- tapOn: "Connections"

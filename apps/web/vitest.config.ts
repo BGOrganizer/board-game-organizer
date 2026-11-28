@@ -194,7 +194,7 @@ export default defineConfig({
           branches: 93,
           statements: 93,
         },
-        "src/components/events/{EventRolePopover,EventCardTableSummaries,EventSchedulePopover}.tsx":
+        "src/components/events/{EventRolePopover,EventCardTableSummaries,EventScheduleSummary}.tsx":
           {
             lines: 93,
             functions: 93,
@@ -263,7 +263,7 @@ export default defineConfig({
           branches: 93,
           statements: 93,
         },
-        "src/components/{events/EventCardIndicators,events/EventTableGamesPopover,events/EventTableCardIndicators,events/EventTableSchedulePopover,groups/GroupIdentityCard,groups/GroupCard,groups/GroupCardIndicators,groups/GroupArtwork,groups/GroupVisibilityPicker,groups/GroupLogoPicker}.tsx":
+        "src/components/{events/EventCardIndicators,events/EventCardStatusPopover,events/EventTableGamesPopover,events/EventTableCardIndicators,events/EventTableSchedulePopover,groups/GroupIdentityCard,groups/GroupCard,groups/GroupCardIndicators,groups/GroupArtwork,groups/GroupVisibilityPicker,groups/GroupLogoPicker}.tsx":
           {
             lines: 93,
             functions: 93,

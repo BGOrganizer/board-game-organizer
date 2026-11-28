@@ -6,7 +6,7 @@ interface DeviceContact {
   phones?: Array<{ number?: string | null }> | null;
 }
 
-const CONTACT_TABS = ["connections", "requests", "device", "search"] as const;
+const CONTACT_TABS = ["connections", "requests", "search"] as const;
 
 export type ContactTab = (typeof CONTACT_TABS)[number];
 
@@ -15,7 +15,7 @@ export function contactTab(value: string | string[] | undefined): ContactTab {
   if (candidate === "friends" || candidate === "following" || candidate === "followers")
     return "connections";
   if (candidate === "blocked") return "requests";
-  if (candidate === "suggestions") return "device";
+  if (candidate === "device" || candidate === "suggestions") return "search";
   return CONTACT_TABS.includes(candidate as ContactTab) ? (candidate as ContactTab) : "connections";
 }
 

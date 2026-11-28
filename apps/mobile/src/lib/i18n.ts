@@ -36,7 +36,9 @@ const catalogs: Record<AppLocale, typeof messagesEn> = {
 /** Reverse index: English source text → catalog message id (hash). */
 const idByEnglish: Record<string, string> = {};
 for (const [id, [text]] of Object.entries(messagesEn) as [string, string[]][]) {
-  if (typeof text === "string") idByEnglish[text] = id;
+  // Scoped labels can share English text while using a different translation.
+  if (typeof text === "string" && !id.startsWith("list.filter.") && id !== "group.review.approved")
+    idByEnglish[text] = id;
 }
 
 /** Maps any locale tag to a supported app locale (default: en). */

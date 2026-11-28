@@ -16,10 +16,12 @@ export function EventRolePopover({
   roles,
   action,
   pending = false,
+  description,
 }: {
   roles: readonly RecordUserRole[];
   action?: PendingAction | null;
   pending?: boolean;
+  description?: string;
 }) {
   const { t, i18n } = useLingui();
   const colors = {
@@ -37,6 +39,7 @@ export function EventRolePopover({
       triggerClassName="bg-default"
       className="w-80 max-w-[calc(100vw-2rem)]"
     >
+      {description && roles.length > 0 ? <p className="mb-2">{description}</p> : null}
       <ul className="space-y-2">
         {roles.map((role) => {
           const item = RECORD_USER_ROLES[role],

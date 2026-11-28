@@ -200,8 +200,8 @@ it("pages a browse widget through its authorized data tool using the original qu
   );
 });
 
-it("renders game rows when browsing an event's tables", async () => {
-  const table = historyTable(firstTableId, "Chess");
+it("renders game rows when browsing an event's confirmed tables", async () => {
+  const table = { ...historyTable(firstTableId, "Chess"), eventStatus: "CONFIRMED" };
   render(<Widget />);
   act(() =>
     host.ontoolresult({
@@ -250,11 +250,12 @@ it("renders a mixed shortlist in order and preserves it when returning from a ta
     `Open group: ${group.name}`,
     `Open event: ${event.name}`,
   ]);
-  fireEvent.click(screen.getByRole("button", { name: /^Board games:/ }));
-  const games = await screen.findByRole("dialog");
-  expect(within(games).getByText("Chess")).toBeVisible();
-  fireEvent.keyDown(games, { key: "Escape", code: "Escape" });
-  await waitFor(() => expect(games).not.toBeInTheDocument());
+  expect(screen.queryByRole("button", { name: /^Board games:/ })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Terminated" }));
+  const status = await screen.findByRole("dialog");
+  expect(within(status).getByText("The game has ended.")).toBeVisible();
+  fireEvent.keyDown(status, { key: "Escape", code: "Escape" });
+  await waitFor(() => expect(status).not.toBeInTheDocument());
   cards[0].focus();
   fireEvent.click(cards[0]);
   expect(await screen.findByRole("tab", { name: "Results" })).toBeVisible();

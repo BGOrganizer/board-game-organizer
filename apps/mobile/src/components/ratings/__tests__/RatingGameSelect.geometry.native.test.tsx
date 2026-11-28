@@ -1,5 +1,5 @@
 import { createRequire } from "node:module";
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react-native";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import {
   Dimensions,
   Keyboard,
@@ -7,7 +7,7 @@ import {
   type KeyboardEventName,
   Platform,
   StyleSheet,
-  Text,
+  TextInput,
 } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { NativeTestProviders } from "@/test/NativeTestProviders";
@@ -78,7 +78,7 @@ it("bounds the actual selector by native keyboard and safe-area geometry without
           games={[{ id: 1, name: "Chess", imageUrl: null }]}
           onChange={change}
         >
-          <Text>Actual selector header</Text>
+          {(focus) => <TextInput testID="rating-search-input" {...focus} />}
         </RatingGameSelect>
       </SafeAreaProvider>
     </NativeTestProviders>,
@@ -89,7 +89,7 @@ it("bounds the actual selector by native keyboard and safe-area geometry without
     screen.getByTestId("rating-game-select-popover", { includeHiddenElements: true });
   expect(popup()).toHaveStyle({ height: 320, maxHeight: 320, overflow: "hidden" });
   expect(
-    screen.getByText("Actual selector header", { includeHiddenElements: true }),
+    screen.getByTestId("rating-search-input", { includeHiddenElements: true }),
   ).toBeOnTheScreen();
   expect(
     screen.getByRole("option", { name: "Chess", includeHiddenElements: true }),
@@ -115,6 +115,13 @@ it("bounds the actual selector by native keyboard and safe-area geometry without
   await keyboard("keyboardWillChangeFrame", 600);
   await waitFor(() => expect(popup()).toHaveStyle({ height: 132, maxHeight: 132 }));
   expect(StyleSheet.flatten(avoidance.props.style)?.paddingBottom).toBeUndefined();
+  const input = screen.getByTestId("rating-search-input", { includeHiddenElements: true });
+  const restingTop = StyleSheet.flatten(popup().props.style).top;
+  await fireEvent(input, "focus");
+  expect(popup()).toHaveStyle({ top: 32, height: 124, maxHeight: 124 });
+  expect(screen.getByTestId("rating-search-input", { includeHiddenElements: true })).toBe(input);
+  await fireEvent(input, "blur");
+  expect(popup()).toHaveStyle({ top: restingTop, height: 132, maxHeight: 132 });
   await keyboard("keyboardWillChangeFrame", 760);
   await waitFor(() => expect(popup()).toHaveStyle({ height: 80, maxHeight: 80 }));
   await keyboard("keyboardDidHide", 0);

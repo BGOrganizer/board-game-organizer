@@ -1,29 +1,24 @@
 import { readFileSync } from "node:fs";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { LinkedListCard } from "@/components/common/ui/LinkedListCard";
 import { ListCardBody } from "@/components/common/ui/ListCardBody";
 import { NotificationUnreadDot } from "@/components/common/ui/NotificationUnreadDot";
 import { GameListRow } from "@/components/games/GameListRow";
-import { GroupCard } from "@/components/groups/GroupCard";
 import { LocationListRow } from "@/components/locations/LocationListRow";
 import { NotificationItem } from "@/components/notifications/NotificationItem";
-import { groupRecord } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 
-const state = vi.hoisted(() => ({ count: 2, read: vi.fn() }));
+const read = vi.hoisted(() => vi.fn());
 vi.mock("@board-game-organizer/shared", async (original) => ({
   ...(await original<typeof import("@board-game-organizer/shared")>()),
   useNotificationAttentionContext: () => ({
     owner: "api:user",
-    get: () => ({ count: state.count }),
-    read: state.read,
+    get: () => ({ count: 2 }),
+    read,
   }),
 }));
-beforeEach(() => {
-  state.count = 2;
-  state.read.mockReset();
-});
+beforeEach(() => read.mockReset());
 
 it("renders only a static danger dot; has no animation, observers, store or acknowledgement", () => {
   const q = renderWithI18n(<NotificationUnreadDot active={false} />);
@@ -34,7 +29,7 @@ it("renders only a static danger dot; has no animation, observers, store or ackn
   expect(dot.style.width).toBe("8px");
   expect(dot.style.position).toBe("relative");
   expect(dot.style.transform).toBe("none");
-  expect(state.read).not.toHaveBeenCalled();
+  expect(read).not.toHaveBeenCalled();
   const css = readFileSync("src/app/globals.css", "utf8");
   expect(css).not.toMatch(/notification-attention-(border|pulse)/);
 });
@@ -62,7 +57,7 @@ it("puts the marker after a shrinkable title, before other card metadata, withou
   expect(dot.previousElementSibling?.className).toContain("break-words");
   expect(link.closest(".card")?.contains(dot)).toBe(true);
   expect(link.getAttribute("aria-description")).toBe("Unread updates");
-  expect(state.read).not.toHaveBeenCalled();
+  expect(read).not.toHaveBeenCalled();
 });
 
 it.each(["game", "location"])(
@@ -82,10 +77,10 @@ it.each(["game", "location"])(
     );
     const dot = screen.getByRole("img", { name: "Unread updates" });
     expect(dot.parentElement?.previousElementSibling?.getAttribute("title")).toContain("long");
-    expect(state.read).not.toHaveBeenCalled();
+    expect(read).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "Mark as read" })).toBeNull();
     fireEvent.click(dot);
-    expect(state.read).not.toHaveBeenCalled();
+    expect(read).not.toHaveBeenCalled();
   },
 );
 
@@ -105,25 +100,5 @@ it("can open a place vote breakdown using its label when there is no address", (
   expect(screen.queryByText("Avery voted yes")).toBeNull();
   fireEvent.click(trigger);
   expect(screen.getByText("Avery voted yes")).toBeTruthy();
-  expect(state.read).not.toHaveBeenCalled();
-});
-
-it("retains an actionable admin request after unread state is cleared, and opening help never reads or decides", async () => {
-  const group = { ...groupRecord, role: "admin" as const, pendingRequestCount: 2 };
-  const view = renderWithI18n(<GroupCard group={group} />);
-  expect(screen.getByRole("img", { name: "Unread updates" })).not.toBeNull();
-  const name = "Admin · Requests to review";
-  fireEvent.click(screen.getByRole("button", { name }));
-  expect(
-    await screen.findByText("Open Members to approve or reject membership requests."),
-  ).not.toBeNull();
-  expect(state.read).not.toHaveBeenCalled();
-  fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
-  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-  state.count = 0;
-  view.rerender(<GroupCard group={group} />);
-  expect(screen.queryByRole("img", { name: "Unread updates" })).toBeNull();
-  expect(screen.getByRole("button", { name })).not.toBeNull();
-  view.rerender(<GroupCard group={{ ...group, pendingRequestCount: 0 }} />);
-  expect(screen.queryByRole("button", { name })).toBeNull();
+  expect(read).not.toHaveBeenCalled();
 });

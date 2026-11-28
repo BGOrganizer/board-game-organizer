@@ -25,21 +25,22 @@ appId: com.bgo.boardgameorganizer.dev
     notVisible:
       id: "confirmation-dialog"
     timeout: 30000
+- tapOn: "Back"
+- assertNotVisible: "Clear search"
 - tapOn: "Requests"
 - extendedWaitUntil:
     visible: "E2E Target"
     timeout: 30000
 - assertVisible: "Sent"
 - assertVisible: "^@[^ ]+$"
-# Cached subtab reentry must retain the outgoing action without sending another request.
-- tapOn: "Connections"
-- tapOn: "Search"
-- tapOn: "^Actions: E2E Target$"
-- extendedWaitUntil:
-    visible: "^Cancel friend request$"
-    timeout: 30000
-- assertNotVisible: "^Send friend request$"
-- tapOn: "^Cancel$"
+# Active requests are hidden from the directory and stay actionable in Requests.
+- runFlow:
+    file: contact-search.yaml
+    env:
+      CONTACT_EMAIL: ${EMAIL_2}
+      CONTACT_ACTIONS: "^No users found$"
+- assertNotVisible: "E2E Target"
+- tapOn: "Back"
 - tapOn: "Requests"
 - assertVisible: "E2E Target"
 - assertVisible: "Sent"
@@ -63,6 +64,7 @@ appId: com.bgo.boardgameorganizer.dev
       CONTACT_ACTIONS: "^Actions: E2E Target$"
       ACTION_LABEL: "^Send friend request$"
       CONFIRM_ID: "confirm-friend-request-btn"
+- tapOn: "Back"
 - tapOn: "Requests"
 - extendedWaitUntil:
     visible: "E2E Target"

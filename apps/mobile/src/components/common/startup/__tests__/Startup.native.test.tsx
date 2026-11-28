@@ -285,7 +285,7 @@ it("gates real priority reads on authentication, owned restoration and the initi
   });
   const group = calls.find((call) => call.path === "/api/groups");
   expect(group?.url.searchParams.get("type")).toBe("PRIVATE");
-  expect(group?.url.searchParams.get("roles")).toBe("admin,invited,accepted");
+  expect(group?.url.searchParams.get("roles")).toBe("administrator,moderator,member,pending");
   expect(calls.every((call) => !call.url.searchParams.has("cursor"))).toBe(true);
   expect(new Set(calls.map((call) => call.token)).size).toBe(calls.length);
   expect(boundary.contacts).not.toHaveBeenCalled();

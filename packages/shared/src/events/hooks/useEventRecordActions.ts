@@ -576,6 +576,7 @@ export function useEventRecordActions(o: CommunityApiOptions, id: string) {
               query?: string;
               periods?: ("past" | "future")[];
               statuses?: PlannedEventResponse["status"][];
+              roles?: Parameters<typeof eventCreationMatches>[1]["roles"];
             };
             return eventCreationMatches(canonical, {
               ...filters,

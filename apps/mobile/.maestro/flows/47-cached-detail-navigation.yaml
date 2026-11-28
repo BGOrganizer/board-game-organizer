@@ -14,8 +14,21 @@ tags: [manual, performance, details]
 - assertVisible:
     id: top-tab-events
     selected: true
-- assertVisible:
+- assertNotVisible:
+    id: list-filter-PLANNING
+- tapOn:
     id: list-search-input
+- assertVisible:
+    id: list-filter-PLANNING
+    selected: true
+- assertNotVisible:
+    id: top-tab-events
+- tapOn: '^(Back|Indietro)$'
+- assertVisible:
+    id: top-tab-events
+    selected: true
+- assertNotVisible:
+    id: list-filter-PLANNING
 - swipe:
     from:
       id: top-tab-scroll

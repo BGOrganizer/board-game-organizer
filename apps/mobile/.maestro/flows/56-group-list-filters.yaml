@@ -1,0 +1,105 @@
+appId: com.bgo.boardgameorganizer.dev
+name: Owned Groups role filters and source ordering
+# Read-only flow for an authenticated Development account.
+tags: [manual, groups]
+---
+- stopApp
+- launchApp:
+    clearState: false
+    permissions:
+      location: allow
+- openLink: bgo-dev:///groups
+- extendedWaitUntil:
+    visible:
+      id: list-sort-field
+    timeout: 120000
+- runFlow: ../helpers/check-group-list-filters.yaml
+- tapOn:
+    id: top-tab-public
+- assertVisible:
+    id: top-tab-public
+    selected: true
+- runFlow: ../helpers/check-group-list-filters.yaml
+- tapOn:
+    id: top-tab-search
+- assertVisible:
+    id: top-tab-search
+    selected: true
+- assertNotVisible:
+    id: list-filter-pending
+- assertNotVisible:
+    id: list-sort-field
+- assertNotVisible:
+    id: list-sort-direction
+- assertNotVisible:
+    id: list-filter-friends
+- assertNotVisible:
+    id: list-filter-nearby
+- tapOn:
+    id: list-search-input
+- assertNotVisible:
+    id: top-tab-search
+- assertVisible:
+    id: list-filter-friends
+    selected: true
+- assertVisible:
+    id: list-filter-nearby
+    selected: false
+- inputText: A
+- assertVisible: '^(Back|Indietro)$'
+- tapOn: '^(Back|Indietro)$'
+- assertVisible:
+    id: top-tab-search
+    selected: true
+- assertNotVisible:
+    id: list-filter-friends
+- assertNotVisible:
+    id: list-filter-nearby
+- tapOn:
+    id: list-search-input
+- setLocation:
+    latitude: 41.9
+    longitude: 12.5
+- assertNotVisible:
+    id: group-search-distance
+- tapOn:
+    id: list-filter-nearby
+- extendedWaitUntil:
+    visible:
+      id: group-search-distance
+    timeout: 20000
+- tapOn:
+    id: group-search-distance
+- assertVisible:
+    id: group-distance-25
+    selected: true
+- tapOn:
+    id: group-distance-50
+- assertNotVisible:
+    id: group-distance-25
+- tapOn:
+    id: group-search-distance
+- assertVisible:
+    id: group-distance-50
+    selected: true
+- assertNotVisible:
+    id: group-distance-custom
+- tapOn:
+    id: group-distance-100
+- assertNotVisible:
+    id: group-distance-100
+- tapOn:
+    id: list-filter-nearby
+- assertNotVisible:
+    id: group-search-distance
+- tapOn:
+    id: list-filter-nearby
+- extendedWaitUntil:
+    visible:
+      id: group-search-distance
+    timeout: 20000
+- tapOn:
+    id: group-search-distance
+- assertVisible:
+    id: group-distance-100
+    selected: true

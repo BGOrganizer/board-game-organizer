@@ -1,6 +1,7 @@
 import type { User } from "@board-game-organizer/schemas";
 import { z } from "zod";
 import { ContactLinksRepository } from "@/app/lib/contacts/contacts.repository";
+import { pendingContactRequestIds } from "@/app/lib/contacts/pendingContactRequestIds";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { COLLECTIONS, getDb } from "@/app/lib/db";
 import { bgoAuth } from "@/app/lib/mcp/actor";
@@ -13,7 +14,7 @@ import { bgoAuth } from "@/app/lib/mcp/actor";
  * consent). No contacts synced → empty list; `hasContacts` tells the UI
  * whether to show the "Add contacts" call-to-action.
  * `scope=contacts` includes existing connections with their current relationship
- * flags for the device Contacts tab; the default remains follow discovery.
+ * flags. `scope=discovery` excludes profiles already in Connections or Requests.
  *
  * `blockedMe` users are excluded (the blocked user must not see the blocker
  * as a suggestion).
@@ -36,7 +37,7 @@ export async function GET(request: Request) {
   const pageQuery = z
     .object({
       limit: z.coerce.number().int().min(1).max(50).optional(),
-      scope: z.literal("contacts").optional(),
+      scope: z.enum(["contacts", "discovery"]).optional(),
       cursor: z
         .string()
         .min(1)
@@ -72,9 +73,9 @@ export async function GET(request: Request) {
     .find({ fromUserId: userId, toUserId: { $in: contactClerkIds } })
     .toArray();
   const followingIds = new Set(following.map((f) => f.toUserId));
-  followingIds.add(userId);
-  const allContacts = pageQuery.data.scope === "contacts";
-  const [followers, friends] = allContacts
+  const discovery = pageQuery.data.scope === "discovery";
+  const allContacts = pageQuery.data.scope !== undefined;
+  const [followers, friends, pendingIds] = allContacts
     ? await Promise.all([
         db
           .collection(COLLECTIONS.FOLLOWS)
@@ -90,8 +91,9 @@ export async function GET(request: Request) {
             ],
           })
           .toArray(),
+        discovery ? pendingContactRequestIds(db, userId) : [],
       ])
-    : [[], []];
+    : [[], [], []];
   const followerIds = new Set(followers.map((row) => row.fromUserId));
   const friendDirections = new Map<string, number>();
   for (const row of friends) {
@@ -102,18 +104,24 @@ export async function GET(request: Request) {
     );
   }
 
+  const excluded = new Set([userId, ...blockedIds]);
+  if (!allContacts || discovery) {
+    for (const id of followingIds) excluded.add(id);
+  }
+  if (discovery) {
+    for (const id of followerIds) excluded.add(id);
+    for (const id of pendingIds) excluded.add(id);
+    for (const [id, directions] of friendDirections) {
+      if (directions === 3) excluded.add(id);
+    }
+  }
   const users = await db
     .collection<User>(COLLECTIONS.USERS)
     .find({ clerkId: { $in: contactClerkIds } }, { projection: { _id: 0 } })
     .toArray();
 
   const suggestions = users
-    .filter(
-      (u) =>
-        u.clerkId !== userId &&
-        (allContacts || !followingIds.has(u.clerkId)) &&
-        !blockedIds.has(u.clerkId),
-    )
+    .filter((user) => !excluded.has(user.clerkId))
     .map((u) => ({
       id: u.clerkId,
       name: u.name,

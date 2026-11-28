@@ -22,7 +22,8 @@ The widget reuses BGO's Web card and popover views for events, tables, groups an
 reuses the responsive leaderboard, finished-table OpenSkill results, BGG game rows and metadata,
 location rows, the invite link card, notification cards, profile summaries and the people and
 activity rows. The group creation form uses the existing BGO fields and
-pickers with verified venues and staged logo uploads.
+pickers with verified venues and staged logo uploads. The game information badge in finished-table
+results loads missing BGG details through the host’s `get_bgg_games` tool.
 
 Use data tools to answer factual questions and combine BGO records. The `list_events`,
 `list_event_tables`, `list_groups` and `discover_groups` tools return structured data. Use

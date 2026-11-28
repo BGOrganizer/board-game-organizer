@@ -1,6 +1,7 @@
 import type { ClientEventRecord } from "@board-game-organizer/shared";
 import {
   CARD_STATE_TONES,
+  confirmedEventCardTables,
   eventCardRoles,
   eventCardState,
   eventPendingAction,
@@ -26,7 +27,7 @@ import { useT } from "@/lib/i18n";
 import { EventCardTableSummaries } from "./EventCardTableSummaries";
 import { EventPlanningSettingsSummary } from "./EventPlanningSettingsSummary";
 import { EventRolePopover } from "./EventRolePopover";
-import { EventSchedulePopover } from "./EventSchedulePopover";
+import { EventScheduleSummary } from "./EventScheduleSummary";
 
 export const EventCardIndicators = memo(function EventCardIndicators({
   event,
@@ -40,7 +41,7 @@ export const EventCardIndicators = memo(function EventCardIndicators({
   const state = eventCardState(event);
   const summary = event.cardSummary;
   const status = t(cardStateMessages[state]);
-  const confirmedTables = summary?.tables.filter((table) => table.myParticipation === "CONFIRMED");
+  const confirmedTables = confirmedEventCardTables(event);
   const exclusions = summary?.tables.filter((table) => table.myParticipation === "EXCLUDED");
   const publicEvent = eventRecordVisibility(event, event.groupType) === "PUBLIC";
   return (
@@ -49,6 +50,7 @@ export const EventCardIndicators = memo(function EventCardIndicators({
         roles={roles}
         action={eventPendingAction(event)}
         pending={!!event.optimistic}
+        description={t("Your roles in this event:")}
       />
       <HelpPopover
         size="compact"
@@ -86,6 +88,18 @@ export const EventCardIndicators = memo(function EventCardIndicators({
         contentStyle={{ maxHeight: Math.max(0, height - insets.top - insets.bottom - 32) }}
       >
         <View style={{ gap: 8, flexShrink: 1 }}>
+          {event.status === "CONFIRMED" ? (
+            <Typography className="text-foreground">
+              {t("The event has been confirmed.")}
+            </Typography>
+          ) : null}
+          {event.status !== "PLANNING" ? <EventScheduleSummary event={event} /> : null}
+          {confirmedTables.length > 0 ? (
+            <View>
+              <Typography className="font-bold text-foreground">{t("Tables:")}</Typography>
+              <EventCardTableSummaries tables={confirmedTables} mode="confirmed" />
+            </View>
+          ) : null}
           {state === "PLANNING" ? (
             summary ? (
               <>
@@ -116,24 +130,7 @@ export const EventCardIndicators = memo(function EventCardIndicators({
             )
           ) : (
             <>
-              <Typography className="text-foreground">
-                {t("The event has been confirmed.")}
-              </Typography>
-              {state === "CONFIRMED" ? (
-                confirmedTables === undefined ? (
-                  <Skeleton
-                    accessibilityLabel={t("Loading…")}
-                    style={{ width: 96, height: 20, borderRadius: 4 }}
-                  />
-                ) : (
-                  <>
-                    <Typography className="text-foreground">
-                      {t("Tables where you are confirmed")}:
-                    </Typography>
-                    <EventCardTableSummaries tables={confirmedTables} mode="confirmed" />
-                  </>
-                )
-              ) : state === "DUTY" ? (
+              {state === "DUTY" ? (
                 <Typography className="text-foreground">
                   {t("You have an assigned role without a player seat.")}
                 </Typography>
@@ -150,7 +147,7 @@ export const EventCardIndicators = memo(function EventCardIndicators({
               {exclusions?.length ? (
                 <EventCardTableSummaries tables={exclusions} mode="exclusions" />
               ) : null}
-              {state === "UNKNOWN" ? (
+              {state === "UNKNOWN" || (state === "CONFIRMED" && !summary) ? (
                 <Skeleton
                   accessibilityLabel={t("Loading…")}
                   style={{ width: 192, height: 20, borderRadius: 4 }}
@@ -160,12 +157,6 @@ export const EventCardIndicators = memo(function EventCardIndicators({
           )}
         </View>
       </HelpPopover>
-      {event.status !== "PLANNING" ? (
-        <>
-          <EventSchedulePopover event={event} kind="locations" />
-          <EventSchedulePopover event={event} kind="dates" />
-        </>
-      ) : null}
     </>
   );
 });

@@ -2,6 +2,7 @@ import {
   CommunityApiError,
   eventProposalKeys,
   eventRecordQuery,
+  groupRecordKeys,
   optimisticProfileSocialData,
   projectProposalReview,
   reconcileProposalAccessError,
@@ -430,6 +431,36 @@ describe("account-owned canonical persistence", () => {
       ["matches", owner.apiUrl, owner.userId],
     ])
       expect(ownsPersistedQuery(candidate, owner)).toBe(false);
+  });
+  it("keeps volatile group discovery terms and position out of native persistence", () => {
+    const f = fixture();
+    const key = groupRecordKeys.list(
+      owner,
+      "public",
+      "private address",
+      undefined,
+      undefined,
+      undefined,
+      {
+        friends: true,
+        position: { latitude: 45.123, longitude: 7.456 },
+      },
+    );
+    const owned = groupRecordKeys.list(owner, "mine");
+    expect(ownsPersistedQuery(key, owner)).toBe(false);
+    f.client.setQueryData(key, {
+      pages: [{ items: ["nearby group"], nextCursor: null }],
+      pageParams: [""],
+    });
+    f.client.setQueryData(owned, { pages: [{ items: [], nextCursor: null }], pageParams: [""] });
+    f.persister.flush();
+    const saved = f.data.get("queries");
+    expect(saved).toBeDefined();
+    expect(saved).not.toContain("private address");
+    expect(saved).not.toContain("45.123");
+    expect(f.persister.restoreClient()?.clientState.queries.map((query) => query.queryKey)).toEqual(
+      [owned],
+    );
   });
   it("retires old private activity snapshots selectively while retaining owned network pages and unrelated datasets", () => {
     const old = ["profile", owner.apiUrl, owner.userId, "activities", "subject", null, 5],

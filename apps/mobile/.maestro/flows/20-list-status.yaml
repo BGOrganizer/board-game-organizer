@@ -79,11 +79,21 @@ onFlowComplete:
     text: ${output.status.tableStatus}
     childOf:
       id: card-controls
+- assertVisible: ${output.status.eventDateTime}
+- assertVisible: ${output.status.eventVenue}
 - scrollUntilVisible:
     element: ${output.status.historyTableName}
     direction: DOWN
     timeout: 20000
 - takeScreenshot: terminated-event-table-winners
+- back
+- tapOn: ${output.status.terminatedCard}
+- tapOn:
+    text: ${output.status.tableStatus}
+    childOf:
+      id: record-identity-controls
+- assertVisible: ${output.status.eventDateTime}
+- assertVisible: ${output.status.eventVenue}
 - back
 - openLink: bgo-dev:///tables
 - extendedWaitUntil:

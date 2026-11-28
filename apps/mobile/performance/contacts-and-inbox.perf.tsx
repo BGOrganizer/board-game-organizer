@@ -59,7 +59,9 @@ vi.mock("@clerk/expo", () => ({
 vi.mock("expo-constants", () => ({
   default: { expoConfig: { extra: { apiUrl: "https://social-performance-fixtures.test" } } },
 }));
+const navigation = { setOptions: vi.fn() };
 vi.mock("expo-router", () => ({
+  useNavigation: () => navigation,
   useRouter: () => boundary,
   useLocalSearchParams: () => ({}),
   // Focus is an SDK boundary; screen subscription/effect logic remains real.
@@ -100,6 +102,13 @@ const bob: ContactUser = {
   id: "bob",
   name: "Bob Player",
   username: "bob",
+  isFriend: false,
+};
+const discoverable: ContactUser = {
+  ...alice,
+  id: "alice-new",
+  name: "Alice New Player",
+  username: "alice-new",
   isFriend: false,
 };
 const friend: RelationshipRow = { fromUserId: "owner", toUserId: alice.id, profile: alice };
@@ -218,7 +227,7 @@ it.each(["contacts", "inbox"] as const)(
           );
         if (kind === "contacts" && url.pathname === "/api/users/search") {
           searches.push(url);
-          return Response.json({ users: [alice] });
+          return Response.json({ users: [alice, discoverable] });
         }
         unexpectedReads.push(url.pathname);
         throw new Error(`Unexpected canonical read outside the private cache ${url.pathname}`);
@@ -251,24 +260,25 @@ it.each(["contacts", "inbox"] as const)(
               );
               await userEvent.setup().press(screen.getByTestId("top-tab-requests"));
               const requestHost = await screen.findByText("@bob");
-              await userEvent.setup().press(screen.getByTestId("top-tab-device"));
-              expect(await screen.findByRole("button", { name: "Contacts help" })).toBeVisible();
               await userEvent.setup().press(screen.getByTestId("top-tab-search"));
+              expect(
+                await screen.findByRole("button", { name: "Contact search help" }),
+              ).toBeVisible();
               const search = screen.getByPlaceholderText("Search users");
+              await fireEvent(search, "focus");
               await fireEvent.changeText(search, "Alice");
-              const searchHost = await screen.findByText("@alice");
+              expect(await screen.findByText("@alice-new")).toBeVisible();
+              expect(screen.queryByText("@alice")).toBeNull();
               expect(searches).toHaveLength(1);
               expect(searches[0].searchParams.get("query")).toBe("Alice");
+              await userEvent.setup().press(screen.getByRole("button", { name: "Back" }));
+              expect(screen.getByPlaceholderText("Search users")).toBe(search);
+              expect(search).toHaveDisplayValue("");
+              expect(searches).toHaveLength(1);
               await userEvent.setup().press(screen.getByTestId("top-tab-requests"));
               expect(screen.getByText("@bob")).toBe(requestHost);
               await userEvent.setup().press(screen.getByTestId("top-tab-connections"));
               expect(screen.getByText("@alice")).toBe(friendHost);
-              await userEvent.setup().press(screen.getByTestId("top-tab-search"));
-              expect(screen.getByPlaceholderText("Search users")).toBe(search);
-              expect(search).toHaveDisplayValue("Alice");
-              expect(screen.getByText("@alice")).toBe(searchHost);
-              expect(searches).toHaveLength(1);
-              await userEvent.setup().press(screen.getByTestId("top-tab-connections"));
               await act(() =>
                 client.setQueryData(
                   relationshipListKey(API, "owner", "friends"),

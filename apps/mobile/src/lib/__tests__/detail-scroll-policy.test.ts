@@ -10,7 +10,13 @@ const source = (path: string) =>
 
 it.each([
   ["groups/GroupDetail", "GroupIdentityCard", "<GroupMembers", "<Leaderboard"],
-  ["events/EventDetail", "EventDetailsCard", "<EventParticipants", "ListHeaderComponent="],
+  [
+    "events/EventDetail",
+    "EventDetailsCard",
+    "<EventParticipants",
+    "<EventTables",
+    "<InputScrollView",
+  ],
   ["events/EventTable", "EventTableInfo", "<EventTableResults", "<EventTableOverview"],
 ])("places the %s identity and tab bar in the active scroll header", (path, card, ...consumers) => {
   const text = source(path);

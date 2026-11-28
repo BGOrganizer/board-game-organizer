@@ -260,6 +260,61 @@ test("cold native builds configure client and daemon memory separately without o
   }
 });
 
+test("the APK setup installs missing Android CMake and retries a failed SDK download", () => {
+  const prepare = build.runs.steps.find((step) => step.name === "Prepare Android CMake");
+  const compile = build.runs.steps.find((step) => step.name.startsWith("📱 Build"));
+  assert(build.runs.steps.indexOf(prepare) < build.runs.steps.indexOf(compile));
+  const bash = process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "bash";
+  const folder = mkdtempSync(join(tmpdir(), "bgo-android-sdk-"));
+  const manager = join(folder, "cmdline-tools/latest/bin/sdkmanager");
+  const cmake = join(folder, "cmake/3.22.1/bin/cmake");
+  const log = join(folder, "downloads");
+  mkdirSync(join(folder, "cmdline-tools/latest/bin"), { recursive: true });
+  mkdirSync(join(folder, "cmake/3.22.1/bin"), { recursive: true });
+  writeFileSync(
+    manager,
+    `#!/usr/bin/env bash
+printf '%s\\n' "$@" >> "$ANDROID_HOME/downloads"
+(( $(wc -l < "$ANDROID_HOME/downloads") > 3 )) && [[ "$SDK_AVAILABLE" = yes ]] || exit 1
+printf '#!/usr/bin/env bash\\necho cmake version 3.22.1\\n' > "$ANDROID_HOME/cmake/3.22.1/bin/cmake"
+chmod +x "$ANDROID_HOME/cmake/3.22.1/bin/cmake"
+`,
+    { mode: 0o755 },
+  );
+  const androidHome = folder.replaceAll("\\", "/");
+  const run = (available) =>
+    spawnSync(
+      bash,
+      [
+        "-e",
+        "-c",
+        `sleep() { :; }
+timeout() { shift; "$@"; }
+${prepare.run}`,
+      ],
+      {
+        encoding: "utf8",
+        env: { ...process.env, ANDROID_HOME: androidHome, SDK_AVAILABLE: available },
+      },
+    );
+  const installArgs = `--sdk_root=${androidHome}\n--install\ncmake;3.22.1\n`;
+  try {
+    const recovered = run("yes");
+    assert.equal(recovered.status, 0, recovered.stderr);
+    assert.equal(readFileSync(log, "utf8"), installArgs.repeat(2));
+    assert.equal(run("no").status, 0, "already installed CMake needs no download");
+    assert.equal(readFileSync(log, "utf8"), installArgs.repeat(2));
+    rmSync(cmake);
+    rmSync(log);
+    const unavailable = run("no");
+    assert.equal(unavailable.status, 1);
+    assert.match(unavailable.stdout, /Could not install Android CMake 3\.22\.1/);
+    assert.equal(readFileSync(log, "utf8"), installArgs.repeat(3));
+  } finally {
+    rmSync(folder, { recursive: true, force: true });
+  }
+});
+
 test("APK disk preparation removes unused hosted tools/images without deleting SDK runtime tools or app data", () => {
   const cleanup = build.runs.steps.find((step) => step.name === "🧹 Free disk space");
   const setup = build.runs.steps.find((step) => step.uses === "./.github/actions/setup-bun");

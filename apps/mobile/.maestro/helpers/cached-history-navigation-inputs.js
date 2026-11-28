@@ -30,6 +30,11 @@ output.history = {
   tableName: exact(p.tableName),
   openTable: exact(`${NAVIGATION_LOCALE === "it" ? "Apri tavolo" : "Open table"}: ${p.tableName}`),
   terminated: exact(NAVIGATION_LOCALE === "it" ? "Terminata" : "Terminated"),
+  back: exact(NAVIGATION_LOCALE === "it" ? "Indietro" : "Back"),
+  playerCount: exact(NAVIGATION_LOCALE === "it" ? "Numero giocatori" : "Number of players"),
+  sortByPlayers: exact(
+    NAVIGATION_LOCALE === "it" ? "Ordina per Numero giocatori" : "Sort by Number of players",
+  ),
   winner: exact(p.winnerUsername),
   resultWinner: `${exact(p.winnerUsername).slice(0, -1)}(?:, .+)?$`,
 };

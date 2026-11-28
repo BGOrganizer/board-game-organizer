@@ -32,29 +32,26 @@ function prop(name: string, tag = "MemoizedGroupList") {
   return expression;
 }
 it.each([
-  ["private", "mine", "PRIVATE"],
-  ["public", "mine", "PUBLIC"],
-  ["search", "public", undefined],
-])(
-  "native %s selects its source scope/type instead of conflating public memberships with discovery",
-  (section, scope, type) => {
-    expect(runInNewContext(prop("scope"), { section })).toBe(scope);
-    expect(runInNewContext(prop("type"), { section })).toBe(type);
-    const options = { apiUrl: "https://owned-preview.test", userId: "owner" };
-    expect(runInNewContext(prop("key", "RetainedTabPanel"), { section, options })).toBe(
-      JSON.stringify([options.apiUrl, options.userId, section]),
-    );
-  },
-);
-it("includes pending invitations in typed owned tabs, without treating requests as membership", () => {
-  expect(groupRecordMemberRoles).toEqual(["admin", "invited", "accepted"]);
+  ["private", "PRIVATE"],
+  ["public", "PUBLIC"],
+])("native %s uses the corresponding owned group type", (section, type) => {
+  expect(runInNewContext(prop("type"), { section })).toBe(type);
+  const options = { apiUrl: "https://owned-preview.test", userId: "owner" };
+  expect(runInNewContext(prop("key", "RetainedTabPanel"), { section, options })).toBe(
+    JSON.stringify([options.apiUrl, options.userId, section]),
+  );
+});
+it("uses separate administered, moderator, member and pending categories for owned tabs", () => {
+  expect(groupRecordMemberRoles).toEqual(["administrator", "moderator", "member", "pending"]);
   const list = readFileSync(
     new URL("../../components/groups/GroupList.tsx", import.meta.url),
     "utf8",
   );
-  expect(list).toContain("useListSearch(groupRecordMemberRoles, minimumLength)");
-  expect(list).toContain("useGroupRecords(options, scope, filters.search, filters.selected, type)");
-  expect(list).toContain('key: "invited"');
+  expect(list).toContain("useListSearch(groupRecordMemberRoles, 0)");
+  expect(list).toContain(
+    'useGroupRecords(options, "mine", filters.search, filters.selected, type, order)',
+  );
+  expect(list).toContain('key: "pending"');
   expect(list).not.toContain('key: "requested"');
   expect(list).toContain("<InputFlatList");
 });

@@ -91,11 +91,12 @@ describe("GET /api/users/search", () => {
         { fromUserId: "unrelated_a", toUserId: "unrelated_b", status: "accepted" },
       ],
     }));
-    getDbMock.mockResolvedValueOnce({
+    const db = {
       collection: vi.fn((name: string) => ({
         find: name === "users" ? findMock : name === "friendRequests" ? friendFind : emptyFind,
       })),
-    });
+    };
+    getDbMock.mockResolvedValueOnce(db);
     const { getBlockedByUserIds, getBlockedUserIds } = await import("@/app/lib/contacts/blocks");
     vi.mocked(getBlockedUserIds as () => Promise<string[]>).mockResolvedValueOnce(["blocked_user"]);
     vi.mocked(getBlockedByUserIds as () => Promise<string[]>).mockResolvedValueOnce([
@@ -116,9 +117,23 @@ describe("GET /api/users/search", () => {
 
     // Surname matches anywhere in the full name, not just at its start.
     const filter = findMock.mock.calls[0]?.[0] as { $or: Array<Record<string, unknown>> };
-    expect(filter.$or).toHaveLength(2);
+    expect(filter.$or).toHaveLength(3);
     expect(filter.$or[0]).toEqual({ name: { $regex: "Mancini", $options: "i" } });
     expect(filter.$or[1]).toEqual({ email: { $regex: "Mancini", $options: "i" } });
+    expect(filter.$or[2]).toEqual({ username: { $regex: "Mancini", $options: "i" } });
+
+    authMock.mockResolvedValueOnce({ userId: "viewer" });
+    getDbMock.mockResolvedValueOnce(db);
+    expect((await GET(new Request("http://x/api/users/search?query=%40Alice.Player"))).status).toBe(
+      200,
+    );
+    expect(findMock.mock.calls[1]?.[0]).toMatchObject({
+      $or: [
+        { name: { $regex: String.raw`@Alice\.Player`, $options: "i" } },
+        { email: { $regex: String.raw`@Alice\.Player`, $options: "i" } },
+        { username: { $regex: String.raw`Alice\.Player`, $options: "i" } },
+      ],
+    });
   });
 
   it("supports CORS preflight", async () => {

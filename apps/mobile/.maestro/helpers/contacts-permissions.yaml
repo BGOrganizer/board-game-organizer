@@ -1,23 +1,25 @@
 appId: com.bgo.boardgameorganizer.dev
 ---
-- tapOn: "Contacts"
+- tapOn:
+    id: main-tab-contacts
 - extendedWaitUntil:
     visible: ".*[Aa]llow.*contacts.*"
     timeout: 30000
 - tapOn: "Don.t allow"
-- tapOn: "Search"
+- tapOn:
+    id: top-tab-search
 - assertNotVisible: "Search results"
 - assertVisible: "Section guide"
 - tapOn: "Contact search help"
 - extendedWaitUntil:
-    visible: "Find people on Board Game Organizer by entering their name or email address."
+    visible: "Find BGO users by first name, last name, email, or username, including people outside your contacts."
     timeout: 30000
 - assertVisible: "Type at least 4 characters to search"
 - back
-- assertNotVisible: "Find people on Board Game Organizer by entering their name or email address."
-- openLink: bgo-dev:///contacts?tab=device
+- assertNotVisible: "Find BGO users by first name, last name, email, or username, including people outside your contacts."
+- openLink: bgo-dev:///contacts?tab=search
 - assertVisible: "Section guide"
-- tapOn: "Contacts help"
+- tapOn: "Contact search help"
 - assertVisible: ".*shows your matched contacts and people you can invite.*"
 - back
 - tapOn:
@@ -68,8 +70,8 @@ appId: com.bgo.boardgameorganizer.dev
 - back
 - assertNotVisible: "Requests awaiting your reply."
 - assertNotVisible: "Blocked"
-- openLink: bgo-dev:///contacts?tab=device
-- assertVisible: "Contacts help"
+- openLink: bgo-dev:///contacts?tab=search
+- assertVisible: "Contact search help"
 - extendedWaitUntil:
     visible: "E2E Target"
     timeout: 90000
@@ -81,7 +83,7 @@ appId: com.bgo.boardgameorganizer.dev
 - assertVisible: "ZZ Page 43"
 # Reentry reveals retained address-book rows progressively without losing later pages.
 - tapOn: "Connections"
-- openLink: bgo-dev:///contacts?tab=device
+- openLink: bgo-dev:///contacts?tab=search
 - scrollUntilVisible:
     element: "E2E Target"
     direction: UP
@@ -108,5 +110,6 @@ appId: com.bgo.boardgameorganizer.dev
     notVisible: "^(Copy|Copy to clipboard|Copy link)$"
     timeout: 30000
 - openLink: bgo-dev:///contacts?tab=search
+- assertVisible: "Contact search help"
 - assertVisible:
     id: "contact-search-input"

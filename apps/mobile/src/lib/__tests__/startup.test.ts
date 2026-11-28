@@ -1,4 +1,4 @@
-import { groupRecordMemberRoles } from "@board-game-organizer/schemas";
+import { eventListDefaultOrder, groupRecordMemberRoles } from "@board-game-organizer/schemas";
 import {
   eventRecordKeys,
   eventRecordsQuery,
@@ -27,7 +27,7 @@ function seed(client: QueryClient) {
   client.setQueryData(["profile", apiUrl, userId], { id: userId });
   for (const key of [
     recordTablesQuery(o, null).queryKey,
-    eventRecordsQuery(o).queryKey,
+    eventRecordsQuery(o, { order: eventListDefaultOrder.mine }).queryKey,
     groupRecordsPageQuery(o, "mine", "", groupRecordMemberRoles, "PRIVATE").queryKey,
   ])
     client.setQueryData(key, { pages: [{ items: [], nextCursor: null }], pageParams: [""] });
@@ -36,7 +36,7 @@ function seed(client: QueryClient) {
       pages: [{ rows: [], nextCursor: null }],
       pageParams: [""],
     });
-  client.setQueryData(["contacts", "suggestions", apiUrl, userId, "device", "pages-v1"], {
+  client.setQueryData(["contacts", "suggestions", apiUrl, userId, "device", "pages-v2"], {
     pages: [{ users: [], hasContacts: false, nextCursor: null }],
     pageParams: [""],
   });

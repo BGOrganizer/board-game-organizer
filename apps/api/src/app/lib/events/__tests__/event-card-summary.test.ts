@@ -146,6 +146,13 @@ describe("card readiness uses real confirmation and bounded independent diagnost
 });
 
 describe("durable personal card facts", () => {
+  it("marks only the requesting user's demonstration assignment", () => {
+    const demonstration = { ...table, demonstratorUserId: "guide" };
+    expect(tableCardSummary(event, demonstration, "guide", null, []).myDemonstrator).toBe(true);
+    expect(tableCardSummary(event, demonstration, "other", null, []).myDemonstrator).toBe(false);
+    expect(tableCardSummary(event, demonstration, "", null, []).myDemonstrator).toBe(false);
+  });
+
   it("reports frozen attendance even without a registration and preserves tied winner handles", () => {
     const winners = [
       { userId: "a", username: "alice" },

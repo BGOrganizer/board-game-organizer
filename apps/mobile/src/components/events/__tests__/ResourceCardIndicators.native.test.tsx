@@ -153,6 +153,7 @@ it("combines event management, demonstration, pending invitation, waiting and ac
     </Fixture>,
   );
   await open("Roles and participation");
+  expect(screen.getByText("Your roles in this event:")).toBeVisible();
   for (const label of [
     "Admin",
     "Demonstrator",
@@ -228,6 +229,7 @@ it.each(["readOnly", "optimistic"] as const)(
       </Fixture>,
     );
     await open("Roles and participation");
+    expect(screen.queryByText("Your roles in this event:")).toBeNull();
     expect(screen.queryByText("Admin")).toBeNull();
     expect(screen.queryByText("Accepted participant")).toBeNull();
     expect(
@@ -322,7 +324,7 @@ it("lists only the viewer's confirmed tables and retains each relevant exclusion
       tableId: "second",
       confirmedGameName: "Backgammon",
       order: 1,
-      myParticipation: "CONFIRMED",
+      myDemonstrator: true,
       confirmed: true,
     }),
     summary({
@@ -341,9 +343,12 @@ it("lists only the viewer's confirmed tables and retains each relevant exclusion
     </Fixture>,
   );
   await open("Confirmed");
+  expect(screen.queryByRole("button", { name: /Dates and times:|Locations:/ })).toBeNull();
+  expect(screen.getByText("Date and time:")).toBeVisible();
+  expect(screen.getByText("Location:")).toBeVisible();
   for (const label of [
     "The event has been confirmed.",
-    "Tables where you are confirmed:",
+    "Tables:",
     "Chess",
     "Backgammon",
     "Table #3",
@@ -463,7 +468,7 @@ it("keeps old confirmed event projections pending until authoritative participat
   expect(
     screen.getAllByLabelText("Loading…", { includeHiddenElements: true }).length,
   ).toBeGreaterThan(0);
-  expect(screen.queryByText("Tables where you are confirmed:")).toBeNull();
+  expect(screen.queryByText("Tables:")).toBeNull();
   await view.rerender(
     <Fixture>
       <EventCardIndicators
@@ -477,7 +482,7 @@ it("keeps old confirmed event projections pending until authoritative participat
       />
     </Fixture>,
   );
-  expect(screen.getByText("Tables where you are confirmed:")).toBeVisible();
+  expect(screen.getByText("Tables:")).toBeVisible();
   expect(screen.getByText("Table #1")).toBeVisible();
 });
 
@@ -548,7 +553,7 @@ it.each([null, ""])("keeps a nameless demonstrator explicit (%j)", async (demons
 });
 
 it.each(["event", "table"] as const)(
-  "renders terminated %s winners inline, normalizes handles, and omits live counts",
+  "renders terminated %s winners with normalized handles and without live counts",
   async (kind) => {
     const result = summary({
       confirmed: true,
@@ -556,6 +561,7 @@ it.each(["event", "table"] as const)(
         { userId: "a", username: "@alice" },
         { userId: "b", username: "bob" },
         { userId: "c", username: null },
+        ...(kind === "table" ? [{ userId: "guest", username: null, guestName: "Guest" }] : []),
       ],
     });
     await render(
@@ -585,20 +591,60 @@ it.each(["event", "table"] as const)(
       </Fixture>,
     );
     await open("Terminated");
-    const winners = screen.getByText("@alice, @bob, Username unavailable");
-    expect(winners).toBeVisible();
     expect(screen.queryByText("Never confirmed")).toBeNull();
     expect(screen.queryByText("@excluded")).toBeNull();
     expect(screen.queryByText("Accepted players")).toBeNull();
     if (kind === "event") {
+      expect(screen.getByText("Date and time:")).toBeVisible();
+      expect(screen.getByText("Location:")).toBeVisible();
+      expect(screen.queryByText("Tables:")).toBeNull();
+      const winners = screen.getByText("@alice, @bob, Username unavailable");
+      expect(winners).toBeVisible();
       const name = screen.getByText("Table #1");
       expect(name).toBeVisible();
       expect(winners.parent?.parent).toBe(name.parent);
       expect(name.parent).toHaveStyle({ flexDirection: "row", flexWrap: "wrap" });
-    } else expect(screen.queryByText("Table #1")).toBeNull();
-    const glyph = nativeGlyphs(winners.parent ?? undefined)[0];
-    expect(glyph).toHaveStyle({ flexShrink: 0 });
-    nativeStroke(glyph);
+      const glyph = nativeGlyphs(winners.parent ?? undefined)[0];
+      expect(glyph).toHaveStyle({ flexShrink: 0 });
+      nativeStroke(glyph);
+    } else {
+      expect(screen.queryByText("Table #1")).toBeNull();
+      expect(screen.getByText("The game has ended.")).toBeVisible();
+      const heading = screen.getByText("Winners");
+      const glyph = nativeGlyphs(heading.parent ?? undefined)[0];
+      expect(glyph).toHaveStyle({ flexShrink: 0 });
+      nativeStroke(glyph);
+      const rows = ["@alice", "@bob", "Username unavailable", "Guest"].map((label) =>
+        screen.getByText(label),
+      );
+      for (const row of rows) {
+        expect(row).toBeVisible();
+        expect(row.parent).toBe(heading.parent?.parent);
+      }
+    }
+  },
+);
+
+it.each([true, false])(
+  "renders the localized finished Table result with winner=%s",
+  async (won) => {
+    await render(
+      <Fixture locale="it">
+        <EventTableCardIndicators
+          table={table({
+            eventStatus: "TERMINATED",
+            confirmed: frozen,
+            cardSummary: summary({ winners: won ? [{ userId: "a", username: "alice" }] : [] }),
+          })}
+        />
+      </Fixture>,
+    );
+    for (const name of [/^Date e Orari:/, /^Luoghi:/, /^Giochi da tavolo:/])
+      expect(screen.queryByRole("button", { name })).toBeNull();
+    await open("Terminata");
+    expect(screen.getByText("La partita è terminata.")).toBeVisible();
+    expect(screen.getByText(won ? "Vincitore" : "Nessun vincitore.")).toBeVisible();
+    expect(screen.queryByText("@alice") !== null).toBe(won);
   },
 );
 
@@ -756,6 +802,12 @@ it.each([
       </Fixture>,
     );
     await open(label);
+    if (role === "admin" || role === "moderator" || role === "accepted") {
+      expect(screen.getByRole("heading", { name: "Role" })).toBeVisible();
+      const actualRole = screen.getByText(label);
+      expect(actualRole).toBeVisible();
+      expect(nativeGlyphs(actualRole.parent ?? undefined)).toHaveLength(1);
+    }
     expect(screen.getByText(message)).toBeVisible();
   },
 );
@@ -773,20 +825,49 @@ it("does not invent a group role for an unrelated viewer", async () => {
   expect(screen.getByText("0 Events")).toBeVisible();
 });
 
+it("labels an approved public group in Italian", async () => {
+  await render(
+    <Fixture locale="it">
+      <GroupCardIndicators group={{ ...groupRecord, type: "PUBLIC" }} />
+    </Fixture>,
+  );
+  await open("Approvato");
+  expect(screen.getByRole("heading", { name: "Approvato" })).toBeVisible();
+  expect(screen.getByText("Questo gruppo pubblico è approvato.")).toBeVisible();
+});
+
 it.each([
   {
+    approved: groupRecord.approved,
     reviewStatus: "PENDING",
     label: "Awaiting review",
     message: "This public group is awaiting review.",
   },
-  { reviewStatus: "REJECTED", label: "Changes rejected", message: "These changes were rejected." },
-  { reviewStatus: undefined, label: "Approved", message: "This public group is approved." },
+  {
+    approved: groupRecord.approved,
+    reviewStatus: "REJECTED",
+    label: "Changes rejected",
+    message: "These changes were rejected.",
+  },
+  {
+    approved: undefined,
+    reviewStatus: "REJECTED",
+    label: "Approval rejected",
+    message: "The approval request was rejected. This group has not been published.",
+  },
+  {
+    approved: groupRecord.approved,
+    reviewStatus: undefined,
+    label: "Approved",
+    message: "This public group is approved.",
+  },
 ] as const)(
   "renders public group review $reviewStatus without losing the authoritative message",
-  async ({ reviewStatus, label, message }) => {
+  async ({ approved, reviewStatus, label, message }) => {
     const group: ClientGroupRecord = {
       ...groupRecord,
       type: "PUBLIC",
+      approved,
       reviewStatus,
       rejectionReason: "Please correct the venue",
     };
@@ -797,6 +878,10 @@ it.each([
     );
     await open(label);
     expect(screen.getByText(message)).toBeVisible();
+    expect(screen.queryByText("Rejection reason") != null).toBe(reviewStatus === "REJECTED");
+    expect(screen.queryByText("The approved version remains visible.") != null).toBe(
+      label === "Changes rejected",
+    );
     expect(screen.queryByText("Please correct the venue") != null).toBe(
       reviewStatus === "REJECTED",
     );
@@ -841,12 +926,14 @@ it("reconciles table authority across account contexts without granting a former
   );
   await open("Roles and participation");
   expect(screen.getByText("Demonstrator")).toBeVisible();
+  expect(screen.getByText("Your roles at this table:")).toBeVisible();
   await view.rerender(
     <Fixture userId="other-account">
       <EventTableCardIndicators table={record} />
     </Fixture>,
   );
   expect(screen.queryByText("Demonstrator")).toBeNull();
+  expect(screen.queryByText("Your roles at this table:")).toBeNull();
   expect(screen.getByText("You are not registered.")).toBeVisible();
 });
 
@@ -985,7 +1072,7 @@ it("retains an older frozen event registration without inventing the detailed ta
   await open("Confirmed");
   expect(screen.getByText("The event has been confirmed.")).toBeVisible();
   expect(screen.getAllByLabelText("Loading…", { includeHiddenElements: true })).not.toHaveLength(0);
-  expect(screen.queryByText("Tables where you are confirmed:")).toBeNull();
+  expect(screen.queryByText("Tables:")).toBeNull();
 });
 
 it("does not fabricate an exclusion reason when an older frozen table lacks the authoritative summary", async () => {

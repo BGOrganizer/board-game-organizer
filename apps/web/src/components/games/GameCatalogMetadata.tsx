@@ -6,7 +6,6 @@ import {
   mergeBggGameMetadata,
   useBggGameMetadata,
 } from "@board-game-organizer/shared";
-import type { ReactNode } from "react";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { GameMetadataBadge } from "./GameMetadataBadge";
 
@@ -14,40 +13,37 @@ export function GameCatalogMetadata({
   game,
   name,
   visible,
-  render,
+  size,
 }: {
   game: BggSearchItem;
   name: string;
   visible: boolean;
-  render?: (badge: ReactNode) => ReactNode;
+  size?: "sm" | "md";
 }) {
-  return render || (visible && gameMetadataMissing(game)) ? (
-    <GameMetadataLookup game={game} name={name} visible={visible} render={render} />
+  return visible && gameMetadataMissing(game) ? (
+    <GameMetadataLookup game={game} name={name} size={size} />
   ) : (
-    <GameMetadataBadge game={game} name={name} loading={gameMetadataMissing(game)} />
+    <GameMetadataBadge game={game} name={name} loading={gameMetadataMissing(game)} size={size} />
   );
 }
 
 function GameMetadataLookup({
   game,
   name,
-  visible,
-  render,
+  size,
 }: {
   game: BggSearchItem;
   name: string;
-  visible: boolean;
-  render?: (badge: ReactNode) => ReactNode;
+  size?: "sm" | "md";
 }) {
-  const query = useBggGameMetadata(useCommunityApi(), game, visible);
-  const badge = (
+  const query = useBggGameMetadata(useCommunityApi(), game, true);
+  return (
     <GameMetadataBadge
       game={mergeBggGameMetadata(game, query.data)}
       name={name}
-      loading={query.isFetching || (!visible && gameMetadataMissing(game))}
+      loading={query.isFetching}
       retry={query.isError ? () => void query.refetch() : undefined}
-      size={render ? "md" : "sm"}
+      size={size}
     />
   );
-  return render ? render(badge) : badge;
 }

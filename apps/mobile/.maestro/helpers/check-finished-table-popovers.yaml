@@ -1,0 +1,21 @@
+appId: com.bgo.boardgameorganizer.dev
+---
+- assertNotVisible: ${output.status.dates}
+- assertNotVisible: ${output.status.locations}
+- assertNotVisible: ${output.status.games}
+- tapOn: ${output.status.tableRoles}
+- assertVisible: ${output.status.rolesIntro}
+- back
+- tapOn: ${output.status.tableStatus}
+- assertVisible: ${output.status.finished}
+- assertVisible: ${output.status.winnerHeading}
+- evalScript: ${output.status.winnerIndex = 0}
+- repeat:
+    times: ${output.status.winnerRows.length}
+    commands:
+      - assertVisible: ${output.status.winnerRows[output.status.winnerIndex]}
+      - evalScript: ${output.status.winnerIndex++}
+- assertNotVisible: ${output.status.minimum}
+- assertNotVisible: ${output.status.maximum}
+- assertNotVisible: ${output.status.waiting}
+- back

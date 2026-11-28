@@ -75,9 +75,18 @@ async function read<T>(page: Page, path: string): Promise<T> {
 }
 async function chooseRatedGame(page: Page, game: GroupLeaderboardResponse["games"][number]) {
   await page.getByRole("button", { name: new RegExp(labels.boardGame) }).click();
-  await page
-    .getByRole("searchbox", { name: labels.searchGames, exact: true })
-    .fill(game.name.slice(0, 4));
+  const search = page.getByRole("searchbox", { name: labels.searchGames, exact: true });
+  await search.fill(game.name.slice(0, 4));
+  await expect(page.locator("[data-ranking-search-docked]")).toBeVisible();
+  await expect
+    .poll(() =>
+      search.evaluate((input) => {
+        const header = document.querySelector("[data-app-header]")?.getBoundingClientRect();
+        const picker = input.closest("[data-ranking-search-docked]")?.getBoundingClientRect();
+        return Boolean(header && picker && Math.abs(picker.top - header.bottom - 8) <= 2);
+      }),
+    )
+    .toBe(true);
   return page.getByRole("option", { name: game.name, exact: true });
 }
 

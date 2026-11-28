@@ -6,6 +6,7 @@ import {
 import {
   type CommunityApiOptions,
   clearSessionQueryCache,
+  emptyAttentionSummary,
   eventRecordKeys,
   eventRecordQuery,
   eventRecordsQuery,
@@ -18,6 +19,7 @@ import { enterDateTime } from "@/test-fixtures/dateTime";
 import { plannedEvent } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
 import { EventCard } from "../EventCard";
+import { EventList } from "../EventList";
 import { EventWizard } from "../EventWizard";
 
 const m = vi.hoisted(() => ({
@@ -347,12 +349,24 @@ it("keeps an unknown creation read-only, never retries the write and verifies a 
         release = resolve;
       });
     }
+    if (new URL(url).pathname.endsWith("/notifications/attention"))
+      return Response.json({
+        asOf: plannedEvent.createdAt,
+        unreadCount: 0,
+        summary: emptyAttentionSummary(),
+        targets: [],
+      });
     return Response.json(
       url.includes("/events?") ? page(saved ? [saved] : []) : { items: [], nextCursor: null },
     );
   });
   vi.stubGlobal("fetch", fetch);
-  const { options, list, renderWizard } = setup();
+  const { client, options, list, renderWizard } = setup();
+  list.rerender(
+    <QueryClientProvider client={client}>
+      <EventList canCreate={false} />
+    </QueryClientProvider>,
+  );
   const wizard = renderWizard();
   review(wizard, "Unverified event");
   fireEvent.click(wizard.getByRole("button", { name: "Create event" }));

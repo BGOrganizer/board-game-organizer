@@ -116,6 +116,8 @@ tags: [manual, events, privacy]
           visible:
             id: list-search-input
           timeout: 120000
+      - assertVisible:
+          id: list-sort-field
       - tapOn:
           id: list-search-input
       - eraseText
@@ -131,6 +133,20 @@ tags: [manual, events, privacy]
           timeout: 120000
       - takeScreenshot: event-background-card
       - tapOn: ${output.access.tables}
+      - assertVisible:
+          id: list-sort-field
+      - tapOn:
+          id: list-search-input
+      - inputText: no-matching-table-filter
+      - hideKeyboard
+      - assertVisible:
+          id: list-sort-field
+      - extendedWaitUntil:
+          visible: '^(No tables found|Nessun tavolo trovato)$'
+          timeout: 10000
+      - tapOn: '^(Back|Indietro)$'
+      - assertVisible:
+          id: list-sort-field
       - tapOn: ${output.access.tablesHelp}
       - assertVisible: ${output.access.confirmedSeatsRule}
       - back

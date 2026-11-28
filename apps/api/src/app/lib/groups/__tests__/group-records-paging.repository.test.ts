@@ -165,6 +165,70 @@ describe("GroupRecordsRepository bounded Mongo paging contracts", () => {
     ]);
   });
 
+  it("filters exact roles before pagination and accepts only public pending requests", async () => {
+    const fixture = setup();
+    await fixture.repo.list(
+      "user_viewer",
+      "mine",
+      { roles: ["administrator", "moderator", "member", "pending"], limit: 2 },
+      now,
+    );
+    const pipeline = fixture.aggregate.mock.calls[0][1];
+    const nonOwner = { adminUserId: { $ne: "user_viewer" } };
+    const approved = { approved: { $exists: true } };
+    expect(pipeline).toContainEqual({
+      $match: {
+        $or: [
+          { adminUserId: "user_viewer" },
+          {
+            ...nonOwner,
+            viewerRows: { $elemMatch: { status: "ACCEPTED", role: "MODERATOR" } },
+          },
+          {
+            ...nonOwner,
+            ...approved,
+            viewerRows: { $elemMatch: { status: "ACCEPTED", role: { $ne: "MODERATOR" } } },
+          },
+          {
+            ...nonOwner,
+            ...approved,
+            $or: [
+              { viewerRows: { $elemMatch: { status: "PENDING", kind: "INVITATION" } } },
+              {
+                type: "PUBLIC",
+                viewerRows: { $elemMatch: { status: "PENDING", kind: "REQUEST" } },
+              },
+            ],
+          },
+        ],
+      },
+    });
+    expect(pipeline.slice(-4, -1)).toEqual([
+      { $match: { "viewerBans.0": { $exists: false } } },
+      { $sort: { createdAt: -1, id: -1 } },
+      { $limit: 3 },
+    ]);
+  });
+
+  it("pages by the projected group name and groups sharing the same name", async () => {
+    const fixture = setup();
+    const listName = "Games | Sunday";
+    await fixture.repo.list(
+      "user_viewer",
+      "mine",
+      { sort: "name", direction: "asc", cursor: `name:${listName}|${id}`, limit: 2 },
+      now,
+    );
+    const pipeline = fixture.aggregate.mock.calls[0][1];
+    expect(pipeline[0]).toEqual({ $match: { type: { $in: ["PRIVATE", "PUBLIC"] } } });
+    expect(pipeline.slice(-4)).toEqual([
+      { $match: { $or: [{ listName: { $gt: listName } }, { listName, id: { $gt: id } }] } },
+      { $sort: { listName: 1, id: 1 } },
+      { $limit: 3 },
+      { $project: { _id: 0, transactionLock: 0, viewerRows: 0, viewerBans: 0, listName: 0 } },
+    ]);
+  });
+
   it.each(["public", "moderation"] as const)(
     "keeps %s query/cursor inside the selected public-group scope",
     async (scope) => {
@@ -187,15 +251,17 @@ describe("GroupRecordsRepository bounded Mongo paging contracts", () => {
         $match: { $or: [{ createdAt: { $lt: createdAt } }, { createdAt, id: { $lt: id } }] },
       });
       expect(pipeline[3]).toEqual({
-        $match:
-          scope === "public"
-            ? { "approved.name": { $regex: escapedQuery, $options: "i" } }
-            : {
-                $or: [
-                  { "approved.name": { $regex: escapedQuery, $options: "i" } },
-                  { "proposal.name": { $regex: escapedQuery, $options: "i" } },
-                ],
+        $match: {
+          $or: [
+            { "approved.name": { $regex: escapedQuery, $options: "i" } },
+            {
+              [scope === "public" ? "approved.location.address" : "proposal.name"]: {
+                $regex: escapedQuery,
+                $options: "i",
               },
+            },
+          ],
+        },
       });
       const banLookups = pipeline.filter((stage) => stage.$lookup?.from === COLLECTIONS.GROUP_BANS);
       expect(banLookups).toHaveLength(scope === "public" ? 1 : 0);
@@ -210,6 +276,70 @@ describe("GroupRecordsRepository bounded Mongo paging contracts", () => {
         });
     },
   );
+
+  it("matches approved venues and accepted friend memberships before the page limit", async () => {
+    const fixture = setup();
+    await fixture.repo.list(
+      "user_viewer",
+      "public",
+      { query, nearLat: 41.9, nearLng: 12.5, limit: 2 },
+      now,
+      ["user_friend"],
+    );
+    const pipeline = fixture.aggregate.mock.calls[0][1];
+    expect(pipeline).toContainEqual({
+      $set: {
+        discoveryCoordinates: ["$approved.location.longitude", "$approved.location.latitude"],
+      },
+    });
+    expect(pipeline).toContainEqual({
+      $match: {
+        discoveryCoordinates: { $geoWithin: { $centerSphere: [[12.5, 41.9], 25 / 6371.0088] } },
+      },
+    });
+    expect(pipeline).toContainEqual({
+      $lookup: {
+        from: COLLECTIONS.GROUP_MEMBERSHIPS,
+        localField: "id",
+        foreignField: "groupId",
+        pipeline: [
+          { $match: { userId: { $in: ["user_friend"] }, status: "ACCEPTED" } },
+          { $limit: 1 },
+        ],
+        as: "friendMembership",
+      },
+    });
+    expect(pipeline).toContainEqual({
+      $match: {
+        $or: [
+          { adminUserId: { $in: ["user_friend"] } },
+          { "friendMembership.0": { $exists: true } },
+        ],
+      },
+    });
+    expect(pipeline.slice(-3)).toEqual([
+      { $sort: { createdAt: -1, id: -1 } },
+      { $limit: 3 },
+      {
+        $project: {
+          _id: 0,
+          transactionLock: 0,
+          viewerRows: 0,
+          viewerBans: 0,
+          friendMembership: 0,
+          discoveryCoordinates: 0,
+        },
+      },
+    ]);
+  });
+
+  it("returns an empty friend discovery page without querying every public group", async () => {
+    const fixture = setup();
+    await expect(
+      fixture.repo.list("user_viewer", "public", { limit: 2 }, now, []),
+    ).resolves.toEqual([]);
+    expect(fixture.aggregate).not.toHaveBeenCalled();
+  });
 
   it.each([false, true])(
     "builds bounded readable-group stages with explicit public moderator access=%s",

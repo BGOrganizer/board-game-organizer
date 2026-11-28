@@ -18,7 +18,7 @@ it.each([
 it.each([
   "EventList",
   "TableList",
-  "EventDetail",
+  "EventTables",
   "EventTableResults",
   "EventWizard",
   "TableScoreEditor",
@@ -26,7 +26,14 @@ it.each([
   const s = source(`components/events/${name}.tsx`);
   expect(s).toMatch(/<(?:Input)?FlatList\b/);
   expect(source("components/common/ui/InputFlatList.tsx")).toContain("<FlatList");
-  expect(s).toMatch(/useSafeAreaInsets|useFloatingActionLayout/);
+  if (name === "EventTables") {
+    const detail = source("components/events/EventDetail.tsx");
+    expect(detail).toContain("useFloatingActionLayout");
+    expect(detail).toMatch(/<EventTables\b[\s\S]*?paddingBottom=\{layout\.paddingBottom\}/);
+    expect(s).toMatch(/contentContainerStyle=\{\{[\s\S]*?\bpaddingBottom,/);
+  } else {
+    expect(s).toMatch(/useSafeAreaInsets|useFloatingActionLayout/);
+  }
   const file = ts.createSourceFile(
     "workflow.tsx",
     s,

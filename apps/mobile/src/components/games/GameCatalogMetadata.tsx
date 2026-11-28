@@ -21,7 +21,6 @@ import {
   Star,
   UsersRound,
 } from "lucide-react-native";
-import type { ReactNode } from "react";
 import { ScrollView, useWindowDimensions, View } from "react-native";
 import { IconBadge } from "@/components/common/ui/IconBadge";
 import { useT } from "@/lib/i18n";
@@ -31,42 +30,39 @@ export function GameCatalogMetadata({
   game,
   name,
   visible,
-  render,
+  size,
 }: {
   game: BggSearchItem;
   name: string;
   visible: boolean;
-  render?: (badge: ReactNode) => ReactNode;
+  size?: "sm" | "md";
 }) {
-  return render || (visible && gameMetadataMissing(game)) ? (
-    <GameMetadataLookup game={game} name={name} visible={visible} render={render} />
+  return visible && gameMetadataMissing(game) ? (
+    <GameMetadataLookup game={game} name={name} size={size} />
   ) : (
-    <GameMetadataBadge game={game} name={name} loading={gameMetadataMissing(game)} />
+    <GameMetadataBadge game={game} name={name} loading={gameMetadataMissing(game)} size={size} />
   );
 }
 
 function GameMetadataLookup({
   game,
   name,
-  visible,
-  render,
+  size,
 }: {
   game: BggSearchItem;
   name: string;
-  visible: boolean;
-  render?: (badge: ReactNode) => ReactNode;
+  size?: "sm" | "md";
 }) {
-  const query = useBggGameMetadata(useCommunityApi(), game, visible);
-  const badge = (
+  const query = useBggGameMetadata(useCommunityApi(), game, true);
+  return (
     <GameMetadataBadge
       game={mergeBggGameMetadata(game, query.data)}
       name={name}
-      loading={query.isFetching || (!visible && gameMetadataMissing(game))}
+      loading={query.isFetching}
       retry={query.isError ? () => void query.refetch() : undefined}
-      size={render ? "md" : "sm"}
+      size={size}
     />
   );
-  return render ? render(badge) : badge;
 }
 
 function GameMetadataBadge({

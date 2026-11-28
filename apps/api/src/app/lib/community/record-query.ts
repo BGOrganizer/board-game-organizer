@@ -1,8 +1,12 @@
 import {
   eventListSections,
   eventListStatusesSchema,
+  groupDiscoveryRadiusInputSchema,
   groupRecordListRoles,
   groupTypeSchema,
+  historyTableListSortFields,
+  recordListSortFields,
+  scheduledEventFilterRoles,
   tableListSections,
   targetUserIdSchema,
 } from "@board-game-organizer/schemas";
@@ -47,23 +51,59 @@ export const eventParticipantsQuery = recordPageQuery.omit({ query: true }).exte
   view: z.enum(["member", "review"]).default("member"),
 });
 const filterQuery = z.string().trim().min(1).max(120).optional();
+const groupRole = groupRecordListRoles.join("|");
+const recordNameCursor = z
+  .string()
+  .max(165)
+  .refine((value) => {
+    const separator = value.lastIndexOf("|");
+    return (
+      value.startsWith("name:") && separator > 5 && id.safeParse(value.slice(separator + 1)).success
+    );
+  });
+// A nonempty decimal string avoids coercing a missing coordinate to zero.
+const discoveryCoordinate = z
+  .string()
+  .trim()
+  .max(32)
+  .regex(/^-?(?:\d+(?:\.\d+)?|\.\d+)$/);
 export const groupListQuery = recordPageQuery
   .extend({
-    query: filterQuery,
+    query: z.string().trim().max(120).optional(),
+    friends: z
+      .literal("true")
+      .transform(() => true as const)
+      .optional(),
+    nearLat: discoveryCoordinate.transform(Number).pipe(z.number().min(-90).max(90)).optional(),
+    nearLng: discoveryCoordinate.transform(Number).pipe(z.number().min(-180).max(180)).optional(),
+    radiusKm: groupDiscoveryRadiusInputSchema.optional(),
     scope: z.enum(["mine", "public", "moderation"]).default("mine"),
     type: groupTypeSchema.optional(),
+    sort: z.enum(recordListSortFields).optional(),
+    direction: z.enum(["asc", "desc"]).optional(),
+    cursor: z.union([cursor, recordNameCursor]).optional(),
     roles: z
       .string()
       .max(80)
-      .regex(/^(admin|invited|accepted)(,(admin|invited|accepted))*$|^$/)
+      .regex(new RegExp(`^(?:(?:${groupRole})(?:,(?:${groupRole}))*)?$`))
       .transform((value) => groupRecordListRoles.filter((role) => value.split(",").includes(role)))
       .optional(),
   })
   .refine(
     (value) =>
-      (value.scope === "mine" || (value.roles === undefined && value.type === undefined)) &&
-      (value.scope !== "public" || Boolean(value.query)) &&
-      (value.scope === "mine" || value.query === undefined || value.query.length >= 4),
+      (value.scope === "mine" ||
+        (value.roles === undefined &&
+          value.type === undefined &&
+          value.sort === undefined &&
+          value.direction === undefined)) &&
+      (value.cursor === undefined ||
+        value.cursor.startsWith("name:") === (value.sort === "name")) &&
+      (value.nearLat === undefined) === (value.nearLng === undefined) &&
+      (value.radiusKm === undefined || value.nearLat !== undefined) &&
+      (value.scope === "public" ||
+        (value.friends === undefined &&
+          value.nearLat === undefined &&
+          (value.query === undefined || value.query.length >= (value.scope === "mine" ? 1 : 4)))),
   );
 export const groupPeopleQuery = recordPageQuery
   .extend({
@@ -87,11 +127,56 @@ export const eventListQuery = eventFilterPageQuery
   .extend({
     groupId: id.optional(),
     section: z.enum(eventListSections).optional(),
+    roles: z
+      .string()
+      .max(80)
+      .transform((value) => (value ? value.split(",") : []))
+      .pipe(z.array(z.enum(scheduledEventFilterRoles)))
+      .transform((roles) => scheduledEventFilterRoles.filter((role) => roles.includes(role)))
+      .optional(),
+    sort: z.enum(recordListSortFields).optional(),
+    direction: z.enum(["asc", "desc"]).optional(),
+    cursor: z.union([cursor, recordNameCursor]).optional(),
   })
-  .refine((value) => !value.groupId || value.section === undefined);
-export const personalTablesQuery = eventFilterPageQuery.extend({
-  section: z.enum(tableListSections).optional(),
-});
+  .refine(
+    (value) =>
+      (!value.groupId || value.section === undefined) &&
+      (value.roles === undefined ||
+        value.section === "mine" ||
+        (value.section === "terminated" && !value.roles.includes("pending"))) &&
+      ((value.sort === undefined && value.direction === undefined) ||
+        value.section !== undefined ||
+        value.groupId !== undefined) &&
+      (value.cursor === undefined || value.cursor.startsWith("name:") === (value.sort === "name")),
+  );
+const historyCursorValue = {
+  name: z.string().min(1),
+  date: instant,
+  participants: z
+    .string()
+    .regex(/^\d+$/)
+    .refine((value) => Number.isSafeInteger(Number(value))),
+};
+export const personalTablesQuery = eventFilterPageQuery
+  .extend({
+    section: z.enum(tableListSections).optional(),
+    sort: z.enum(historyTableListSortFields).optional(),
+    direction: z.enum(["asc", "desc"]).optional(),
+    cursor: z.string().max(600).optional(),
+  })
+  .refine(({ section, sort, direction, cursor: value }) => {
+    if (!sort) return !direction && (value === undefined || cursor.safeParse(value).success);
+    if (section) return false;
+    if (value === undefined) return true;
+    const prefix = `${sort}:`;
+    const separator = value.lastIndexOf("|");
+    return (
+      value.startsWith(prefix) &&
+      separator >= prefix.length &&
+      historyCursorValue[sort].safeParse(value.slice(prefix.length, separator)).success &&
+      id.safeParse(value.slice(separator + 1)).success
+    );
+  });
 export const eventTablesQuery = recordPageQuery.extend({
   cursor: z
     .string()

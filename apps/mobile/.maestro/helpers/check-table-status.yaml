@@ -19,13 +19,12 @@ appId: com.bgo.boardgameorganizer.dev
 - extendedWaitUntil:
     visible: ${output.status.historyCard}
     timeout: 120000
-- assertVisible: ${output.status.dates}
-- assertVisible: ${output.status.locations}
-- assertVisible: ${output.status.games}
-- tapOn: ${output.status.tableStatus}
-- assertVisible: ${output.status.winners}
-- assertNotVisible: ${output.status.minimum}
-- assertNotVisible: ${output.status.maximum}
-- assertNotVisible: ${output.status.waiting}
-- takeScreenshot: history-winners-comma-separated
+- runFlow: check-finished-table-popovers.yaml
+- takeScreenshot: history-table-list-card
+- tapOn: ${output.status.historyCard}
+- extendedWaitUntil:
+    visible: ${output.status.tableStatus}
+    timeout: 120000
+- runFlow: check-finished-table-popovers.yaml
+- takeScreenshot: history-table-detail-card
 - back

@@ -169,7 +169,9 @@ vi.mock("@board-game-organizer/shared", async (importOriginal) => ({
       isError: false,
     },
     search: {
-      data: mocks.searchResult ? { users: [target], nextCursor: null } : null,
+      data: mocks.searchResult
+        ? { users: [{ ...target, isFollowing: false }], nextCursor: null }
+        : null,
       isLoading: false,
       isError: mocks.searchError,
     },
@@ -273,7 +275,7 @@ describe("Contacts tabs", () => {
   it.each([
     ["Connections", "No connections yet"],
     ["Requests", "No friend requests"],
-    ["Contacts", "No contacts to invite"],
+    ["Search", "No contacts to invite"],
   ])("does not announce %s empty while cached/source pages remain", (tab, empty) => {
     mocks.following = false;
     mocks.more = true;
@@ -290,11 +292,10 @@ describe("Contacts tabs", () => {
     expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
       "Connections",
       "Requests",
-      "Contacts",
       "Search",
     ]);
     expect(
-      screen.getByRole("tab", { name: "Contacts" }).querySelector("svg.lucide-book-user"),
+      screen.getByRole("tab", { name: "Search" }).querySelector("svg.lucide-search"),
     ).not.toBeNull();
     expect(screen.queryByRole("heading", { name: "Friends" })).toBeNull();
     expect(screen.getByText("Section guide")).toBeVisible();
@@ -304,33 +305,42 @@ describe("Contacts tabs", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Search" }));
     expect(screen.getByText("Section guide")).toBeVisible();
     expect(
-      screen.queryByRole("button", { name: "Search users by name or email: Search help" }),
+      screen.queryByRole("button", {
+        name: "Search users by name, email, or username: Search help",
+      }),
     ).toBeNull();
-    expect(screen.getByRole("searchbox", { name: "Search users by name or email" })).toBeVisible();
+    expect(
+      screen.getByRole("searchbox", { name: "Search users by name, email, or username" }),
+    ).toBeVisible();
     expect(screen.queryByRole("heading", { name: "Search results" })).toBeNull();
     expect(screen.queryByRole("heading", { name: "Device Contacts" })).toBeNull();
-    expect(screen.getByText("Type at least 4 characters to search")).toBeTruthy();
     const searchGuide =
-      "Find people on Board Game Organizer by entering their name or email address.";
+      "Find BGO users by first name, last name, email, or username, including people outside your contacts.";
     expect(screen.queryByText(searchGuide)).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Contact search help" }));
     const popover = await screen.findByRole("dialog");
     expect(within(popover).getByText(searchGuide)).toBeVisible();
     fireEvent.keyDown(popover, { key: "Escape", code: "Escape" });
     await waitFor(() => expect(screen.queryByText(searchGuide)).toBeNull());
-    fireEvent.click(screen.getByRole("tab", { name: "Contacts" }));
-    expect(screen.getByText("Section guide")).toBeVisible();
-    expect(screen.getByRole("button", { name: "Contacts help" })).toBeVisible();
     expect(screen.getByText("No contacts to invite")).toBeTruthy();
+    const input = screen.getByRole("searchbox");
+    fireEvent.focus(input);
+    expect(screen.queryByRole("tablist")).toBeNull();
+    expect(screen.queryByText("Section guide")).toBeNull();
+    expect(screen.getByText("Type at least 4 characters to search")).toBeVisible();
+    fireEvent.keyDown(input, { key: "Escape", code: "Escape" });
+    expect(screen.getByRole("tablist")).toBeVisible();
+    expect(screen.getByRole("searchbox")).toBe(input);
+    expect(screen.getByText("No contacts to invite")).toBeVisible();
   });
 
-  it("shows registered device contacts only in Contacts with their social actions", () => {
+  it("shows registered device contacts in Search before typing with their social actions", () => {
     mocks.following = false;
     mocks.suggestion = true;
     renderWithI18n(<Contacts />);
 
     expect(screen.queryByRole("heading", { name: "Contacts on BGO" })).toBeNull();
-    fireEvent.click(screen.getByRole("tab", { name: "Contacts" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Search" }));
     const device = screen.getByRole("region", { name: "Device Contacts" });
     expect(device).not.toBeNull();
     expect(within(device as HTMLElement).getByText("Target User")).toBeTruthy();
@@ -480,33 +490,50 @@ describe("Contacts tabs", () => {
     expect(screen.getByText("Could not complete the action. Try again.")).toBeTruthy();
   });
 
-  it("keeps search failures distinct from empty results", () => {
+  it("keeps search failures distinct from empty results", async () => {
     mocks.searchError = true;
     renderWithI18n(<Contacts />);
     fireEvent.click(screen.getByRole("tab", { name: "Search" }));
-    fireEvent.change(screen.getByRole("searchbox", { name: "Search users by name or email" }), {
-      target: { value: "missing" },
-    });
-    expect(screen.getByRole("alert").textContent).toBe("Could not load contacts");
+    fireEvent.focus(screen.getByRole("searchbox"));
+    fireEvent.change(
+      screen.getByRole("searchbox", { name: "Search users by name, email, or username" }),
+      {
+        target: { value: "missing" },
+      },
+    );
+    expect((await screen.findByRole("alert")).textContent).toBe("Could not load contacts");
     expect(screen.queryByText("No users found")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
     expect(
-      (screen.getByRole("searchbox", { name: "Search users by name or email" }) as HTMLInputElement)
-        .value,
+      (
+        screen.getByRole("searchbox", {
+          name: "Search users by name, email, or username",
+        }) as HTMLInputElement
+      ).value,
     ).toBe("");
   });
 
-  it("web search shows BGO users without global invite or device-contact controls", () => {
+  it("web search shows BGO users and Back restores the synchronized address book", async () => {
     mocks.searchResult = true;
+    mocks.following = false;
     renderWithI18n(<Contacts />);
     fireEvent.click(screen.getByRole("tab", { name: "Search" }));
-    expect(screen.getByRole("searchbox", { name: "Search users by name or email" })).toBeTruthy();
+    expect(
+      screen.getByRole("searchbox", { name: "Search users by name, email, or username" }),
+    ).toBeTruthy();
     expect(screen.queryByText("Target User")).toBeNull();
-    fireEvent.change(screen.getByRole("searchbox", { name: "Search users by name or email" }), {
-      target: { value: "Target" },
-    });
-    expect(screen.getByText("Target User")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /Create invite|Add contacts/i })).toBeNull();
+    fireEvent.focus(screen.getByRole("searchbox"));
+    fireEvent.change(
+      screen.getByRole("searchbox", { name: "Search users by name, email, or username" }),
+      {
+        target: { value: "Target" },
+      },
+    );
+    expect(await screen.findByText("Target User")).toBeVisible();
+    expect(screen.queryByRole("region", { name: "Device Contacts" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.getByRole("region", { name: "Device Contacts" })).toBeVisible();
+    expect(screen.getByRole("searchbox")).toHaveValue("");
   });
 
   it.each(["pending", "sent", "loading", "friends", "blockedByMe", "blockedMe"] as const)(

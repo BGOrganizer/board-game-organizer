@@ -35,19 +35,37 @@ the Web app and Android releases.
 Main navigation is **History / Events / Groups / Community / Contacts**:
 
 - **History:** completed, actually confirmed tables where you played, demonstrated, or currently have management authority.
+  Search from the header and sort by game name, play date or number of seated players.
+  The flag on each card opens the winners, with one player per row.
 - **Events:** Scheduled contains your active registrations, invitations, demonstrations and managed Events.
   Available contains other enrollable planning Events: private Events require Group membership; approved public Events do not.
   Terminated contains completed Events where you played, demonstrated, or still have management authority.
-  These lists retain text filtering and infinite scrolling without state-filter chips.
-- **Groups:** Private and Public lists show your groups; use Search to discover approved public groups.
+  All three lists support name or play-date ordering. Scheduled and Terminated also filter by role.
+  Event filters open in header search. Role and Group-event status chips appear while search is active.
+  The role popover lists your roles. On list and detail cards, the status popover shows the chosen
+  date, time and venue for confirmed and finished Events. For confirmed Events it also lists the
+  Tables where you have a confirmed seat or demonstrate a game.
+- **Groups:** Private and Public show your groups with role filters and name or creation-date ordering.
+  Focusing the filter field opens header search and reveals the role chips. Ordering is available in both views.
+  The ID-card popover shows your current Group role. Public group review distinguishes a rejected
+  first application from rejected edits to an approved group and shows the reason when available.
+  Search approved public groups by name or venue address. Friends is selected initially and includes
+  groups that a BGO friend administers, moderates or has joined. The search filters appear when
+  the search field takes over the header. After location permission, Near me defaults to 25 km
+  and offers 5, 10, 25, 50 and 100 km in its distance menu.
 - **Community:** Activities from your network, global Rankings, and the Marketplace placeholder.
-- **Contacts:** Connections, Requests, Contacts and Search. Device contacts and remote search have separate lists;
-  web shows registered contacts from the synchronized snapshot.
+- **Contacts:** Connections, Requests and Search. Search opens with synchronized BGO contacts on top
+  and other device contacts on mobile. Focus the search bar to search the BGO directory by first name,
+  last name, email or username. Existing connections and pending requests stay in their own tabs.
 
 > [!NOTE]
 > The [Groups / Events / Tables contract](docs/groups-events-tables.md) defines domain behavior.
 > Assess release readiness using current CI and runtime evidence, following the
 > [verification requirements](docs/verification-and-acceptance.md).
+
+Group event lists can be sorted by name or game date. An event’s Tables tab supports title search and
+sorting by game name or seated players. Game covers show the BoardGameGeek details badge in table
+votes and finished results.
 
 ## Get started
 
@@ -172,7 +190,9 @@ Read [AGENTS.md](AGENTS.md) before changing code.
 Clients retain cached data while refreshing and use bounded lists and optimistic mutation feedback.
 Web pages scroll as documents beneath the persistent main navigation. Secondary-page Back controls
 and contextual actions share a page toolbar; game collections and pickers retain windowed rendering
-without their own scrolling viewport. Popups and selects keep bounded internal scrolling.
+without their own scrolling viewport. Web lists commit viewport-driven updates when the visible
+row range changes. Popups and selects keep bounded internal scrolling.
+Group, Event and game collection filters use compact, reusable chips with full-size touch targets.
 Native Query data persists in an account/API-scoped encrypted cache; restoration does not grant authentication
 or permission. Native cache retention, build requirements and implementation rules live in
 [the development reference](docs/development.md#native-cache-and-builds) and

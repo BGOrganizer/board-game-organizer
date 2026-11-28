@@ -5,6 +5,7 @@ import {
   decideGroupMembershipSchema,
   decideGroupReviewSchema,
   editGroupRecordSchema,
+  groupDiscoveryRadiusInputSchema,
 } from "../dto/groupRecords";
 import { groupBanSchema, groupMembershipSchema, groupRecordSchema } from "../models/groupRecord";
 
@@ -30,6 +31,17 @@ const privateGroup = {
 const revision = { name: "Public club", logoAssetId: id, location };
 
 describe("unified group records", () => {
+  it.each([
+    ["1", 1],
+    [" 12 ", 12],
+    ["100", 100],
+  ] as const)("parses a discovery radius in whole kilometers (%s)", (input, radius) =>
+    expect(groupDiscoveryRadiusInputSchema.parse(input)).toBe(radius),
+  );
+  it.each(["", "0", "101", "2.5", "2e1", "1000", "-1"])(
+    "rejects an invalid custom discovery radius (%s)",
+    (input) => expect(groupDiscoveryRadiusInputSchema.safeParse(input).success).toBe(false),
+  );
   it.each([31, 120])(
     "keeps historical %s-character private/public revisions readable",
     (length) => {

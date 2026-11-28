@@ -3,6 +3,7 @@
 import {
   type ContactUser,
   contactConnections,
+  contactDiscoveryFilter,
   formatUsername,
   hasContactRelationship,
   reportPresence,
@@ -12,10 +13,11 @@ import {
   useReadNotificationAttention,
 } from "@board-game-organizer/shared";
 import { useAuth } from "@clerk/nextjs";
-import { Card, Chip, Label, Skeleton, Tabs } from "@heroui/react";
+import { Button, Card, Chip, Label, Skeleton, Tabs } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import type { LucideIcon } from "lucide-react";
 import {
+  ArrowLeft,
   Ban,
   BookUser,
   Mail,
@@ -26,7 +28,8 @@ import {
   UserRoundPlus,
   UsersRound,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { HEADER_ICON_CLASS, headerButtonProps } from "@/components/common/layout/headerStyles";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { HelpSectionCard } from "@/components/common/ui/HelpSectionCard";
@@ -42,6 +45,7 @@ import { ContactLegend } from "@/components/contacts/ContactLegend";
 import { type UserActionKey, UserMenu } from "@/components/contacts/UserMenu";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
+import { useListSearchHeader } from "@/lib/useListSearchHeader";
 import { useMutationFeedback } from "@/lib/useMutationFeedback";
 
 function apiUrl(): string {
@@ -145,7 +149,8 @@ export function Contacts() {
   const [token, setToken] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState("connections");
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [submittedQuery, setSubmittedQuery] = useState("");
+  const searchInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
@@ -200,6 +205,16 @@ export function Contacts() {
     mutationFeedback,
     tab,
   );
+  const resetSearch = useCallback(() => {
+    searchInput.current?.blur();
+    setQuery("");
+    setSubmittedQuery("");
+    contacts.runSearch("");
+  }, [contacts.runSearch]);
+  const headerSearch = useListSearchHeader(resetSearch);
+  const validQuery = query.trim().length >= 4;
+  const searchPending =
+    validQuery && (query.trim() !== submittedQuery || contacts.search.isLoading);
   const connectionPages = [
     contacts.friends,
     contacts.following,
@@ -222,8 +237,14 @@ export function Contacts() {
       isFetchNextPageError: nextRequestPage?.isFetchNextPageError,
       fetchNextPage: () => nextRequestPage?.fetchNextPage() ?? Promise.resolve(),
     }),
+    search: useInfiniteScroll({
+      ...contacts.search,
+      hasNextPage: headerSearch.active && !searchPending && contacts.search.hasNextPage,
+      fetchNextPage: () => contacts.search.fetchNextPage(),
+    }),
     suggestions: useInfiniteScroll({
       ...contacts.suggestions,
+      hasNextPage: !headerSearch.active && contacts.suggestions.hasNextPage,
       fetchNextPage: () => contacts.suggestions.fetchNextPage(),
     }),
   };
@@ -252,25 +273,14 @@ export function Contacts() {
     // profile: not implemented yet — no-op.
   };
 
-  // Auto-search on input: fires 300ms after the user stops typing, only when
-  // at least 4 characters are present (min prefix length per product spec).
   useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (query.trim().length < 4) {
-      debounceRef.current = null;
-      return;
-    }
-    debounceRef.current = setTimeout(() => {
-      // If the session token is not ready yet (Clerk client still booting),
-      // skip: the token effect below re-runs the pending search once the
-      // token arrives, so the search is never silently lost.
-      if (!token) return;
+    if (!headerSearch.active || !validQuery || !token) return;
+    const timer = setTimeout(() => {
       contacts.runSearch(query);
+      setSubmittedQuery(query.trim());
     }, 300);
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [contacts.runSearch, query, token]);
+    return () => clearTimeout(timer);
+  }, [contacts.runSearch, headerSearch.active, query, token, validQuery]);
 
   const followingRows = contacts.following.data ?? [];
   const followersRows = contacts.followers.data ?? [];
@@ -283,7 +293,11 @@ export function Contacts() {
 
   const blockedRows = contacts.blocked.data ?? [];
   const suggestions = contacts.suggestions.data?.users ?? [];
-  const searchResults = query.trim().length >= 4 ? (contacts.search.data?.users ?? []) : [];
+  const showInSearch = contactDiscoveryFilter(contacts.knownConnectionIds, pendingRows, sentRows);
+  const searchResults =
+    headerSearch.active && validQuery && !searchPending
+      ? (contacts.search.data?.users ?? []).filter(showInSearch)
+      : [];
 
   const connections = contactConnections(
     friendsRows,
@@ -293,7 +307,7 @@ export function Contacts() {
     blockedRows,
     contacts.knownConnectionIds,
   );
-  const bgoContacts = suggestions;
+  const bgoContacts = suggestions.filter(showInSearch);
   const connectionLabels = {
     friends: t`Friends`,
     following: t`Following`,
@@ -381,118 +395,153 @@ export function Contacts() {
             if (key === "connections" || key === "requests" || key === "search") readSection(key);
           }}
         >
-          <TabBar label={t`Contacts`}>
-            <TabTrigger
-              icon={UsersRound}
-              id="connections"
-              className="relative"
-              onPress={() => readSection("connections")}
-            >
-              {t`Connections`}
-              <ContactSectionBadge
-                section="connections"
-                userIds={connections
-                  .filter((row) => row.key !== "device")
-                  .flatMap((row) => row.users.map((user) => user.id))}
-              />
-            </TabTrigger>
-            <TabTrigger
-              icon={UserRoundPlus}
-              id="requests"
-              className="relative"
-              onPress={() => readSection("requests")}
-            >
-              {t`Requests`}
-              <ContactSectionBadge
-                section="requests"
-                userIds={[...pendingRows, ...sentRows].flatMap((row) =>
-                  row.profile ? [row.profile.id] : [],
-                )}
-              />
-            </TabTrigger>
-            <TabTrigger icon={BookUser} id="device" className="relative">
-              {t`Contacts`}
-              <ContactSectionBadge section="device" userIds={bgoContacts.map((user) => user.id)} />
-            </TabTrigger>
-            <TabTrigger
-              icon={Search}
-              id="search"
-              className="relative"
-              onPress={() => readSection("search")}
-            >
-              {t`Search`}
-              <ContactSectionBadge
-                section="search"
-                userIds={searchResults.map((user) => user.id)}
-              />
-            </TabTrigger>
-          </TabBar>
+          <div hidden={headerSearch.active}>
+            <TabBar label={t`Contacts`}>
+              <TabTrigger
+                icon={UsersRound}
+                id="connections"
+                className="relative"
+                onPress={() => readSection("connections")}
+              >
+                {t`Connections`}
+                <ContactSectionBadge
+                  section="connections"
+                  userIds={connections
+                    .filter((row) => row.key !== "device")
+                    .flatMap((row) => row.users.map((user) => user.id))}
+                />
+              </TabTrigger>
+              <TabTrigger
+                icon={UserRoundPlus}
+                id="requests"
+                className="relative"
+                onPress={() => readSection("requests")}
+              >
+                {t`Requests`}
+                <ContactSectionBadge
+                  section="requests"
+                  userIds={[...pendingRows, ...sentRows].flatMap((row) =>
+                    row.profile ? [row.profile.id] : [],
+                  )}
+                />
+              </TabTrigger>
+              <TabTrigger
+                icon={Search}
+                id="search"
+                className="relative"
+                onPress={() => readSection("search")}
+              >
+                {t`Search`}
+                <ContactSectionBadge
+                  section="search"
+                  userIds={[...bgoContacts, ...searchResults].map((user) => user.id)}
+                />
+              </TabTrigger>
+            </TabBar>
+          </div>
 
-          <Tabs.Panel id="device" className="space-y-3 pt-4">
-            <HelpSectionCard title={t`Contacts`} icon={BookUser} label={t`Contacts help`}>
-              <p>{t`Sync your address book from the mobile app to see friend suggestions here.`}</p>
-              <p>{t`Send a friend request to connect with a contact who already uses Board Game Organizer.`}</p>
-            </HelpSectionCard>
-            <section className="space-y-2" aria-label={t`Device Contacts`}>
-              {contacts.suggestions.isLoading ? <ContactListSkeleton count={2} /> : null}
-              {contacts.suggestions.isError ? (
-                <p role="alert" className="text-sm text-danger">{t`Could not load contacts`}</p>
-              ) : null}
-              {!contacts.suggestions.isLoading &&
-              !contacts.suggestions.isError &&
-              !contacts.suggestions.hasNextPage &&
-              bgoContacts.length === 0 ? (
-                <EmptyList icon={<BookUser className="size-7" />}>
-                  {t`No contacts to invite`}
-                </EmptyList>
-              ) : null}
-              <GroupedList style={{ overflow: "visible" }}>
-                {bgoContacts.map((user) => contactCard(user))}
-              </GroupedList>
-              <div ref={endRefs.suggestions} aria-hidden="true" />
-              {contacts.suggestions.isFetchNextPageError ? (
-                <button
-                  type="button"
-                  className="text-sm text-link"
-                  onClick={() => void contacts.suggestions.fetchNextPage()}
-                >{t`Retry`}</button>
-              ) : null}
-            </section>
-          </Tabs.Panel>
-
-          <Tabs.Panel id="search" className="space-y-3 pt-4">
-            <HelpSectionCard title={t`Search`} icon={Search} label={t`Contact search help`}>
-              <p>{t`Find people on Board Game Organizer by entering their name or email address.`}</p>
-              <p>{t`Type at least 4 characters to search`}</p>
-            </HelpSectionCard>
+          <Tabs.Panel id="search" className={headerSearch.active ? "space-y-3" : "space-y-3 pt-4"}>
+            {!headerSearch.active ? (
+              <HelpSectionCard title={t`Search`} icon={Search} label={t`Contact search help`}>
+                <p>{t`Find BGO users by first name, last name, email, or username, including people outside your contacts.`}</p>
+                <p>{t`Type at least 4 characters to search`}</p>
+                <p>{t`People already in Connections or Requests appear in those tabs.`}</p>
+                <p>{t`Sync your address book from the mobile app to see friend suggestions here.`}</p>
+                <p>{t`Send a friend request to connect with a contact who already uses Board Game Organizer.`}</p>
+              </HelpSectionCard>
+            ) : null}
             <SearchInput
               value={query}
               onChange={(value) => {
                 setQuery(value);
-                if (value.trim().length < 4) contacts.runSearch("");
+                if (value.trim().length < 4) {
+                  setSubmittedQuery("");
+                  contacts.runSearch("");
+                }
               }}
               placeholder={t`Search users`}
-              label={<Label className="sr-only">{t`Search users by name or email`}</Label>}
+              label={
+                <Label className="sr-only">{t`Search users by name, email, or username`}</Label>
+              }
+              leading={
+                headerSearch.active ? (
+                  <Button
+                    {...headerButtonProps}
+                    slot={null}
+                    variant="ghost"
+                    aria-label={t`Back`}
+                    onPress={headerSearch.close}
+                  >
+                    <ArrowLeft className={HEADER_ICON_CLASS} aria-hidden />
+                  </Button>
+                ) : undefined
+              }
+              inputProps={{
+                ref: searchInput,
+                autoComplete: "off",
+                maxLength: 120,
+                onFocus: headerSearch.open,
+                onKeyDown: (event) => {
+                  if (event.key !== "Escape" || !headerSearch.active) return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  headerSearch.close();
+                },
+              }}
             />
-
-            {query.trim().length < 4 && (
-              <EmptyList icon={<Search className="size-7" />}>
-                {t`Type at least 4 characters to search`}
-              </EmptyList>
+            {headerSearch.active ? (
+              <>
+                {!validQuery ? (
+                  <EmptyList icon={<Search className="size-7" />}>
+                    {t`Type at least 4 characters to search`}
+                  </EmptyList>
+                ) : searchPending ? (
+                  <ContactListSkeleton count={2} />
+                ) : contacts.search.isError && !contacts.search.isFetchNextPageError ? (
+                  <p role="alert" className="text-sm text-danger">{t`Could not load contacts`}</p>
+                ) : searchResults.length === 0 && !contacts.search.hasNextPage ? (
+                  <EmptyList icon={<SearchX className="size-7" />}>{t`No users found`}</EmptyList>
+                ) : null}
+                <GroupedList style={{ overflow: "visible" }}>
+                  {searchResults.map((user) => contactCard(user))}
+                </GroupedList>
+                <div ref={endRefs.search} aria-hidden="true" />
+                {contacts.search.isFetchingNextPage ? <ContactListSkeleton count={2} /> : null}
+                {contacts.search.isFetchNextPageError ? (
+                  <button
+                    type="button"
+                    className="text-sm text-link"
+                    onClick={() => void contacts.search.fetchNextPage()}
+                  >{t`Retry`}</button>
+                ) : null}
+              </>
+            ) : (
+              <section className="space-y-2" aria-label={t`Device Contacts`}>
+                {contacts.suggestions.isLoading ? <ContactListSkeleton count={2} /> : null}
+                {contacts.suggestions.isError ? (
+                  <p role="alert" className="text-sm text-danger">{t`Could not load contacts`}</p>
+                ) : null}
+                {!contacts.suggestions.isLoading &&
+                !contacts.suggestions.isError &&
+                !contacts.suggestions.hasNextPage &&
+                bgoContacts.length === 0 ? (
+                  <EmptyList icon={<BookUser className="size-7" />}>
+                    {t`No contacts to invite`}
+                  </EmptyList>
+                ) : null}
+                <GroupedList style={{ overflow: "visible" }}>
+                  {bgoContacts.map((user) => contactCard(user))}
+                </GroupedList>
+                <div ref={endRefs.suggestions} aria-hidden="true" />
+                {contacts.suggestions.isFetchNextPageError ? (
+                  <button
+                    type="button"
+                    className="text-sm text-link"
+                    onClick={() => void contacts.suggestions.fetchNextPage()}
+                  >{t`Retry`}</button>
+                ) : null}
+              </section>
             )}
-            {contacts.search.isLoading && <ContactListSkeleton count={2} />}
-            {query.trim().length >= 4 &&
-              !contacts.search.isLoading &&
-              !contacts.search.isError &&
-              searchResults.length === 0 && (
-                <EmptyList icon={<SearchX className="size-7" />}>{t`No users found`}</EmptyList>
-              )}
-            {contacts.search.isError ? (
-              <p role="alert" className="text-sm text-danger">{t`Could not load contacts`}</p>
-            ) : null}
-            <GroupedList style={{ overflow: "visible" }}>
-              {searchResults.map((user) => contactCard(user))}
-            </GroupedList>
           </Tabs.Panel>
 
           <Tabs.Panel id="requests" className="space-y-3 pt-4">
@@ -636,14 +685,14 @@ function ContactSectionBadge({
   section,
   userIds,
 }: {
-  section: "connections" | "requests" | "search" | "device";
+  section: "connections" | "requests" | "search";
   userIds: readonly string[];
 }) {
   const attention = useNotificationAttentionContext();
   return (
     <NotificationCountBadge
       count={
-        (section === "device" ? 0 : attention?.get({ kind: "contacts", id: section })?.count) ||
+        attention?.get({ kind: "contacts", id: section })?.count ||
         Number(userIds.some((id) => (attention?.get({ kind: "contact", id })?.count ?? 0) > 0))
       }
       corner

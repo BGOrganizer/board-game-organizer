@@ -51,7 +51,9 @@ const router = {
     contactsBoundary.parameter = value.tab;
   },
 };
+const navigation = { setOptions: vi.fn() };
 vi.mock("expo-router", () => ({
+  useNavigation: () => navigation,
   useRouter: () => router,
   useLocalSearchParams: () => ({ tab: contactsBoundary.parameter }),
   // Router focus is an SDK boundary. Execute the real screen's subscribed
@@ -96,6 +98,7 @@ export const contactsFixture = {
   suggestionsStatus: 200,
   nextSuggestionsStatus: 200,
   searchStatus: 200,
+  nextSearchPage: undefined as (() => Promise<Response>) | undefined,
   searchUsers: [] as ContactUser[],
   searchEmpty: false,
   actionStatus: 200,
@@ -223,6 +226,7 @@ beforeEach(() => {
   contactsFixture.suggestionsStatus = contactsFixture.nextSuggestionsStatus = 200;
   contactsFixture.searchUsers = [];
   contactsFixture.searchStatus = 200;
+  contactsFixture.nextSearchPage = undefined;
   contactsFixture.searchEmpty = false;
   contactsFixture.actionStatus = contactsFixture.inviteStatus = contactsFixture.syncStatus = 200;
   contactsFixture.devices = [];
@@ -335,7 +339,9 @@ beforeEach(() => {
           status,
         );
       }
-      if (url.pathname === "/api/users/search")
+      if (url.pathname === "/api/users/search") {
+        if (url.searchParams.has("cursor") && contactsFixture.nextSearchPage)
+          return contactsFixture.nextSearchPage();
         return fixtureJson(
           {
             users: contactsFixture.searchEmpty
@@ -343,9 +349,11 @@ beforeEach(() => {
               : contactsFixture.searchUsers.length
                 ? contactsFixture.searchUsers
                 : [contactsFixture.target],
+            nextCursor: contactsFixture.nextSearchPage ? "next-directory-result" : null,
           },
           contactsFixture.searchStatus,
         );
+      }
       if (url.pathname === "/api/notifications/attention")
         return fixtureJson(attention(JSON.parse(url.searchParams.get("targets") ?? "[]")));
       throw new Error(`Unexpected fixture read: ${url.pathname}`);

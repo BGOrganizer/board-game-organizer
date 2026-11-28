@@ -181,6 +181,8 @@ Report unavailable kernel limits separately from the application limits actually
   remain at least 44px. Reuse each app's `common/layout/headerStyles` and existing header components.
   Back controls keep native navigation dispatch and existing route-removal/inline-picker guards;
   reset merged header options explicitly so inline picker controls never leak into the parent.
+- Game information belongs on the lower-right of the game cover. The badge stays independently
+  actionable while the vote accordion is collapsed and uses the same BGG metadata in finished results.
 - Give actions semantic colors matching their intent: primary for confirmation, danger for
   destructive actions, and neutral for cancellation. Do not rely on color alone to convey meaning.
   Prefer icon-only actions in tight spaces when the icon is self-explanatory; otherwise show text.
@@ -191,7 +193,33 @@ Report unavailable kernel limits separately from the application limits actually
   button; do not add a submit button. Main Events/Tables, owned Private/Public Groups and Group-context
   Events instead use Filter inputs with an accessible name, no visible label or inline help, no
   minimum length, a 300 ms debounce and a clear action. Their escaped name query stays inside the
-  selected authorized list before paging. Group Search retains its four-character discovery minimum.
+  selected authorized list before paging. Owned Groups, main Events and Group-context Events use
+  active header search to show their filter chips. Back restores the list and resets the text and
+  chips. Ordering stays available directly below the controls in both views. History uses header
+  search and sorts the authorized source by game name, confirmed start or seated player count before
+  pagination. Event-detail Tables use the same search and sort the bounded list locally by title or
+  seated player count.
+  Group Search starts with Friends selected, accepts one
+  character or an empty filter-only request, and matches approved names and venue addresses.
+  Apply discovery filters before pagination. Request Nearby location on tap and keep discovery
+  text and coordinates out of native persistence. Show discovery chips only while the search field
+  takes over the header. Use an anchored distance menu after the Nearby chip with presets up to
+  100 km, and scope the active proximity query to its selected radius.
+- Contacts has Connections, Requests and Search. The Search tab opens with registered BGO contacts
+  first and local unregistered contacts on mobile. Header search pages through the authorized BGO
+  directory by name, surname, email or username. Both discovery lists exclude existing connections
+  and pending requests before server pagination. Back clears the query and restores the address book.
+- Use the platform's shared `FilterChips` for compact list filters. Keep the visible chip compact
+  and its native or coarse-pointer touch target at least 44 px.
+- Use `ListOrdering` for the name/date selector and direction action in Group and Event lists.
+  Apply role and ordering parameters before source pagination, and scope the cache key to both.
+  See the [list contract](docs/groups-events-tables.md#results-lists-and-transport).
+- Reuse Group, Event and Table card indicators in lists and details. Group roles use a neutral
+  ID-card trigger with the colored role icon inside. Public Group review uses a danger-soft
+  exclamation for rejected edits and a solid danger X for a rejected first approval.
+  The Event status popover shows the chosen schedule and venue, and lists the viewer's confirmed
+  seats and demonstrations while confirmed. Confirmed Tables retain their schedule, venue and game
+  popovers. The finished Table flag lists winners one per row.
 - For every variable-length list, default to paginated data and virtualized rendering: use
   `FlatList` or `SectionList` on mobile and pagination (plus windowing when large) on web. Load
   further pages as the user scrolls; do not render an entire address book, search result set, or
@@ -204,7 +232,8 @@ Report unavailable kernel limits separately from the application limits actually
   before slicing. Reset local presentation for a changed API/user/query/snapshot; reject stale
   callbacks, coalesce duplicate end events and guard any in-flight fetch. Reuse stable row identities,
   callbacks and memoized derivation; tune virtualization without assuming fixed row heights.
-  Reset-to-top is valid when the flow allows it; do not keep a full hidden picker mounted solely
+  Keep Web viewport measurements current and commit viewport-driven updates when the visible row
+  range changes. Reset-to-top is valid when the flow allows it; do not keep a full hidden picker mounted solely
   for speed. Follow [client responsiveness defaults](README.md#client-responsiveness-defaults).
 - Profile both entry/reentry and Back/selection-to-form transitions. Query/MMKV cache hits avoid
   data reloads, not React/native subtree mounting, validation, serialization or layout work. Keep

@@ -1,8 +1,32 @@
 import { z } from "zod";
+import { type RecordListOrder, recordListSortFields } from "../../common/dto/common";
 import { eventStateSchema } from "../models/eventRecord";
 
 export const eventListSections = ["mine", "available", "terminated"] as const;
 export type EventListSection = (typeof eventListSections)[number];
+export const terminatedEventFilterRoles = ["admin", "moderator", "participant"] as const;
+export const scheduledEventFilterRoles = [...terminatedEventFilterRoles, "pending"] as const;
+export type EventListFilterRole = (typeof scheduledEventFilterRoles)[number];
+export const eventListDefaultOrder = {
+  mine: { sort: "date", direction: "asc" },
+  available: { sort: "date", direction: "asc" },
+  terminated: { sort: "date", direction: "desc" },
+} as const satisfies Record<EventListSection, RecordListOrder>;
+export const eventTableListSortFields = ["name", "participants"] as const;
+export const historyTableListSortFields = [...recordListSortFields, "participants"] as const;
+export type HistoryTableListSortField = (typeof historyTableListSortFields)[number];
+export type HistoryTableListOrder = RecordListOrder<HistoryTableListSortField>;
+export const historyTableListDefaultOrder = {
+  sort: "date",
+  direction: "desc",
+} as const satisfies HistoryTableListOrder;
+export type EventTableListSortField = (typeof eventTableListSortFields)[number];
+export type EventTableListOrder = RecordListOrder<EventTableListSortField>;
+export const eventTableListDefaultOrder = {
+  sort: "name",
+  direction: "asc",
+} as const satisfies EventTableListOrder;
+
 export const tableListSections = ["mine", "waiting"] as const;
 export type TableListSection = (typeof tableListSections)[number];
 

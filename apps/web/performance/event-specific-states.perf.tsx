@@ -4,9 +4,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, expect, vi } from "vitest";
+import { EventCardStatusPopover } from "@/components/events/EventCardStatusPopover";
 import { EventPlayerRatingPopover } from "@/components/events/EventPlayerRatingPopover";
 import { EventProposalSection } from "@/components/events/EventProposalSection";
-import { EventSchedulePopover } from "@/components/events/EventSchedulePopover";
 import { EventTableInvitationActions } from "@/components/events/EventTableInvitationActions";
 import { EventTableSchedulePopover } from "@/components/events/EventTableSchedulePopover";
 import { EventWizardSummary } from "@/components/events/EventWizardSummary";
@@ -154,24 +154,26 @@ const confirmedTable = {
 measureWebFeature(
   "Schedule popovers: present the confirmed event and table venue accurately",
   <>
-    <EventSchedulePopover
+    <EventCardStatusPopover
       event={{
         ...plannedEvent,
         status: "CONFIRMED",
+        cardSummary: { ready: true, tables: [] },
         confirmed: {
           dateId: plannedEvent.dates[0].id,
           locationId: plannedEvent.locations[0].id,
           at: plannedEvent.updatedAt,
         },
       }}
-      kind="locations"
+      roles={[]}
     />
     <EventTableSchedulePopover table={confirmedTable} kind="locations" />
   </>,
   async () => {
-    const event = screen.getByRole("button", { name: `Locations: ${plannedEvent.name}` });
+    const event = screen.getByRole("button", { name: "Confirmed" });
     fireEvent.click(event);
     let dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("Date and time:")).toBeVisible();
     expect(within(dialog).getByText(plannedEvent.locations[0].address)).toBeVisible();
     fireEvent.keyDown(dialog, { key: "Escape", code: "Escape" });
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());

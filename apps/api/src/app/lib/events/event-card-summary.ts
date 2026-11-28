@@ -147,6 +147,7 @@ export function tableCardSummary(
       : confirmed,
     blockers: planning ? tablePlanningBlockers(planning.input, planning.agreement, table.id) : [],
     myParticipation: participated ? "CONFIRMED" : excluded ? "EXCLUDED" : "NONE",
+    myDemonstrator: table.demonstratorUserId === userId,
     exclusionReasons:
       excluded && registration
         ? personalExclusionReasons(event, table, registration, availability)

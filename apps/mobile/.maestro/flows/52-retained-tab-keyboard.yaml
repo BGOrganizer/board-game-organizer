@@ -1,19 +1,36 @@
 appId: com.bgo.boardgameorganizer.dev
-name: Retained filter survives a single tab tap with the keyboard open
+name: Search Back restores Group tabs with the keyboard open
 tags: [manual, performance, navigation, keyboard]
 ---
 - runScript: ../helpers/cached-tab-navigation-inputs.js
 - openLink: bgo-dev:///groups
 - tapOn:
     id: top-tab-private
+- assertVisible:
+    id: list-sort-field
+- assertNotVisible:
+    id: list-filter-administrator
 - tapOn:
     id: list-search-input
-- eraseText
 - inputText: Perf
 - assertVisible:
     id: list-search-input
     text: Perf
-# Do not hide the keyboard or repeat this tap: the first touch must select Public.
+- assertVisible:
+    id: list-filter-administrator
+- assertVisible:
+    id: list-sort-field
+- assertNotVisible:
+    id: top-tab-public
+# One tap on the search Back action also dismisses the keyboard.
+- tapOn: '^(Back|Indietro)$'
+- assertVisible:
+    id: top-tab-private
+    selected: true
+- assertNotVisible:
+    id: list-filter-administrator
+- assertVisible:
+    id: list-sort-field
 - tapOn:
     id: top-tab-public
     waitToSettleTimeoutMs: 500
@@ -22,21 +39,7 @@ tags: [manual, performance, navigation, keyboard]
     selected: true
 - tapOn:
     id: top-tab-private
-    waitToSettleTimeoutMs: 500
-- assertVisible:
-    id: list-search-input
-    text: Perf
-- tapOn:
-    id: list-search-input
-- eraseText
-- tapOn:
-    id: top-tab-public
-    waitToSettleTimeoutMs: 500
-- assertVisible:
-    id: top-tab-public
-    selected: true
-- tapOn:
-    id: top-tab-private
 - assertVisible:
     id: top-tab-private
     selected: true
+- assertNotVisible: Perf

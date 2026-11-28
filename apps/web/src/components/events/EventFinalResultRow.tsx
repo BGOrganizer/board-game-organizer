@@ -103,14 +103,14 @@ export function EventFinalResultRow({
     <li>
       <Card className="gap-0 p-0">
         {player.guestName ? (
-          <div className="flex min-w-0 items-center gap-2 pr-9 pl-3">{row}</div>
+          <div className="flex min-w-0 items-center gap-2 py-3 pr-9 pl-4">{row}</div>
         ) : (
           <Accordion hideSeparator>
             <Accordion.Item id={player.key}>
               {({ isExpanded }) => (
                 <>
                   <Accordion.Heading>
-                    <Accordion.Trigger className="min-h-16 gap-2 px-3 py-0 text-foreground">
+                    <Accordion.Trigger className="min-h-16 gap-2 py-3 pr-3 pl-4 text-foreground">
                       <span className="sr-only">{t`Rating details`}</span>
                       {row}
                       <Accordion.Indicator
@@ -121,7 +121,7 @@ export function EventFinalResultRow({
                   </Accordion.Heading>
                   <Accordion.Panel>
                     {isExpanded ? (
-                      <Accordion.Body className="grid gap-1.5 px-3 pt-0 pb-2">
+                      <Accordion.Body className="grid gap-1.5 pt-0 pr-3 pb-3 pl-4">
                         <Separator />
                         {tablePlayerRatingRows(table, player.userId)
                           .reverse()

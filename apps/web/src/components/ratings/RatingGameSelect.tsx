@@ -17,6 +17,7 @@ export function RatingGameSelect({
   children,
   footer,
   empty,
+  focusUnderHeader = false,
 }: {
   value?: ProfileRatingGame | null;
   selectedId: number | null;
@@ -26,17 +27,22 @@ export function RatingGameSelect({
   children: ReactNode;
   footer?: ReactNode;
   empty?: ReactNode;
+  focusUnderHeader?: boolean;
 }) {
   const { t } = useLingui();
   const trigger = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const openRef = useRef(false);
+  const [searchTop, setSearchTop] = useState<number | null>(null);
   const changeOpen = (next: boolean) => {
     // Overlay dismissal and search Escape can request the same transition before React commits.
     if (openRef.current === next) return;
     openRef.current = next;
     setOpen(next);
-    if (!next) onClose?.();
+    if (!next) {
+      setSearchTop(null);
+      onClose?.();
+    }
   };
   const handleEscape = (event: KeyboardEvent<HTMLElement>) => {
     if (event.key === "Escape") {
@@ -94,8 +100,31 @@ export function RatingGameSelect({
         data-input-scope
         data-input-overlay
         className="flex w-(--trigger-width) max-w-[calc(100vw-2rem)] flex-col overflow-hidden"
+        data-ranking-search-docked={searchTop !== null || undefined}
+        style={
+          searchTop === null
+            ? undefined
+            : {
+                position: "fixed",
+                top: searchTop,
+                bottom: "auto",
+                maxHeight: `calc(var(--app-visible-height, 100dvh) - ${searchTop}px - 8px)`,
+              }
+        }
       >
-        <div className="flex min-h-0 flex-col overflow-hidden" onKeyDownCapture={handleEscape}>
+        <div
+          className="flex min-h-0 flex-col overflow-hidden"
+          onKeyDownCapture={handleEscape}
+          onFocusCapture={(event) => {
+            if (!focusUnderHeader || !(event.target instanceof HTMLInputElement)) return;
+            const header = document.querySelector("[data-app-header]");
+            if (header) setSearchTop(header.getBoundingClientRect().bottom + 8);
+          }}
+          onBlurCapture={(event) => {
+            // Keep link/button and keyboard selection stable while interacting inside the picker.
+            if (!event.currentTarget.contains(event.relatedTarget)) setSearchTop(null);
+          }}
+        >
           {children}
           <Virtualizer layout={ListLayout} shouldObserveItemSize>
             <ListBox

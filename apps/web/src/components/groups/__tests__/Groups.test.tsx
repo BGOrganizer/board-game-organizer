@@ -7,7 +7,13 @@ import { afterEach, expect, it, vi } from "vitest";
 import { installBrowserIntersections } from "@/test-fixtures/browserIntersections";
 import { groupRecord, plannedEvent } from "@/test-fixtures/eventRecords";
 import { renderWithI18n } from "@/test-utils";
+import { GroupDiscoverySession } from "../GroupDiscoverySession";
 import { Groups } from "../Groups";
+
+const location = vi.hoisted(() => ({ pathname: "/groups" }));
+vi.mock("next/navigation", () => ({
+  usePathname: () => location.pathname,
+}));
 
 vi.mock("@/components/notifications/NotificationAttentionScope", () => ({
   NotificationAttentionScope: ({ children }: { children: ReactNode }) => children,
@@ -32,6 +38,16 @@ const publicGroup = {
   },
   reservedNames: ["public owned group"],
 };
+function stubGeolocation(getCurrentPosition: Geolocation["getCurrentPosition"]) {
+  vi.stubGlobal(
+    "navigator",
+    new Proxy(navigator, {
+      get(target, name) {
+        return name === "geolocation" ? { getCurrentPosition } : Reflect.get(target, name, target);
+      },
+    }),
+  );
+}
 const clients: QueryClient[] = [];
 function client() {
   const value = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -39,18 +55,24 @@ function client() {
   return value;
 }
 function renderGroups(initialSection?: "private" | "public" | "search", cache = client()) {
-  return renderWithI18n(
+  location.pathname = initialSection === "search" ? "/groups/search" : "/groups";
+  const view = renderWithI18n(
     <QueryClientProvider client={cache}>
-      <Groups initialSection={initialSection} />
+      <GroupDiscoverySession>
+        <Groups initialSection={initialSection} />
+      </GroupDiscoverySession>
     </QueryClientProvider>,
   );
+  if (initialSection === "public")
+    fireEvent.click(screen.getByRole("tab", { name: "Public groups" }));
+  return view;
 }
 afterEach(() => {
   cleanup();
   for (const value of clients.splice(0)) value.clear();
   vi.unstubAllGlobals();
 });
-it("shows three exclusive tabs, with typed member lists distinct from four-character discovery", async () => {
+it("shows three exclusive tabs, with owned lists distinct from friend discovery", async () => {
   const fetcher = vi.fn(async (input: string) => {
     const url = new URL(input);
     return Response.json({
@@ -69,13 +91,32 @@ it("shows three exclusive tabs, with typed member lists distinct from four-chara
   expect(screen.getByRole("tab", { name: "Private groups", selected: true })).toBeTruthy();
   await screen.findByRole("link", { name: "Open group: Friday group" });
   expect(screen.getByRole("link", { name: "Create group" })).toBeTruthy();
-  expect(screen.getByText("Invited")).toBeTruthy();
+  const filter = screen.getByRole("searchbox", { name: "Filter" });
+  const order = screen.getByRole("button", { name: "Sort by Date" });
+  expect(screen.queryByRole("button", { name: "Admin", pressed: true })).toBeNull();
+  fireEvent.focus(filter);
+  expect(screen.getByRole("searchbox", { name: "Filter" })).toBe(filter);
+  expect(screen.queryByRole("tablist")).toBeNull();
+  expect(screen.getByRole("button", { name: "Sort by Date" })).toBe(order);
+  for (const name of ["Admin", "Moderator", "Member", "Pending"])
+    expect(screen.getByRole("button", { name, pressed: true })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  expect(screen.queryByRole("button", { name: "Admin", pressed: true })).toBeNull();
   expect(new URL(fetcher.mock.calls[0][0]).searchParams.get("type")).toBe("PRIVATE");
   expect(new URL(fetcher.mock.calls[0][0]).searchParams.get("roles")).toBe(
-    "admin,invited,accepted",
+    groupRecordMemberRoles.join(","),
   );
   fireEvent.click(screen.getByRole("tab", { name: "Public groups" }));
   await screen.findByRole("link", { name: "Open group: Public owned group" });
+  const publicFilter = screen.getByRole("searchbox", { name: "Filter" });
+  expect(screen.queryByRole("button", { name: "Admin", pressed: true })).toBeNull();
+  fireEvent.focus(publicFilter);
+  fireEvent.keyDown(publicFilter, { key: "ArrowLeft" });
+  for (const name of ["Admin", "Moderator", "Member", "Pending"])
+    expect(screen.getByRole("button", { name, pressed: true })).toBeVisible();
+  fireEvent.keyDown(publicFilter, { key: "Escape" });
+  expect(screen.getByRole("tab", { name: "Public groups", selected: true })).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Admin", pressed: true })).toBeNull();
   expect(screen.queryByRole("link", { name: "Open group: Friday group" })).toBeNull();
   expect(screen.getByRole("link", { name: "Create group" })).toBeTruthy();
   expect(screen.queryByText("Enter at least 4 characters to search")).toBeNull();
@@ -85,19 +126,17 @@ it("shows three exclusive tabs, with typed member lists distinct from four-chara
   fireEvent.click(screen.getByRole("tab", { name: "Search" }));
   expect(screen.queryByRole("link", { name: "Back" })).toBeNull();
   expect(screen.queryByRole("link", { name: "Create group" })).toBeNull();
-  expect(screen.getByText("Enter at least 4 characters to search")).toBeTruthy();
-  fireEvent.change(screen.getByPlaceholderText("Search groups"), { target: { value: "Public" } });
-  await waitFor(() =>
-    expect(
-      fetcher.mock.calls.some(([url]) => new URL(url).searchParams.get("scope") === "public"),
-    ).toBe(true),
-  );
-  const discovery = new URL(
-    fetcher.mock.calls.find(([url]) => new URL(url).searchParams.get("scope") === "public")?.[0] ??
-      "",
-  );
-  expect(discovery.searchParams.has("type")).toBe(false);
-  expect(discovery.searchParams.has("roles")).toBe(false);
+  await screen.findByRole("link", { name: "Open group: Public owned group" });
+  expect(screen.queryByRole("button", { name: "Friends" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Near me" })).toBeNull();
+  const discovery = fetcher.mock.calls
+    .map(([input]) => new URL(input))
+    .find((url) => url.searchParams.get("scope") === "public")?.searchParams;
+  expect(discovery?.get("friends")).toBe("true");
+  expect(discovery?.has("type")).toBe(false);
+  expect(discovery?.has("roles")).toBe(false);
+  expect(discovery?.has("query")).toBe(false);
+  expect(screen.queryByRole("button", { name: "Sort by Date" })).toBeNull();
   fireEvent.click(screen.getByRole("tab", { name: "Private groups" }));
   await screen.findByRole("link", { name: "Open group: Friday group" });
 });
@@ -154,7 +193,9 @@ it("keeps public membership paging source-filtered by type and roles, without cr
     const params = new URL(input).searchParams;
     expect(params.get("scope")).toBe("mine");
     expect(params.get("type")).toBe("PUBLIC");
-    expect(params.get("roles")).toBe("admin,invited,accepted");
+    expect(params.get("roles")).toBe(groupRecordMemberRoles.join(","));
+    expect(params.has("sort")).toBe(false);
+    expect(params.has("direction")).toBe(false);
   }
   expect(new URL(fetcher.mock.calls[1][0]).searchParams.get("cursor")).toBe(cursor);
 });
@@ -177,8 +218,8 @@ it.each(["private", "public"] as const)(
     expect(screen.getByRole("link", { name: "Create group" })).toBeTruthy();
   },
 );
-it("keeps existing discovery links on Search without an eager empty search", () => {
-  const fetcher = vi.fn();
+it("opens a direct search link with the default Friends results", async () => {
+  const fetcher = vi.fn(async () => Response.json({ items: [], nextCursor: null }));
   vi.stubGlobal("fetch", fetcher);
   renderGroups("search");
   const back = screen.getByRole("link", { name: "Back" });
@@ -187,7 +228,7 @@ it("keeps existing discovery links on Search without an eager empty search", () 
   expect(back.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
   expect(screen.getByRole("tab", { name: "Search", selected: true })).toBeTruthy();
   expect(screen.queryByRole("link", { name: "Create group" })).toBeNull();
-  expect(fetcher).not.toHaveBeenCalled();
+  expect(await screen.findByText("No public groups with your friends")).toBeVisible();
 });
 it("reuses the exact private startup page and fetches the public member page only on selection", async () => {
   const cache = client();
@@ -207,7 +248,7 @@ it("reuses the exact private startup page and fetches the public member page onl
 it.each([
   ["private", "Private groups", "Private groups help", /Private groups you manage/],
   ["public", "Public groups", "Public groups help", /may still be awaiting approval/],
-  ["search", "Search", "Group search help", /Search for approved public groups by name/],
+  ["search", "Group search", "Group search help", /Search approved public groups by name/],
 ] as const)(
   "describes the %s Group list in the section popover",
   async (section, title, button, description) => {
@@ -225,27 +266,298 @@ it.each([
   },
 );
 
-it("uses centered discovery prompts without a separate search field help", async () => {
-  const fetcher = vi.fn(async () => Response.json({ items: [], nextCursor: null }));
+it("keeps the input mounted when focused, searches from one character, and resets on Back", async () => {
+  const fetcher = vi.fn(async (_input: string) => Response.json({ items: [], nextCursor: null }));
   vi.stubGlobal("fetch", fetcher);
   renderGroups("search");
   const field = screen.getByRole("searchbox", { name: "Search groups" });
-  const prompt = "Enter at least 4 characters to search";
-  const empty = screen.getByText(prompt).closest('[role="status"]');
-  expect(empty).toHaveClass("items-center", "text-center");
-  expect(empty?.querySelector("svg.lucide-search")).not.toBeNull();
-  expect(screen.getByText("Search groups").closest("label")).toHaveClass("sr-only");
-  expect(screen.queryByRole("button", { name: "Search groups: Search help" })).toBeNull();
-  fireEvent.change(field, { target: { value: "abc" } });
-  expect(screen.getAllByText(prompt)).toHaveLength(1);
-  expect(fetcher).not.toHaveBeenCalled();
-  fireEvent.change(field, { target: { value: "missing" } });
-  const noResults = (await screen.findByText("No groups found")).closest('[role="status"]');
-  expect(noResults?.querySelector("svg.lucide-search-x")).not.toBeNull();
-  expect(screen.queryByText(prompt)).toBeNull();
+  const initial = await screen.findByText("No public groups with your friends");
+  expect(initial.closest('[role="status"]')).toHaveClass("items-center", "text-center");
+  fireEvent.focus(field);
+  expect(screen.getByRole("searchbox", { name: "Search groups" })).toBe(field);
+  expect(screen.queryByRole("tab", { name: "Search" })).toBeNull();
+  expect(screen.queryByRole("heading", { name: "Group search" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Friends", pressed: true })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Near me", pressed: false })).toBeVisible();
+  fireEvent.change(field, { target: { value: " R " } });
+  await waitFor(() =>
+    expect(
+      fetcher.mock.calls.some(([input]) => new URL(input).searchParams.get("query") === "R"),
+    ).toBe(true),
+  );
+  expect(await screen.findByText("No groups found")).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  expect(field).toHaveValue("");
+  expect(screen.getByRole("tab", { name: "Search", selected: true })).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Friends" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Near me" })).toBeNull();
+  expect(screen.getByRole("heading", { name: "Group search" })).toBeVisible();
+  expect(screen.getByText("No public groups with your friends")).toBeVisible();
+});
+
+it("exits active discovery and clears the search with Escape", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => Response.json({ items: [], nextCursor: null })),
+  );
+  renderGroups("search");
+  const field = screen.getByRole("searchbox", { name: "Search groups" });
+  fireEvent.keyDown(field, { key: "Escape" });
+  expect(screen.getByRole("tab", { name: "Search", selected: true })).toBeVisible();
+  act(() => field.focus());
+  fireEvent.change(field, { target: { value: "Roma" } });
+  fireEvent.keyDown(field, { key: "ArrowLeft" });
+  expect(field).toHaveValue("Roma");
+  expect(field).toHaveFocus();
+  fireEvent.keyDown(field, { key: "Escape" });
+  expect(field).toHaveValue("");
+  expect(field).not.toHaveFocus();
+  expect(screen.getByRole("tab", { name: "Search", selected: true })).toBeVisible();
+  expect(await screen.findByText("No public groups with your friends")).toBeVisible();
+});
+
+it("combines empty and one-character searches with the two independently selectable filters", async () => {
+  const fetcher = vi.fn(async (_input: string) => Response.json({ items: [], nextCursor: null }));
+  vi.stubGlobal("fetch", fetcher);
+  const getCurrentPosition = vi.fn((onSuccess: PositionCallback) =>
+    onSuccess({ coords: { latitude: 45.12345, longitude: 7.92345 } } as GeolocationPosition),
+  );
+  stubGeolocation(getCurrentPosition);
+  renderGroups("search");
+  await screen.findByText("No public groups with your friends");
+  expect(getCurrentPosition).not.toHaveBeenCalled();
+  const field = screen.getByRole("searchbox", { name: "Search groups" });
+  fireEvent.focus(field);
+  fireEvent.click(screen.getByRole("button", { name: "Near me" }));
+  expect(await screen.findByRole("button", { name: "Near me", pressed: true })).toBeVisible();
+  fireEvent.change(field, { target: { value: "z" } });
+  await waitFor(() => {
+    const params = new URL(fetcher.mock.calls.at(-1)![0]).searchParams;
+    expect(params.get("query")).toBe("z");
+    expect(params.get("friends")).toBe("true");
+    expect(params.get("nearLat")).toBe("45.123");
+    expect(params.get("nearLng")).toBe("7.923");
+    expect(params.get("radiusKm")).toBe("25");
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Friends" }));
+  await waitFor(() =>
+    expect(new URL(fetcher.mock.calls.at(-1)![0]).searchParams.has("friends")).toBe(false),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Near me" }));
   fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
-  expect(screen.getByText(prompt)).toBeVisible();
-  expect(screen.queryByText("No groups found")).toBeNull();
+  await waitFor(() => {
+    const params = new URL(fetcher.mock.calls.at(-1)![0]).searchParams;
+    for (const key of ["friends", "nearLat", "nearLng", "radiusKm", "query"])
+      expect(params.has(key)).toBe(false);
+  });
+  expect(getCurrentPosition).toHaveBeenCalledTimes(1);
+});
+
+it("requests and caches each distance independently through the anchored distance picker", async () => {
+  const rows = new Map([
+    ["25", "Default radius club"],
+    ["50", "Wider radius club"],
+    ["100", "Maximum radius club"],
+  ]);
+  const fetcher = vi.fn(async (url: string) => {
+    const name = rows.get(new URL(url).searchParams.get("radiusKm") ?? "");
+    return Response.json({
+      items: name ? [{ ...publicGroup, name, approved: { ...publicGroup.approved, name } }] : [],
+      nextCursor: null,
+    });
+  });
+  vi.stubGlobal("fetch", fetcher);
+  const getCurrentPosition = vi.fn((onSuccess: PositionCallback) =>
+    onSuccess({ coords: { latitude: 45, longitude: 7 } } as GeolocationPosition),
+  );
+  stubGeolocation(getCurrentPosition);
+  renderGroups("search");
+  fireEvent.focus(screen.getByRole("searchbox", { name: "Search groups" }));
+  const friends = screen.getByRole("button", { name: "Friends" });
+  const nearby = screen.getByRole("button", { name: "Near me" });
+  expect(screen.queryByRole("button", { name: /^Distance,/ })).toBeNull();
+  fireEvent.click(nearby);
+  const trigger = await screen.findByRole("button", { name: "Distance, 25 km" });
+  expect(Array.from(trigger.parentElement?.children ?? [])).toEqual([friends, nearby, trigger]);
+  expect(trigger.querySelector("svg.lucide-ruler")).toBeInTheDocument();
+  expect(
+    await screen.findByRole("link", { name: "Open group: Default radius club" }),
+  ).toBeVisible();
+
+  fireEvent.click(trigger);
+  const menu = await screen.findByRole("dialog", { name: "Distance" });
+  expect(within(menu).getByRole("button", { name: "25 km", pressed: true })).toBeVisible();
+  expect(
+    within(menu)
+      .getAllByRole("button")
+      .map((option) => option.textContent),
+  ).toEqual(["5 km", "10 km", "25 km", "50 km", "100 km"]);
+  fireEvent.click(within(menu).getByRole("button", { name: "50 km" }));
+  expect(await screen.findByRole("link", { name: "Open group: Wider radius club" })).toBeVisible();
+  expect(getCurrentPosition).toHaveBeenCalledOnce();
+  fireEvent.click(screen.getByRole("button", { name: "Distance, 50 km" }));
+  const reopened = await screen.findByRole("dialog", { name: "Distance" });
+  expect(within(reopened).getByRole("button", { name: "50 km", pressed: true })).toBeVisible();
+  fireEvent.keyDown(within(reopened).getByRole("button", { name: "50 km" }), { key: "Escape" });
+  await waitFor(() => expect(screen.queryByRole("dialog", { name: "Distance" })).toBeNull());
+  fireEvent.click(screen.getByRole("button", { name: "Distance, 50 km" }));
+  fireEvent.click(
+    within(await screen.findByRole("dialog")).getByRole("button", { name: "100 km" }),
+  );
+  expect(
+    await screen.findByRole("link", { name: "Open group: Maximum radius club" }),
+  ).toBeVisible();
+  fireEvent.click(nearby);
+  expect(screen.queryByRole("button", { name: /^Distance,/ })).toBeNull();
+  expect(await screen.findByText("No public groups with your friends")).toBeVisible();
+  fireEvent.click(nearby);
+  expect(await screen.findByRole("button", { name: "Distance, 100 km" })).toBeVisible();
+  expect(
+    await screen.findByRole("link", { name: "Open group: Maximum radius club" }),
+  ).toBeVisible();
+});
+
+it("keeps Friends usable on browsers without geolocation", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => Response.json({ items: [], nextCursor: null })),
+  );
+  vi.stubGlobal(
+    "navigator",
+    new Proxy(navigator, {
+      get: (target, key) => (key === "geolocation" ? undefined : Reflect.get(target, key, target)),
+    }),
+  );
+  renderGroups("search");
+  fireEvent.focus(screen.getByRole("searchbox", { name: "Search groups" }));
+  fireEvent.click(screen.getByRole("button", { name: "Near me" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("Location unavailable");
+  expect(screen.getByRole("button", { name: "Friends", pressed: true })).toBeVisible();
+  expect(screen.queryByRole("button", { name: /^Distance,/ })).toBeNull();
+});
+
+it.each(["private", "search"] as const)(
+  "hides cached %s groups on an authorization failure and retries to an empty result",
+  async (section) => {
+    let response = Response.json({ items: [groupRecord], nextCursor: null });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => response.clone()),
+    );
+    const cache = client();
+    renderGroups(section, cache);
+    const group = { name: `Open group: ${groupRecord.name}` };
+    expect(await screen.findByRole("link", group)).toBeVisible();
+    response = Response.json({ error: "FORBIDDEN" }, { status: 403 });
+    await act(() => cache.invalidateQueries({ queryKey: ["groups"] }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Could not load groups");
+    expect(screen.queryByRole("link", group)).toBeNull();
+    response = Response.json({ items: [], nextCursor: null });
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    const empty = section === "search" ? "No public groups with your friends" : "No groups found";
+    expect(await screen.findByText(empty)).toBeVisible();
+  },
+);
+
+it("keeps public discovery results visible while loading and retrying a later page", async () => {
+  let finish: (response: Response) => void = () => {
+    throw new Error("Expected a discovery page request");
+  };
+  const pending = new Promise<Response>((resolve) => {
+    finish = resolve;
+  });
+  const nextGroup = {
+    ...publicGroup,
+    id: "77777777-7777-4777-8777-777777777777",
+    name: "Second discovery page",
+  };
+  let cursorReads = 0;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: string) => {
+      const params = new URL(input).searchParams;
+      expect(params.get("scope")).toBe("public");
+      expect(params.get("friends")).toBe("true");
+      if (!params.has("cursor")) {
+        return Response.json({ items: [publicGroup], nextCursor: "discovery-cursor" });
+      }
+      expect(params.get("cursor")).toBe("discovery-cursor");
+      return ++cursorReads === 1
+        ? pending
+        : Response.json({ items: [nextGroup], nextCursor: null });
+    }),
+  );
+  renderGroups("search");
+  const first = await screen.findByRole("link", { name: `Open group: ${publicGroup.name}` });
+  fireEvent.click(screen.getByRole("button", { name: "Load more" }));
+  await waitFor(() => expect(cursorReads).toBe(1));
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+  expect(first).toBeVisible();
+  await act(() => finish(Response.json({ error: "UNAVAILABLE" }, { status: 503 })));
+  const retry = await screen.findByRole("button", { name: "Could not load groups. Retry" });
+  expect(first).toBeVisible();
+  fireEvent.click(retry);
+  expect(await screen.findByRole("link", { name: `Open group: ${nextGroup.name}` })).toBeVisible();
+  expect(cursorReads).toBe(2);
+});
+
+it("reports location denial and ignores a position delivered after closing", async () => {
+  const fetcher = vi.fn(async (_input: string) => Response.json({ items: [], nextCursor: null }));
+  vi.stubGlobal("fetch", fetcher);
+  let deliver: PositionCallback | undefined;
+  const getCurrentPosition = vi
+    .fn()
+    .mockImplementationOnce((_onSuccess: PositionCallback, onError: PositionErrorCallback) =>
+      onError({ code: 1 } as GeolocationPositionError),
+    )
+    .mockImplementationOnce((onSuccess: PositionCallback) => {
+      deliver = onSuccess;
+    });
+  stubGeolocation(getCurrentPosition);
+  renderGroups("search");
+  await screen.findByText("No public groups with your friends");
+  fireEvent.focus(screen.getByRole("searchbox", { name: "Search groups" }));
+  fireEvent.click(screen.getByRole("button", { name: "Near me" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("Location unavailable");
+  expect(screen.getByRole("button", { name: "Friends", pressed: true })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Near me" }));
+  await waitFor(() => expect(deliver).toBeDefined());
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  await act(async () =>
+    deliver?.({ coords: { latitude: 45, longitude: 7 } } as GeolocationPosition),
+  );
+  expect(screen.queryByRole("button", { name: "Near me" })).toBeNull();
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(fetcher.mock.calls.every(([input]) => !new URL(input).searchParams.has("nearLat"))).toBe(
+    true,
+  );
+});
+
+it("preserves query and filters when the Groups layout remains mounted around detail navigation", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => Response.json({ items: [], nextCursor: null })),
+  );
+  const cache = client();
+  location.pathname = "/groups";
+  const body = (child: ReactNode) => (
+    <QueryClientProvider client={cache}>
+      <GroupDiscoverySession>{child}</GroupDiscoverySession>
+    </QueryClientProvider>
+  );
+  const view = renderWithI18n(body(<Groups />));
+  fireEvent.click(screen.getByRole("tab", { name: "Search" }));
+  const field = screen.getByRole("searchbox", { name: "Search groups" });
+  fireEvent.focus(field);
+  fireEvent.change(field, { target: { value: "Roma" } });
+  fireEvent.click(screen.getByRole("button", { name: "Friends" }));
+  location.pathname = "/groups/owned";
+  view.rerender(body(<p>Group detail</p>));
+  location.pathname = "/groups";
+  view.rerender(body(<Groups />));
+  expect(screen.getByRole("searchbox", { name: "Search groups" })).toHaveValue("Roma");
+  expect(screen.getByRole("button", { name: "Friends", pressed: false })).toBeVisible();
+  expect(screen.getByRole("button", { name: "Back" })).toBeVisible();
 });
 
 it("keeps the first private Group visible while retrying a failed next authorized page", async () => {
@@ -298,24 +610,25 @@ it("applies and restores a role chip within the current authorized group source"
       reads.push(url);
       const roles = url.searchParams.get("roles")?.split(",") ?? [];
       return Response.json({
-        items: roles.includes("admin") ? [groupRecord] : [],
+        items: roles.includes("administrator") ? [groupRecord] : [],
         nextCursor: null,
       });
     }),
   );
   renderGroups("private");
   await screen.findByRole("link", { name: `Open group: ${groupRecord.name}` });
+  fireEvent.focus(screen.getByRole("searchbox", { name: "Filter" }));
   const admin = screen.getByRole("button", { name: "Admin", pressed: true });
   fireEvent.click(admin);
   expect(await screen.findByText("No groups found")).toBeVisible();
   expect(screen.queryByRole("link", { name: `Open group: ${groupRecord.name}` })).toBeNull();
-  expect(screen.getByRole("button", { name: "Invited", pressed: true })).toBeVisible();
-  expect(screen.getByRole("button", { name: "Accepted", pressed: true })).toBeVisible();
+  for (const name of ["Moderator", "Member", "Pending"])
+    expect(screen.getByRole("button", { name, pressed: true })).toBeVisible();
   fireEvent.click(screen.getByRole("button", { name: "Admin", pressed: false }));
   expect(
     await screen.findByRole("link", { name: `Open group: ${groupRecord.name}` }),
   ).toBeVisible();
-  expect(reads.map((url) => url.searchParams.get("roles"))).toContain("invited,accepted");
+  expect(reads.map((url) => url.searchParams.get("roles"))).toContain("moderator,member,pending");
   expect(
     reads.every(
       (url) =>
@@ -325,3 +638,38 @@ it("applies and restores a role chip within the current authorized group source"
     ),
   ).toBe(true);
 });
+
+it.each(["private", "public"] as const)(
+  "changes the sort field and direction in %s Groups",
+  async (section) => {
+    const reads: URL[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string) => {
+        reads.push(new URL(input));
+        return Response.json({ items: [], nextCursor: null });
+      }),
+    );
+    renderGroups(section);
+    await screen.findByText("No groups found");
+    expect(reads[0].searchParams.has("sort")).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Sort by Date" }));
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "Name" }));
+    await waitFor(() => {
+      const params = reads.at(-1)?.searchParams;
+      expect(params?.get("sort")).toBe("name");
+      expect(params?.get("direction")).toBe("desc");
+    });
+    expect(screen.getByRole("button", { name: "Sort by Name" })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Sort ascending" }));
+    await waitFor(() => {
+      const params = reads.at(-1)?.searchParams;
+      expect(params?.get("type")).toBe(section === "private" ? "PRIVATE" : "PUBLIC");
+      expect(params?.get("roles")).toBe(groupRecordMemberRoles.join(","));
+      expect(params?.get("sort")).toBe("name");
+      expect(params?.get("direction")).toBe("asc");
+      expect(params?.has("cursor")).toBe(false);
+    });
+    expect(screen.getByRole("button", { name: "Sort descending" })).toBeVisible();
+  },
+);

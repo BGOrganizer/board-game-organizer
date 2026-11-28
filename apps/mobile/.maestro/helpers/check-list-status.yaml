@@ -6,6 +6,22 @@ appId: com.bgo.boardgameorganizer.dev
     id: list-filter-PLANNING
 - assertNotVisible:
     id: list-filter-TERMINATED
+- runFlow:
+    when:
+      true: ${SECTION !== 'history'}
+    file: check-event-list-controls.yaml
+    env:
+      SECTION: ${SECTION}
+- runFlow:
+    when:
+      true: ${SECTION === 'history'}
+    commands:
+      - assertNotVisible:
+          id: list-filter-participant
+      - assertNotVisible:
+          id: list-sort-field
+      - assertNotVisible:
+          id: list-sort-direction
 - tapOn: ${output.status.filter}
 - eraseText: 120
 - inputText: ${output.status.query}

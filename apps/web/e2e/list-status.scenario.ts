@@ -120,6 +120,101 @@ async function read(
     nextCursor: string | null;
   }>;
 }
+async function checkEventListControls(
+  page: Page,
+  section: "mine" | "available" | "terminated",
+  matches: (url: string, text: string) => boolean,
+) {
+  const main = page.getByRole("main");
+  const roleLabels = [
+    "Admin",
+    it ? "Moderatore" : "Moderator",
+    it ? "Partecipante" : "Participant",
+    it ? "In attesa" : "Pending",
+  ];
+  const count = section === "mine" ? 4 : section === "terminated" ? 3 : 0;
+  const filter = (label: string, pressed: boolean) =>
+    main.getByRole("button", { name: label, exact: true, pressed });
+  for (const [index, label] of roleLabels.entries()) {
+    if (index < count) await expect(filter(label, true)).toBeVisible();
+    else {
+      await expect(filter(label, true)).toHaveCount(0);
+      await expect(filter(label, false)).toHaveCount(0);
+    }
+  }
+
+  const initial = section === "terminated" ? "desc" : "asc";
+  const reversed = initial === "asc" ? "desc" : "asc";
+  const sortBy = it ? "Ordina per" : "Sort by";
+  const labels = { date: it ? "Data" : "Date", name: it ? "Nome" : "Name" };
+  const ascending = it ? "Ordina in ordine crescente" : "Sort ascending";
+  const descending = it ? "Ordina in ordine decrescente" : "Sort descending";
+  const sort = (field: keyof typeof labels) =>
+    main.getByRole("button", { name: `${sortBy} ${labels[field]}`, exact: true });
+  const reverse = (direction: "asc" | "desc") =>
+    main.getByRole("button", {
+      name: direction === "asc" ? descending : ascending,
+      exact: true,
+    });
+  const verifySort = async (
+    field: keyof typeof labels,
+    direction: "asc" | "desc",
+    action: () => Promise<void>,
+  ) => {
+    const result = page.waitForResponse((response) => {
+      if (!matches(response.url(), query)) return false;
+      const { searchParams } = new URL(response.url());
+      return (
+        !searchParams.has("cursor") &&
+        searchParams.get("sort") === field &&
+        searchParams.get("direction") === direction
+      );
+    });
+    await action();
+    const response = await result;
+    expect(response.ok()).toBe(true);
+    const { items } = (await response.json()) as { items: PlannedEventResponse[] };
+    expect(items.length).toBeGreaterThan(0);
+    if (field === "name") {
+      const names = items.map((row) => row.name);
+      const expected = [...names].sort((first, second) =>
+        Buffer.from(first).compare(Buffer.from(second)),
+      );
+      expect(names).toEqual(direction === "asc" ? expected : expected.reverse());
+    }
+    await expect(
+      main
+        .getByRole("list", { name: it ? "Eventi" : "Events", exact: true })
+        .getByRole("listitem")
+        .first()
+        .getByRole("link", { name: it ? /^Apri evento:/ : /^Open event:/ }),
+    ).toHaveAttribute("href", `/events/${items[0].id}`);
+  };
+  await expect(reverse(initial)).toBeVisible();
+  await sort("date").click();
+  await verifySort("name", initial, () =>
+    page.getByRole("menuitemradio", { name: labels.name, exact: true }).click(),
+  );
+  await verifySort("name", reversed, () => reverse(initial).click());
+  await sort("name").click();
+  await verifySort("date", reversed, () =>
+    page.getByRole("menuitemradio", { name: labels.date, exact: true }).click(),
+  );
+  await reverse(reversed).click();
+
+  const roles = roleLabels.slice(0, count);
+  if (!roles.length) return;
+  const cleared = page.waitForResponse(
+    (response) =>
+      matches(response.url(), query) && new URL(response.url()).searchParams.get("roles") === "",
+  );
+  for (const label of roles) await filter(label, true).click();
+  expect((await cleared).ok()).toBe(true);
+  await expect(
+    main.getByText(it ? "Nessun evento trovato" : "No events found", { exact: true }),
+  ).toBeVisible();
+  for (const label of roles) await filter(label, false).click();
+}
 for (const width of [390, 1280])
   for (const current of cases)
     test(`real ${current.section} sections, filtering and retry ${locale}/${width}`, async ({
@@ -229,6 +324,14 @@ for (const width of [390, 1280])
       await page.keyboard.press("Escape");
       await expect(sectionPopover).toHaveCount(0);
       const filter = main.getByRole("searchbox", { name: labels.filter, exact: true });
+      const ordering = main.getByRole("button", { name: /^(Sort by|Ordina per) / });
+      const searchBack = main.getByRole("button", { name: it ? "Indietro" : "Back", exact: true });
+      if (current.resource === "events") {
+        await expect(ordering).toBeVisible();
+        await expect(
+          main.getByRole("button", { name: it ? "Partecipante" : "Participant", pressed: true }),
+        ).toHaveCount(0);
+      }
       const matches = (url: string, text: string) => {
         const parsed = new URL(url);
         return (
@@ -243,18 +346,43 @@ for (const width of [390, 1280])
       };
       const received = page.waitForResponse((response) => matches(response.url(), query));
       await filter.fill(query);
-      expect((await received).ok()).toBe(true);
+      if (current.resource === "events") {
+        await expect(searchBack).toBeVisible();
+        await expect(ordering).toBeVisible();
+        await expect(
+          main.getByRole("tab", { name: labels[current.section], exact: true }),
+        ).toHaveCount(0);
+      }
+      const initialResponse = await received;
+      expect(initialResponse.ok()).toBe(true);
+      const initialOrder = new URL(initialResponse.url()).searchParams;
+      if (current.resource === "events") {
+        expect(initialOrder.get("sort")).toBe("date");
+        expect(initialOrder.get("direction")).toBe(
+          current.section === "terminated" ? "desc" : "asc",
+        );
+      } else {
+        expect(initialOrder.has("sort")).toBe(false);
+        expect(initialOrder.has("direction")).toBe(false);
+      }
       const href =
         current.resource === "events"
           ? `/events/${current.fixture.id}`
           : `/events/${input.history.eventId}/tables/${input.history.id}`;
       const link = main.locator(`a[href="${href}"]`);
       await expect(link).toBeVisible();
-      await expect(main.locator("[aria-pressed]")).toHaveCount(0);
+      if (current.section === "history") {
+        await expect(main.locator("[aria-pressed]")).toHaveCount(0);
+        await expect(main.getByRole("button", { name: /^(Sort by|Ordina per) / })).toHaveCount(0);
+      } else {
+        await checkEventListControls(page, current.section, matches);
+        await expect(link).toBeVisible();
+      }
       if (current.section === "mine") {
         const source = rows.items.find((row) => row.id === current.fixture.id);
         const confirmed = source?.cardSummary?.tables.filter(
-          (table) => table.myParticipation === "CONFIRMED",
+          (table) =>
+            table.confirmed && (table.myParticipation === "CONFIRMED" || table.myDemonstrator),
         );
         if (source?.status === "CONFIRMED" && confirmed?.length) {
           const card = main.getByRole("listitem").filter({ has: link });
@@ -262,10 +390,9 @@ for (const width of [390, 1280])
             .getByRole("button", { name: it ? "Confermata" : "Confirmed", exact: true })
             .click();
           const popup = page.getByRole("dialog");
-          const heading = popup.getByText(
-            it ? "Tavoli in cui sei confermato:" : "Tables where you are confirmed:",
-            { exact: true },
-          );
+          await expect(popup.getByText(it ? "Data e Ora:" : "Date and time:")).toBeVisible();
+          await expect(popup.getByText(it ? "Luogo:" : "Location:")).toBeVisible();
+          const heading = popup.getByText(it ? "Tavoli:" : "Tables:", { exact: true });
           await expect(heading).toBeVisible();
           await expect(
             heading.locator("xpath=following-sibling::ul[1]").getByRole("listitem"),
@@ -291,6 +418,9 @@ for (const width of [390, 1280])
           exact: true,
         });
         await expect(popup).toBeVisible();
+        await expect(popup.getByText(it ? "Data e Ora:" : "Date and time:")).toBeVisible();
+        await expect(popup.getByText(it ? "Luogo:" : "Location:")).toBeVisible();
+        await expect(popup.getByText(it ? "Tavoli:" : "Tables:", { exact: true })).toHaveCount(0);
         expect(await popup.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
         const summary = rows.items.find((row) => row.id === current.fixture.id)?.cardSummary;
         if (!summary) throw new Error("Actual terminated Event summary required");
@@ -314,33 +444,77 @@ for (const width of [390, 1280])
             await expect(line.locator(".lucide-trophy.text-warning-soft-foreground")).toBeVisible();
         }
         await page.keyboard.press("Escape");
+        await link.click();
+        const identity = page.getByTestId("record-identity-card");
+        await expect(
+          identity.getByRole("heading", { name: current.fixture.name, exact: true }),
+        ).toBeVisible();
+        await identity
+          .getByRole("button", { name: it ? "Terminata" : "Terminated", exact: true })
+          .click();
+        await expect(popup.getByText(it ? "Data e Ora:" : "Date and time:")).toBeVisible();
+        await expect(popup.getByText(it ? "Luogo:" : "Location:")).toBeVisible();
+        await page.keyboard.press("Escape");
+        await page.goBack();
       }
       if (current.section === "history") {
         await filter.fill(current.fixture.name);
         const card = main.getByRole("listitem").filter({ has: link });
-        for (const prefix of it
-          ? ["Date e Orari", "Luoghi", "Giochi da tavolo"]
-          : ["Dates and times", "Locations", "Board games"])
+        const state = it ? "Terminata" : "Terminated";
+        for (const panel of [card, main]) {
+          for (const prefix of it
+            ? ["Date e Orari", "Luoghi", "Giochi da tavolo"]
+            : ["Dates and times", "Locations", "Board games"])
+            await expect(
+              panel.getByRole("button", {
+                name: `${prefix}: ${current.fixture.name}`,
+                exact: true,
+              }),
+            ).toHaveCount(0);
+          const roles = it ? "Ruoli e partecipazione" : "Roles and participation";
+          await panel.getByRole("button", { name: roles, exact: true }).click();
           await expect(
-            card.getByRole("button", { name: `${prefix}: ${current.fixture.name}`, exact: true }),
+            page
+              .getByRole("dialog", { name: roles, exact: true })
+              .getByText(
+                it ? "In questo tavolo, hai i seguenti ruoli:" : "Your roles at this table:",
+                { exact: true },
+              ),
           ).toBeVisible();
-        await card
-          .getByRole("button", { name: it ? "Terminata" : "Terminated", exact: true })
-          .click();
-        const popup = page.getByRole("dialog", {
-          name: it ? "Terminata" : "Terminated",
-          exact: true,
-        });
-        await expect(popup).toBeVisible();
-        const winners = popup.getByText(input.history.winnerHandles.join(", "), { exact: true });
-        await expect(winners).toBeVisible();
-        expect(await popup.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
-        await expect(winners.locator(".lucide-trophy.text-warning-soft-foreground")).toBeVisible();
-        for (const text of it
-          ? ["Giocatori minimi", "Giocatori massimi", "Lista d'attesa"]
-          : ["Minimum players", "Maximum players", "Waiting list"])
-          await expect(popup.getByText(text, { exact: true })).toHaveCount(0);
-        await page.keyboard.press("Escape");
+          await page.keyboard.press("Escape");
+          await panel.getByRole("button", { name: state, exact: true }).click();
+          const popup = page.getByRole("dialog", { name: state, exact: true });
+          await expect(popup).toBeVisible();
+          await expect(
+            popup.getByText(it ? "La partita è terminata." : "The game has ended.", {
+              exact: true,
+            }),
+          ).toBeVisible();
+          const heading = popup.getByText(
+            input.history.winnerHandles.length === 1
+              ? it
+                ? "Vincitore"
+                : "Winner"
+              : it
+                ? "Vincitori"
+                : "Winners",
+            { exact: true },
+          );
+          await expect(
+            heading.locator(".lucide-trophy.text-warning-soft-foreground"),
+          ).toBeVisible();
+          await expect(popup.getByRole("listitem")).toHaveText(input.history.winnerHandles);
+          expect(await popup.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(
+            true,
+          );
+          for (const text of it
+            ? ["Giocatori minimi", "Giocatori massimi", "Lista d'attesa"]
+            : ["Minimum players", "Maximum players", "Waiting list"])
+            await expect(popup.getByText(text, { exact: true })).toHaveCount(0);
+          await page.keyboard.press("Escape");
+          if (panel === card) await link.click();
+        }
+        await page.goBack();
       }
       const emptyText = it
         ? current.resource === "events"
@@ -381,6 +555,14 @@ for (const width of [390, 1280])
       await expect(main.getByText(emptyText, { exact: true })).toBeVisible();
       await filter.fill(query);
       await expect(link).toBeVisible();
+      if (current.resource === "events") {
+        await searchBack.click();
+        await expect(filter).toHaveValue("");
+        await expect(ordering).toBeVisible();
+        await expect(
+          main.getByRole("tab", { name: labels[current.section], exact: true, selected: true }),
+        ).toBeVisible();
+      }
       expect(writes).toEqual([]);
       expect(await main.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
     });

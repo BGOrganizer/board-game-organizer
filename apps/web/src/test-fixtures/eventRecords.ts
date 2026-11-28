@@ -1,4 +1,5 @@
 import type {
+  BggSearchItem,
   GroupRecordResponse,
   PlannedEventResponse,
   PlannedTableResponse,
@@ -84,6 +85,19 @@ export const plannedTable: PlannedTableResponse = {
   ratingChanges: [],
   groupRatingChanges: [],
   winners: [],
+};
+export const chessMetadata: BggSearchItem = {
+  id: 1,
+  name: "Chess",
+  imageUrl: null,
+  year: 1475,
+  average: 7.3,
+  rank: 550,
+  minPlayMinutes: 30,
+  maxPlayMinutes: 60,
+  suggestedPlayers: { totalVotes: 0, rows: [], fetchedAt: "2030-01-01T00:00:00Z" },
+  averageWeight: 3.6,
+  categories: ["Abstract Strategy"],
 };
 export const groupRecord: GroupRecordResponse = {
   id: optionId,

@@ -107,6 +107,23 @@ runs:
         distribution: temurin
         java-version: '17'
 
+    - name: Prepare Android CMake
+      shell: bash
+      run: |
+        # Native modules expect AGP's default CMake. Install it before Gradle configures them.
+        cmake_version=3.22.1
+        cmake="$ANDROID_HOME/cmake/$cmake_version/bin/cmake"
+        if "$cmake" --version 2>/dev/null; then exit 0; fi
+        for delay in 0 2 5; do
+          sleep "$delay"
+          if timeout 120s "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            --sdk_root="$ANDROID_HOME" --install "cmake;$cmake_version" && "$cmake" --version; then
+            exit 0
+          fi
+        done
+        echo "::error::Could not install Android CMake $cmake_version"
+        exit 1
+
     - name: ⚡ Install EAS CLI
       shell: bash
       run: bun add --global eas-cli@27.7.2

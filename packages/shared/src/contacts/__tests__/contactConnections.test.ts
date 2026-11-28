@@ -1,5 +1,9 @@
 import { expect, it } from "vitest";
-import { contactConnections, hasContactRelationship } from "../contactConnections";
+import {
+  contactConnections,
+  contactDiscoveryFilter,
+  hasContactRelationship,
+} from "../contactConnections";
 import type { ContactUser, RelationshipRow } from "../hooks/useContacts";
 
 const user = (id: string, extra: Partial<ContactUser> = {}): ContactUser => ({
@@ -99,4 +103,36 @@ it("preserves canonical precedence and blocks when higher-priority profiles are 
     ["blocked", ["blocked-visible"]],
     ["device", ["device"]],
   ]);
+});
+
+it("keeps canonical relationships and outstanding requests out of discovery while cached pages reconcile", () => {
+  const candidates = [
+    user("unrelated"),
+    user("payload-friend", { isFriend: true }),
+    user("payload-follow", { isFollowing: true }),
+    user("payload-follower", { isFollower: true }),
+    user("payload-blocked", { blockedByMe: true }),
+    user("payload-blocker", { blockedMe: true }),
+    user("cached-friend"),
+    user("cached-follow"),
+    user("cached-follower"),
+    user("cached-blocked"),
+    user("incoming"),
+    user("outgoing"),
+  ];
+  expect(
+    candidates.filter(
+      contactDiscoveryFilter(
+        {
+          friends: new Set(["cached-friend"]),
+          following: new Set(["cached-follow"]),
+          followers: new Set(["cached-follower"]),
+          blocked: new Set(["cached-blocked"]),
+        },
+        [row(user("incoming")), row(null)],
+        [row(user("outgoing"))],
+      ),
+    ),
+  ).toEqual([candidates[0]]);
+  expect([user("outgoing")].filter(contactDiscoveryFilter(undefined, [], []))).toHaveLength(1);
 });

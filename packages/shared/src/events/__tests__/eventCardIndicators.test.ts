@@ -1,6 +1,7 @@
 import type { PlannedTableResponse, TableCardSummary } from "@board-game-organizer/schemas";
 import { describe, expect, it } from "vitest";
 import {
+  confirmedEventCardTables,
   eventCardRoles,
   eventCardState,
   tableCardRoles,
@@ -295,4 +296,25 @@ describe("personal confirmation colors", () => {
       tableCardState(table({ cardSummary: summary({ myParticipation: "CONFIRMED" }) }), "actor"),
     ).toBe("CONFIRMED");
   });
+});
+
+it("lists each included own seat or demonstration once and only for confirmed Events", () => {
+  const seatAndDemo = summary({ myParticipation: "CONFIRMED", myDemonstrator: true });
+  const demo = summary({ tableId: "demo", myDemonstrator: true });
+  const oldSeat = summary({ tableId: "old-seat", myParticipation: "CONFIRMED" });
+  const cardSummary = {
+    ready: true,
+    tables: [
+      seatAndDemo,
+      demo,
+      oldSeat,
+      summary({ tableId: "excluded", confirmed: false, myDemonstrator: true }),
+      summary({ tableId: "unknown", myParticipation: "EXCLUDED" }),
+      summary({ tableId: "other", myDemonstrator: false }),
+    ],
+  };
+  expect(confirmedEventCardTables(event({ cardSummary }))).toEqual([seatAndDemo, demo, oldSeat]);
+  expect(confirmedEventCardTables(event({ status: "TERMINATED", cardSummary }))).toEqual([]);
+  expect(confirmedEventCardTables(event({ status: "PLANNING", cardSummary }))).toEqual([]);
+  expect(confirmedEventCardTables(event())).toEqual([]);
 });

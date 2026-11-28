@@ -181,6 +181,22 @@ it("opens the contextual Events tab directly without the main Events destination
   );
   mount("events");
   await screen.findByRole("tab", { name: "Events", selected: true });
+  const search = screen.getByRole("searchbox", { name: "Filter" });
+  expect(screen.queryByRole("button", { name: "Planning", pressed: true })).toBeNull();
+  expect(screen.getByRole("button", { name: "Sort by Date" })).toBeVisible();
+  fireEvent.focus(search);
+  expect(screen.queryByRole("tablist", { name: "Group sections" })).toBeNull();
+  expect(screen.queryByRole("link", { name: "Back" })).toBeNull();
+  expect(screen.queryByRole("heading", { name: groupRecord.name })).toBeNull();
+  expect(screen.getByRole("button", { name: "Planning", pressed: true })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Sort by Date" }));
+  fireEvent.click(await screen.findByRole("menuitemradio", { name: "Name" }));
+  expect(await screen.findByRole("button", { name: "Sort by Name" })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  expect(screen.getByRole("button", { name: "Sort by Name" })).toBeVisible();
+  expect(screen.getByRole("searchbox", { name: "Filter" })).toBe(search);
+  expect(screen.getByRole("tab", { name: "Events", selected: true })).toBeVisible();
+  expect(screen.getByRole("link", { name: "Back" })).toBeVisible();
 });
 it("keeps accepted member departure in the danger page action and preserves explicit confirmation", async () => {
   let current = {

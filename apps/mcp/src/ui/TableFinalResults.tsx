@@ -4,8 +4,10 @@ import {
   resultsSchema,
   tableRecordSchema,
 } from "@board-game-organizer/schemas";
+import type { App } from "@modelcontextprotocol/ext-apps";
 import { z } from "zod";
 import { EventFinalResults } from "@/components/events/EventFinalResults";
+import { McpGameMetadata } from "./McpGameMetadata";
 
 const finalResults = z.object({
   eventStatus: z.literal("TERMINATED"),
@@ -31,7 +33,12 @@ const finalResults = z.object({
   gamesDetail: z.array(bggSearchItemSchema),
 });
 
-export function TableFinalResults({ data }: { data: unknown }) {
+export function TableFinalResults({ app, data }: { app: App; data: unknown }) {
   const parsed = finalResults.safeParse(data);
-  return parsed.success ? <EventFinalResults table={parsed.data} /> : null;
+  return parsed.success ? (
+    <EventFinalResults
+      table={parsed.data}
+      renderGameMetadata={(game) => <McpGameMetadata app={app} game={game} visible />}
+    />
+  ) : null;
 }

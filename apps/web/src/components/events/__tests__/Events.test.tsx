@@ -226,10 +226,12 @@ it.each([
         {resource === "events" ? <EventList groupId={groupRecord.id} /> : <TableList />}
       </QueryClientProvider>,
     );
-    const list = within(
-      screen.getByRole("list", { name: resource === "events" ? "Events" : "History" }),
-    );
-    expect(await list.findByRole("link")).toBeVisible();
+    const name = resource === "events" ? "Events" : "History";
+    const list = await waitFor(() => {
+      const current = within(screen.getByRole("list", { name }));
+      expect(current.getByRole("link")).toBeVisible();
+      return current;
+    });
     expect(cursorReads).toEqual([]);
 
     fireEvent.wheel(window);
@@ -256,7 +258,7 @@ it.each([
       await client.refetchQueries({ queryKey: key, exact: true });
     });
     expect(await screen.findByText(inaccessible)).toBeVisible();
-    expect(list.queryByRole("link")).toBeNull();
+    expect(within(screen.getByRole("list", { name })).queryByRole("link")).toBeNull();
     client.clear();
   },
 );

@@ -1,6 +1,7 @@
 import { Typography } from "heroui-native/text";
 import type { LucideIcon } from "lucide-react-native";
 import { View } from "react-native";
+import { HeaderBackButton } from "@/components/common/layout/HeaderBackButton";
 import { useT } from "@/lib/i18n";
 import { FilterChips } from "./FilterChips";
 import { SearchHelpLabel } from "./SearchHelpLabel";
@@ -16,6 +17,7 @@ export function ListSearch<Filter extends string>({
   options,
   selected,
   onToggle,
+  headerSearch,
 }: {
   query: string;
   onQueryChange: (value: string) => void;
@@ -26,11 +28,12 @@ export function ListSearch<Filter extends string>({
   options: readonly { key: Filter; label: string; icon: LucideIcon }[];
   selected: readonly Filter[];
   onToggle: (key: Filter) => void;
+  headerSearch?: { active: boolean; open: () => void; close: () => void };
 }) {
   const t = useT();
   const showGuidance = mode === "search" && showSearchGuidance;
   return (
-    <View style={{ gap: 12, marginBottom: 8 }}>
+    <View style={headerSearch ? { gap: 8 } : { gap: 12, marginBottom: 8 }}>
       {showGuidance ? (
         <SearchHelpLabel label={label} help={t("Type at least 4 characters to search")} />
       ) : null}
@@ -42,8 +45,15 @@ export function ListSearch<Filter extends string>({
         clearLabel={mode === "filter" ? t("Clear filter") : undefined}
         testID="list-search-input"
         maxLength={120}
+        onFocus={headerSearch?.open}
+        leadingAction={
+          headerSearch?.active ? <HeaderBackButton onPress={headerSearch.close} /> : undefined
+        }
+        inputStyle={headerSearch?.active ? { flex: 1 } : undefined}
       />
-      <FilterChips options={options} selected={selected} onToggle={onToggle} />
+      {!headerSearch || headerSearch.active ? (
+        <FilterChips options={options} selected={selected} onToggle={onToggle} />
+      ) : null}
       {showGuidance && query.trim().length > 0 && query.trim().length < 4 ? (
         <Typography className="text-sm text-muted">
           {t("Enter at least 4 characters to search")}

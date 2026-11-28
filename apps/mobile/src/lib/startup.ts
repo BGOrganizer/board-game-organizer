@@ -1,4 +1,4 @@
-import { groupRecordMemberRoles } from "@board-game-organizer/schemas";
+import { eventListDefaultOrder, groupRecordMemberRoles } from "@board-game-organizer/schemas";
 import {
   developmentInviteNativePath,
   eventRecordKeys,
@@ -79,7 +79,8 @@ export function isStartupDestinationSettled(
     return settled(client, eventRecordKeys.tables(o, null));
   if (pathname === "/groups")
     return settled(client, groupRecordKeys.list(o, "mine", "", groupRecordMemberRoles, "PRIVATE"));
-  if (pathname === "/events") return settled(client, eventRecordKeys.list(o));
+  if (pathname === "/events")
+    return settled(client, eventRecordKeys.list(o, { order: eventListDefaultOrder.mine }));
   if (pathname === "/contacts")
     return startupRelationshipTypes.every((type) =>
       settled(client, relationshipListKey(apiUrl, userId, type)),
@@ -95,6 +96,6 @@ export function isStartupEssentialsSettled(client: QueryClient, apiUrl: string, 
     settled(client, ["profile", apiUrl, userId]) &&
     settled(client, eventRecordKeys.tables(o, null)) &&
     settled(client, groupRecordKeys.list(o, "mine", "", groupRecordMemberRoles, "PRIVATE")) &&
-    settled(client, eventRecordKeys.list(o))
+    settled(client, eventRecordKeys.list(o, { order: eventListDefaultOrder.mine }))
   );
 }

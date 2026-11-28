@@ -360,7 +360,7 @@ test("native help and legends wait for visible portal content without dropping a
   }
   const contacts = journey("05-contacts-follow-block");
   const searchGuide =
-    "Find people on Board Game Organizer by entering their name or email address.";
+    "Find BGO users by first name, last name, email, or username, including people outside your contacts.";
   assert(contains(contacts, "tapOn", "Contact search help"));
   assert(contains(contacts, "extendedWaitUntil", { visible: searchGuide, timeout: 30000 }));
   assert(contains(contacts, "assertVisible", "Type at least 4 characters to search"));
@@ -421,7 +421,7 @@ test("native device verification uses Clerk development fixtures, without disabl
   );
   for (const [name, expected] of [
     ["02-login", 1],
-    ["05-contacts-follow-block", 4],
+    ["05-contacts-follow-block", 6],
     ["07-reauth-after-logout", 1],
     ["09-group-invitations", 3],
   ]) {
@@ -558,18 +558,21 @@ test("native social flows select the search input and named actions, never the h
     assert(!contains(steps, "tapOn", ".*[Ss]earch.*users.*"));
     assert(!JSON.stringify(steps).includes("respond-accept-friend-request-btn"));
   }
-  const input = /^Search users by name or email$/;
-  assert.match("Search users by name or email", input);
-  assert.doesNotMatch("Search users by name or email: Search help", input);
+  const input = /^Search users by name, email, or username$/;
+  assert.match("Search users by name, email, or username", input);
+  assert.doesNotMatch("Search users by name, email, or username: Search help", input);
 });
 test("contact searches wait for API results, not an already-visible address-book duplicate", () => {
   const steps = nativeSteps("helpers/contact-search.yaml");
   const target = "${CONTACT_ACTIONS}";
   assert(contains(steps, "extendedWaitUntil", { visible: target, timeout: 90000 }));
   assert(contains(steps, "assertVisible", target));
-  assert(contains(steps, "assertNotVisible", "Contacts help"));
+  const activeSearch = steps.findIndex((step) => step.assertNotVisible === "Contact search help");
+  const results = steps.findIndex((step) => step.extendedWaitUntil?.visible === target);
+  assert(activeSearch >= 0 && activeSearch < results);
+  assert(contains(steps.slice(activeSearch, results), "assertVisible", "Back"));
   assert(contains(steps, "tapOn", { id: "contact-search-input" }));
-  assert(!contains(steps, "tapOn", "^Search users by name or email$"));
+  assert(!contains(steps, "tapOn", "^Search users by name, email, or username$"));
   const cleared = steps.findIndex((step) => step.assertNotVisible === "Clear search");
   const typed = steps.findIndex((step) => step.inputText === "${CONTACT_EMAIL}");
   assert(cleared >= 0 && cleared < typed);
@@ -1114,13 +1117,13 @@ test("native group invitations settle confirmations, handle permission and verif
       "utf8",
     ),
   )[1].toJSON();
-  const reset = setup.find((step) => step.runFlow?.when?.visible === "^Remove friend$");
-  assert.deepEqual(reset.runFlow.commands, [
-    { tapOn: "^Remove friend$" },
-    { extendedWaitUntil: { visible: { id: "confirm-unfriend-btn" }, timeout: 30000 } },
-    { tapOn: { id: "confirm-unfriend-btn" } },
-    { extendedWaitUntil: { notVisible: { id: "confirmation-dialog" }, timeout: 30000 } },
-  ]);
+  assert(
+    setup.some(
+      (step) =>
+        step.runFlow?.file === "contact-search.yaml" &&
+        step.runFlow.env.CONTACT_ACTIONS === "^Actions: E2E Target$",
+    ),
+  );
   const decisions = setup.filter((step) => step.runFlow?.file === "contact-action.yaml");
   assert.deepEqual(
     decisions.map((step) => step.runFlow.env.ACTION_LABEL),
@@ -1240,7 +1243,7 @@ test("native journeys never assert or tap disappearing feedback; durable inbox c
   assert(contains(journey("09-group-invitations"), "tapOn", "New group invitation"));
 });
 
-test("device contact sharing scrolls the actionable row and returns to the separate Search tab", () => {
+test("device contact sharing scrolls the actionable row and preserves the combined Search tab", () => {
   const steps = nativeSteps("helpers/contacts-permissions.yaml");
   assert(
     contains(steps, "scrollUntilVisible", {
@@ -1263,7 +1266,8 @@ test("device contact sharing scrolls the actionable row and returns to the separ
     (step, index) => index > invite && step.openLink === "bgo-dev:///contacts?tab=search",
   );
   assert(search > invite);
-  assert(contains(steps.slice(0, invite), "openLink", "bgo-dev:///contacts?tab=device"));
+  assert(contains(steps.slice(0, invite), "openLink", "bgo-dev:///contacts?tab=search"));
+  assert(contains(steps.slice(search), "assertVisible", "Contact search help"));
   assert.deepEqual(steps.at(-1), { assertVisible: { id: "contact-search-input" } });
 });
 

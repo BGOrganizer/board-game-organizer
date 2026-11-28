@@ -1,4 +1,4 @@
-import { groupRecordMemberRoles } from "@board-game-organizer/schemas";
+import { eventListDefaultOrder, groupRecordMemberRoles } from "@board-game-organizer/schemas";
 import {
   bggAccountQuery,
   eventRecordQuery,
@@ -94,7 +94,7 @@ it("warms priority first pages then other read families and two bounded event de
   for (const key of [
     recordTablesQuery(o, null).queryKey,
     groupRecordsPageQuery(o, "mine", "", groupRecordMemberRoles, "PRIVATE").queryKey,
-    eventRecordsQuery(o).queryKey,
+    eventRecordsQuery(o, { order: eventListDefaultOrder.mine }).queryKey,
     favoriteLocationsQuery(o).queryKey,
     bggAccountQuery(o).queryKey,
     notificationListKey(o, 20),

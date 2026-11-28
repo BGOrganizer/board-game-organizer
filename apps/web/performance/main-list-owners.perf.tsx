@@ -1,3 +1,4 @@
+import { groupRecordKeys } from "@board-game-organizer/shared";
 import { useAppStore } from "@board-game-organizer/store";
 import { configure, measureRenders } from "@callstack/reassure-measure";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -12,9 +13,11 @@ import {
 import { afterAll, afterEach, expect, test, vi } from "vitest";
 import CommunityPage from "@/app/(tabs)/community/page";
 import EventsPage from "@/app/(tabs)/events/page";
+import GroupsLayout from "@/app/(tabs)/groups/layout";
 import GroupsPage from "@/app/(tabs)/groups/page";
 import GroupSearchPage from "@/app/(tabs)/groups/search/page";
 import TablesPage from "@/app/(tabs)/tables/page";
+import { GroupSearchDistance } from "@/components/groups/GroupSearchDistance";
 import { installBrowserIntersections } from "@/test-fixtures/browserIntersections";
 import { renderWithI18n } from "@/test-utils";
 import { assertRenderMeasurement } from "./assertRenderMeasurement";
@@ -23,7 +26,12 @@ import { type MainListOwner, seedMainListOwners } from "./mainListOwnerFixtures"
 const boundary = vi.hoisted(() => {
   const previousApiUrl = process.env.NEXT_PUBLIC_API_URL;
   process.env.NEXT_PUBLIC_API_URL = "https://main-owner-performance.test";
-  return { previousApiUrl, getToken: vi.fn(async () => "main-owner-token"), push: vi.fn() };
+  return {
+    previousApiUrl,
+    getToken: vi.fn(async () => "main-owner-token"),
+    push: vi.fn(),
+    pathname: "/groups",
+  };
 });
 vi.mock("@clerk/nextjs", () => ({
   useAuth: () => ({
@@ -35,6 +43,7 @@ vi.mock("@clerk/nextjs", () => ({
 }));
 vi.mock("next/navigation", () => ({
   useRouter: () => boundary,
+  usePathname: () => boundary.pathname,
   useSearchParams: () => new URLSearchParams(),
 }));
 const options = {
@@ -58,7 +67,15 @@ function MainOwnerJourney({ events }: { events: ReactElement }) {
       selectOwner = undefined;
     };
   }, []);
-  return owner === "groups" ? <GroupsPage /> : owner === "events" ? events : <TablesPage />;
+  return owner === "groups" ? (
+    <GroupsLayout>
+      <GroupsPage />
+    </GroupsLayout>
+  ) : owner === "events" ? (
+    events
+  ) : (
+    <TablesPage />
+  );
 }
 function current() {
   if (!client || !fixture) throw new Error("Expected a measured canonical owner cache");
@@ -69,6 +86,13 @@ function renderOwners(ui: ReactElement) {
     defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { retry: false } },
   });
   fixture = seedMainListOwners(client, options);
+  client.setQueryData(
+    groupRecordKeys.list(options, "public", "", undefined, undefined, undefined, { friends: true }),
+    {
+      pages: [{ items: [], nextCursor: null }],
+      pageParams: [""],
+    },
+  );
   useAppStore.setState({ communityViews: {} });
   boundary.push.mockClear();
   installBrowserIntersections();
@@ -223,19 +247,84 @@ test(communityScenario, async () => {
   assertRenderMeasurement(result, communityScenario);
 });
 
-const searchScenario = "Group search route: explain the discovery filter before a valid query";
+const searchScenario = "Group search route: reset to cached Friends discovery";
 test(searchScenario, async () => {
-  const result = await measureRenders(<GroupSearchPage />, {
+  boundary.pathname = "/groups/search";
+  try {
+    const result = await measureRenders(
+      <GroupsLayout>
+        <GroupSearchPage />
+      </GroupsLayout>,
+      {
+        scenario: async () => {
+          expect(screen.getByRole("link", { name: "Back" })).toHaveAttribute("href", "/groups");
+          expect(screen.getByRole("tab", { name: "Search" })).toHaveAttribute(
+            "aria-selected",
+            "true",
+          );
+          expect(screen.queryByRole("button", { name: "Friends" })).toBeNull();
+          const search = screen.getByRole("searchbox", { name: "Search groups" });
+          fireEvent.focus(search);
+          expect(screen.getByRole("button", { name: "Friends", pressed: true })).toBeVisible();
+          expect(screen.queryByRole("tab", { name: "Search" })).toBeNull();
+          fireEvent.click(screen.getByRole("button", { name: "Back" }));
+          expect(search).toHaveValue("");
+          expect(screen.queryByRole("button", { name: "Friends" })).toBeNull();
+          expect(current().fixture.reads).toEqual([]);
+        },
+      },
+    );
+    assertRenderMeasurement(result, searchScenario);
+  } finally {
+    boundary.pathname = "/groups";
+  }
+});
+
+const invalidDiscoveryScenario =
+  "Group search route: explain the discovery filter before a valid query";
+test(invalidDiscoveryScenario, async () => {
+  boundary.pathname = "/groups/search";
+  try {
+    const result = await measureRenders(
+      <GroupsLayout>
+        <GroupSearchPage />
+      </GroupsLayout>,
+      {
+        scenario: async () => {
+          expect(screen.getByRole("link", { name: "Back" })).toHaveAttribute("href", "/groups");
+          expect(screen.getByRole("tab", { name: "Search", selected: true })).toBeVisible();
+          const search = screen.getByRole("searchbox", { name: "Search groups" });
+          fireEvent.change(search, { target: { value: " " } });
+          expect(screen.getByRole("heading", { name: "Group search" })).toBeVisible();
+          expect(screen.getByText("No public groups with your friends")).toBeVisible();
+          fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
+          expect(search).toHaveValue("");
+          expect(current().fixture.reads).toEqual([]);
+        },
+      },
+    );
+    assertRenderMeasurement(result, invalidDiscoveryScenario);
+  } finally {
+    boundary.pathname = "/groups";
+  }
+});
+
+const distanceScenario = "Group search distance: choose a preset from the anchored menu";
+
+function DistancePicker() {
+  const [radiusKm, setRadiusKm] = useState(25);
+  return <GroupSearchDistance radiusKm={radiusKm} onChange={setRadiusKm} />;
+}
+
+test(distanceScenario, async () => {
+  const result = await measureRenders(<DistancePicker />, {
     scenario: async () => {
-      expect(screen.getByRole("link", { name: "Back" })).toHaveAttribute("href", "/groups");
-      expect(screen.getByRole("tab", { name: "Search" })).toHaveAttribute("aria-selected", "true");
-      const search = screen.getByRole("searchbox", { name: "Search groups" });
-      fireEvent.change(search, { target: { value: "Gam" } });
-      expect(screen.getByText("Enter at least 4 characters to search")).toBeVisible();
-      fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
-      expect(search).toHaveValue("");
-      expect(current().fixture.reads).toEqual([]);
+      fireEvent.click(screen.getByRole("button", { name: "Distance, 25 km" }));
+      await screen.findByRole("dialog", { name: "Distance" });
+      fireEvent.click(screen.getByRole("button", { name: "50 km" }));
+      expect(await screen.findByRole("button", { name: "Distance, 50 km" })).toBeVisible();
+      expect(screen.queryByRole("dialog", { name: "Distance" })).toBeNull();
     },
   });
-  assertRenderMeasurement(result, searchScenario);
+  assertRenderMeasurement(result, distanceScenario);
 });

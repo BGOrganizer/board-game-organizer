@@ -20,9 +20,28 @@ import {
 const invitedUsers = z
   .array(targetUserIdSchema)
   .refine((ids) => new Set(ids).size === ids.length, "Invitations must be unique");
-export const groupRecordListRoles = ["admin", "invited", "accepted"] as const;
-export const groupRecordMemberRoles = groupRecordListRoles;
+export const legacyGroupRecordListRoles = ["admin", "invited", "accepted"] as const;
+export const groupRecordMemberRoles = ["administrator", "moderator", "member", "pending"] as const;
+export const groupRecordListRoles = [
+  ...legacyGroupRecordListRoles,
+  ...groupRecordMemberRoles,
+] as const;
 export type GroupRecordListRole = (typeof groupRecordListRoles)[number];
+
+export const defaultGroupDiscoveryRadiusKm = 25;
+export const groupDiscoveryRadiusPresetsKm = [
+  5,
+  10,
+  defaultGroupDiscoveryRadiusKm,
+  50,
+  100,
+] as const;
+export const groupDiscoveryRadiusInputSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{1,3}$/)
+  .transform(Number)
+  .pipe(z.number().int().min(1).max(100));
 
 // Command validation must not tighten historical approved/proposed revisions.
 const groupRevisionInputSchema = groupRevisionSchema.extend({ name: resourceNameSchema });

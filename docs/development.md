@@ -12,11 +12,18 @@ reserved for the game picker. Existing ownership, privacy and authorization rule
 - **Bound presentation independently from cache.** Keep source paging and virtualized rendering.
   On entry/reentry, expose a bounded cached page/window and reveal more cached pages before fetching.
   Derive only that window, not a full-cache flatten followed by a slice. Preserve cached pages,
-  stable row keys/callbacks, accessibility and loading/error states. Reset-to-top is acceptable when
+  stable row keys/callbacks, accessibility and loading/error states. Web windowed lists retain the
+  latest viewport and commit a viewport-driven render when the visible row range changes.
+  Reset-to-top is acceptable when
   the flow allows it. The mobile game picker exposes eight source items initially, retaining six-row
   render batches and its seven-screen window. It reveals cached chunks on scroll or an accessible
   load-more action, not on an automatic initial `onEndReached`. These are picker-specific budgets,
   not universal constants or fixed-height assumptions.
+- **Compact filter controls.** The shared `FilterChips` component in each client gives Group and Event
+  roles, collection and game picker filters a 28 px visible face. Web coarse pointers and native screens
+  retain a 44 px touch target. Filter groups wrap to fit the available width and expose selection
+  and disabled state through their HeroUI buttons. Group and Event ordering uses the shared platform
+  `ListOrdering` control beneath the filters.
 - **Optimistic feedback for explicit remote actions.** Use the shared scoped journal/intent layer
   on web and native: cancel conflicting reads, project owned cached state or pending intent,
   reconcile the real acknowledgment and roll back only the failed operation. Do not invent consent,

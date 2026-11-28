@@ -1,9 +1,12 @@
 import type {
+  EventListFilterRole,
   EventListStatus,
   EventProposal,
   EventRecord,
   EventVoter,
   GroupRecord,
+  HistoryTableListOrder,
+  RecordListOrder,
   TableRecord,
   TableRegistration,
   User,
@@ -11,21 +14,37 @@ import type {
 import type { ClientSession, Db, Filter } from "mongodb";
 import { COLLECTIONS } from "../db";
 import { ProfileActivitiesRepository } from "../profile/profile-activities.repository";
+import { eventListDate } from "./event-list-date";
 import {
   availableEventExpression,
+  eventListRoleMatch,
   managedEventExpression,
   terminatedEventExpression,
 } from "./event-list-eligibility";
 import { eventPeriodStages } from "./event-periods";
 
-export interface EventRecordPage {
+export interface EventRecordPage extends Partial<RecordListOrder> {
   limit: number;
   cursor?: string;
   query?: string;
   periods?: readonly ("past" | "future")[];
   statuses?: readonly EventListStatus[];
+  roles?: readonly EventListFilterRole[];
   section?: "mine" | "available" | "waiting" | "terminated";
 }
+export interface PersonalTablePage
+  extends Omit<EventRecordPage, "sort" | "direction">,
+    Partial<HistoryTableListOrder> {}
+
+type PersonalTableRow = TableRecord & { listSortValue?: string | number | Date };
+
+export function personalTableCursor(row: PersonalTableRow, sort: PersonalTablePage["sort"]) {
+  const value = row.listSortValue;
+  if (!sort) return `${row.createdAt}|${row.id}`;
+  const cursorValue = value instanceof Date ? value.toISOString() : value;
+  return `${sort}:${cursorValue}|${row.id}`;
+}
+
 export class EventRecordsRepository {
   private events;
   private tables;
@@ -922,7 +941,10 @@ export class EventRecordsRepository {
     ];
   }
   /** Canonical main-list participation; reused by source-scoped notification tab counts. */
-  participationStages(userId: string): Record<string, unknown>[] {
+  participationStages(
+    userId: string,
+    statuses: readonly ("ACCEPTED" | "PENDING")[] = ["PENDING", "ACCEPTED"],
+  ): Record<string, unknown>[] {
     return [
       {
         $lookup: {
@@ -930,7 +952,7 @@ export class EventRecordsRepository {
           localField: "id",
           foreignField: "eventId",
           pipeline: [
-            { $match: { userId, status: { $in: ["PENDING", "ACCEPTED"] } } },
+            { $match: { userId, status: { $in: statuses } } },
             {
               $lookup: {
                 from: COLLECTIONS.EVENT_TABLES,
@@ -998,7 +1020,14 @@ export class EventRecordsRepository {
       ...eventPeriodStages(page.periods, Date.now()),
     ];
     if (!groupId) {
-      pipeline.push(...this.participationStages(userId), {
+      const roles = page.roles;
+      const statuses =
+        roles && page.section === "mine"
+          ? (["PENDING", "ACCEPTED"] as const).filter((status) =>
+              roles.includes(status === "ACCEPTED" ? "participant" : "pending"),
+            )
+          : undefined;
+      pipeline.push(...this.participationStages(userId, statuses), {
         $match:
           page.section === "available"
             ? {
@@ -1018,6 +1047,8 @@ export class EventRecordsRepository {
                   ],
                 },
       });
+      if (roles)
+        pipeline.push({ $match: eventListRoleMatch(userId, roles, page.section === "terminated") });
     }
     if (page.query)
       pipeline.push({
@@ -1025,14 +1056,23 @@ export class EventRecordsRepository {
           name: { $regex: page.query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), $options: "i" },
         },
       });
+    const field = page.sort === "name" ? "name" : page.sort === "date" ? "listDate" : "createdAt";
+    const order = page.direction === "asc" ? 1 : -1;
+    if (field === "listDate") pipeline.push({ $set: { listDate: eventListDate } });
     if (page.cursor) {
-      const [createdAt, id] = page.cursor.split("|");
+      const separator = page.cursor.lastIndexOf("|");
+      const id = page.cursor.slice(separator + 1);
+      const serialized = page.cursor.slice(field === "name" ? 5 : 0, separator);
+      const value = field === "listDate" ? new Date(serialized) : serialized;
+      const after = order === 1 ? "$gt" : "$lt";
       pipeline.push({
-        $match: { $or: [{ createdAt: { $lt: createdAt } }, { createdAt, id: { $lt: id } }] },
+        $match: {
+          $or: [{ [field]: { [after]: value } }, { [field]: value, id: { [after]: id } }],
+        },
       });
     }
     pipeline.push(
-      { $sort: { createdAt: -1, id: -1 } },
+      { $sort: { [field]: order, id: order } },
       { $limit: page.limit + 1 },
       {
         $project: {
@@ -1051,9 +1091,9 @@ export class EventRecordsRepository {
         },
       },
     );
-    return this.events.aggregate<EventRecord>(pipeline, this.opts).toArray();
+    return this.events.aggregate<EventRecord & { listDate?: Date }>(pipeline, this.opts).toArray();
   }
-  async personalTables(userId: string, page: EventRecordPage) {
+  async personalTables(userId: string, page: PersonalTablePage) {
     const pipeline: Record<string, unknown>[] = [
       { $match: { removedAt: { $exists: false } } },
       {
@@ -1137,10 +1177,9 @@ export class EventRecordsRepository {
         : []),
       ...eventPeriodStages(page.periods, Date.now(), "event."),
     ];
-    if (page.query) {
-      const regex = page.query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const number = { $toString: { $add: ["$order", 1] } };
+    if (page.query || page.sort === "name") {
       // Match the projected name after access checks and before cursor/limit, including both app locales.
-      const number = { $toString: { $add: ["$order", 1] } };
       pipeline.push(
         {
           $set: {
@@ -1158,54 +1197,82 @@ export class EventRecordsRepository {
             as: "_titleGames",
           },
         },
-        {
-          $match: {
-            $expr: {
-              $let: {
-                vars: { game: { $ifNull: [{ $arrayElemAt: ["$_titleGames.name", 0] }, ""] } },
-                in: {
-                  $cond: [
-                    { $ne: ["$$game", ""] },
-                    { $regexMatch: { input: "$$game", regex, options: "i" } },
-                    {
-                      $or: [
-                        {
-                          $regexMatch: {
-                            input: { $concat: ["Table #", number] },
-                            regex,
-                            options: "i",
-                          },
+      );
+    }
+    if (page.query) {
+      const regex = page.query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      pipeline.push({
+        $match: {
+          $expr: {
+            $let: {
+              vars: { game: { $ifNull: [{ $arrayElemAt: ["$_titleGames.name", 0] }, ""] } },
+              in: {
+                $cond: [
+                  { $ne: ["$$game", ""] },
+                  { $regexMatch: { input: "$$game", regex, options: "i" } },
+                  {
+                    $or: [
+                      {
+                        $regexMatch: {
+                          input: { $concat: ["Table #", number] },
+                          regex,
+                          options: "i",
                         },
-                        {
-                          $regexMatch: {
-                            input: { $concat: ["Tavolo #", number] },
-                            regex,
-                            options: "i",
-                          },
+                      },
+                      {
+                        $regexMatch: {
+                          input: { $concat: ["Tavolo #", number] },
+                          regex,
+                          options: "i",
                         },
-                      ],
-                    },
-                  ],
-                },
+                      },
+                    ],
+                  },
+                ],
               },
             },
           },
         },
-      );
+      });
     }
-    if (page.cursor) {
-      const [createdAt, id] = page.cursor.split("|");
+    const { sort, direction, cursor } = page;
+    const order = direction === "asc" ? 1 : -1;
+    const field = sort ? "listSortValue" : "createdAt";
+    if (sort) {
+      const fields = {
+        name: {
+          $toLower: {
+            $ifNull: [{ $arrayElemAt: ["$_titleGames.name", 0] }, { $concat: ["Table #", number] }],
+          },
+        },
+        date: { $toDate: { $ifNull: ["$confirmed.startsAt", "$createdAt"] } },
+        participants: { $size: { $ifNull: ["$confirmed.playerIds", []] } },
+      };
+      pipeline.push({ $set: { listSortValue: fields[sort] } });
+    }
+    if (cursor) {
+      const separator = cursor.lastIndexOf("|");
+      const raw = cursor.slice(sort ? sort.length + 1 : 0, separator);
+      const value = sort === "date" ? new Date(raw) : sort === "participants" ? Number(raw) : raw;
+      const id = cursor.slice(separator + 1);
+      const comparison = order === 1 ? "$gt" : "$lt";
       pipeline.push({
-        $match: { $or: [{ createdAt: { $lt: createdAt } }, { createdAt, id: { $lt: id } }] },
+        $match: {
+          $or: [{ [field]: { [comparison]: value } }, { [field]: value, id: { [comparison]: id } }],
+        },
       });
     }
     pipeline.push(
-      { $sort: { createdAt: -1, id: -1 } },
+      { $sort: { [field]: order, id: order } },
       { $limit: page.limit + 1 },
-      { $replaceWith: "$originalTable" },
+      {
+        $replaceWith: sort
+          ? { $mergeObjects: ["$originalTable", { listSortValue: "$listSortValue" }] }
+          : "$originalTable",
+      },
       { $project: { _id: 0, event: 0, ownRows: 0 } },
     );
-    return this.tables.aggregate<TableRecord>(pipeline, this.opts).toArray();
+    return this.tables.aggregate<PersonalTableRow>(pipeline, this.opts).toArray();
   }
   registrationsPage(
     tableId: string,

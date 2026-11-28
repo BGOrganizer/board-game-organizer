@@ -388,7 +388,8 @@ and [operational gates](../../../docs/deployment-operations.md), not this test p
   Native date/time uses Android resource IDs. No coordinates, synthetic visibility
   markers or animation disabling.
 - Contact-search setup uses the existing `contacts?tab=search` route and waits for
-  `contact-search-input`, not a tab label visible on every Contacts view. An existing
+  `contact-search-input`. Focusing it opens the directory in the header. Tap Back before switching
+  to Connections or Requests. An existing
   query is cleared with the real Clear search action; empty state is required before
   typing and the actual input must equal the escaped literal fixture email afterward.
 - Shared subflows contain real operations, not mocked state. Required steps never

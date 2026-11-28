@@ -21,6 +21,7 @@ export function EventDetailView({
   details,
   participants,
   tables,
+  tableSearchActive,
 }: {
   event: ClientEventRecord;
   selectedKey: string;
@@ -32,6 +33,7 @@ export function EventDetailView({
   details: ReactNode;
   participants: ReactNode;
   tables: ReactNode;
+  tableSearchActive?: boolean;
 }) {
   const { t } = useLingui();
   const showParticipants = !event.sharedResultsOnly && !event.personalAccessOnly;
@@ -41,28 +43,30 @@ export function EventDetailView({
       : "details";
   return (
     <>
-      <EventDetailsCard event={event} titleAction={titleAction} />
+      {!tableSearchActive ? <EventDetailsCard event={event} titleAction={titleAction} /> : null}
       <Tabs
         selectedKey={tab}
         onSelectionChange={(value) => onSelectionChange(String(value))}
         className="flex flex-col"
       >
-        <TabBar label={t`Event details`}>
-          <TabTrigger icon={Info} id="details">
-            {t`Details`}
-            {detailsBadge}
-          </TabTrigger>
-          {showParticipants ? (
-            <TabTrigger icon={UsersRound} id="participants">
-              {t`Participants`}
-              {participantsBadge}
+        <div className={tableSearchActive ? "hidden" : "flex flex-col"} hidden={tableSearchActive}>
+          <TabBar label={t`Event details`}>
+            <TabTrigger icon={Info} id="details">
+              {t`Details`}
+              {detailsBadge}
             </TabTrigger>
-          ) : null}
-          <TabTrigger icon={Dices} id="tables">
-            {t`Tables`}
-            {tablesBadge}
-          </TabTrigger>
-        </TabBar>
+            {showParticipants ? (
+              <TabTrigger icon={UsersRound} id="participants">
+                {t`Participants`}
+                {participantsBadge}
+              </TabTrigger>
+            ) : null}
+            <TabTrigger icon={Dices} id="tables">
+              {t`Tables`}
+              {tablesBadge}
+            </TabTrigger>
+          </TabBar>
+        </div>
         <Tabs.Panel id="details" className="space-y-4 pt-4">
           {details}
         </Tabs.Panel>
@@ -72,9 +76,9 @@ export function EventDetailView({
             {participants}
           </Tabs.Panel>
         ) : null}
-        <Tabs.Panel id="tables" className="pt-4">
+        <Tabs.Panel id="tables" className={tableSearchActive ? undefined : "pt-4"}>
           <section className="space-y-3" aria-label={t`Table list`}>
-            <EventSectionHeader event={event} section="tables" />
+            {!tableSearchActive ? <EventSectionHeader event={event} section="tables" /> : null}
             {tables}
           </section>
         </Tabs.Panel>

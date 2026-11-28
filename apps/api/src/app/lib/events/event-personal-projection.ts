@@ -10,7 +10,7 @@ import { sharedEventResults, sharedTableResults } from "./event-results-projecti
 
 function personalCardSummary(
   summary: TableCardSummary,
-  table: Pick<TableRecord, "confirmed">,
+  table: Pick<TableRecord, "confirmed" | "demonstratorUserId">,
   registration: TableRegistration | null,
   userId: string,
 ): TableCardSummary {
@@ -19,6 +19,7 @@ function personalCardSummary(
   return {
     ...summary,
     myParticipation: frozen ? "CONFIRMED" : active ? "EXCLUDED" : "NONE",
+    myDemonstrator: table.demonstratorUserId === userId,
     exclusionReasons:
       frozen || !active
         ? []

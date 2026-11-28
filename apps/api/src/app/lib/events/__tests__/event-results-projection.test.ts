@@ -462,6 +462,7 @@ it("redacts sibling card summaries and restores only factual frozen personal att
     ready: true,
     tables: [own, duty, privateSibling].map((row) => ({
       ...summary(row),
+      myDemonstrator: true,
       blockers: [],
       exclusionReasons: [],
     })),
@@ -471,9 +472,10 @@ it("redacts sibling card summaries and restores only factual frozen personal att
     ["table", "CONFIRMED"],
     ["duty", "NONE"],
   ]);
+  expect(personal.cardSummary?.tables.map((row) => row.myDemonstrator)).toEqual([false, true]);
   expect(JSON.stringify(personal)).not.toContain("PRIVATE-SIBLING");
   expect(sharedEventResults(source, [own]).cardSummary?.tables).toEqual([
-    { ...summary(own), blockers: [], exclusionReasons: [] },
+    { ...summary(own), blockers: [], myDemonstrator: false, exclusionReasons: [] },
   ]);
   expect(sharedEventResults(source, []).cardSummary?.tables).toEqual([]);
   expect(personalEventProjection(source, [], [], "a").cardSummary?.tables).toEqual([]);
@@ -488,11 +490,13 @@ it("clears personal card markers for shared viewers without losing authoritative
     ready: true,
     blockers: [],
     myParticipation: "EXCLUDED",
+    myDemonstrator: true,
     exclusionReasons: ["NOT_SELECTED"],
     winners: [{ userId: "a", username: "player-a" }],
   };
   expect(sharedTableResults(source).cardSummary).toMatchObject({
     myParticipation: "NONE",
+    myDemonstrator: false,
     exclusionReasons: [],
   });
   expect(personalTableProjection(source, null, "a").cardSummary).toMatchObject({
@@ -505,6 +509,7 @@ it("clears personal card markers for shared viewers without losing authoritative
   ).toMatchObject({ myParticipation: "EXCLUDED", exclusionReasons: ["NOT_SELECTED"] });
   expect(personalTableProjection(duty, null, "demo").cardSummary).toMatchObject({
     myParticipation: "NONE",
+    myDemonstrator: true,
     exclusionReasons: [],
   });
 });
@@ -519,6 +524,7 @@ it("preserves exclusion precedence for a personal frozen demonstrator's own acce
     ready: true,
     blockers: [],
     myParticipation: "NONE",
+    myDemonstrator: false,
     exclusionReasons: [],
     winners: [],
   };

@@ -14,6 +14,7 @@ import { EmptyList } from "@/components/common/ui/EmptyList";
 import { GroupedList } from "@/components/common/ui/GroupedList";
 import { GuestAvatar } from "@/components/common/ui/GuestAvatar";
 import { UserListRow } from "@/components/common/ui/UserListRow";
+import { GameCatalogMetadata } from "@/components/games/GameCatalogMetadata";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { EventFinalResults } from "./EventFinalResults";
 import { EventPlayerRatingPopover } from "./EventPlayerRatingPopover";
@@ -32,6 +33,7 @@ export function EventTableResults({ table }: { table: PlannedTableResponse }) {
           table.results?.finalizedAt,
         ])}
         table={table}
+        renderGameMetadata={(game) => <GameCatalogMetadata game={game} name={game.name} visible />}
       />
     );
   }

@@ -50,6 +50,22 @@ export function GameListRow({
   }, [id, needsMetadata, viewport, expandable]);
   const [failedImage, setFailedImage] = useState<string | null>(null);
   const Identity = onPress && !disclosure ? Pressable : View;
+  const coverBadge = game ? (
+    <GameCatalogMetadata
+      name={name}
+      game={game}
+      visible={id === visibleId}
+      size={disclosure ? "md" : "sm"}
+    />
+  ) : null;
+  const coverInfo = coverBadge ? (
+    <View
+      pointerEvents="box-none"
+      style={{ position: "absolute", end: -16, bottom: -16, zIndex: 2 }}
+    >
+      {coverBadge}
+    </View>
+  ) : null;
   const identity = (
     <Identity
       onPress={disclosure ? undefined : onPress}
@@ -101,6 +117,7 @@ export function GameListRow({
             <Gamepad2 size={20} color={muted} accessible={false} />
           )}
         </View>
+        {Identity === View ? coverInfo : null}
       </View>
       <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
         <View style={{ minWidth: 0, flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -122,40 +139,26 @@ export function GameListRow({
       </View>
     </Identity>
   );
-  if (disclosure) {
-    const renderRow = (badge?: ReactNode) => (
-      <ExpandableGroupedRow
-        disclosure={{
-          ...disclosure,
-          content: badge ? (
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-              {badge}
-              <View style={{ flex: 1, minWidth: 0 }}>{disclosure.content}</View>
-            </View>
-          ) : (
-            disclosure.content
-          ),
-        }}
-        summary={identity}
-        actions={actions}
-      />
-    );
-    return game ? (
-      <GameCatalogMetadata name={name} game={game} visible={id === visibleId} render={renderRow} />
-    ) : (
-      renderRow()
-    );
-  }
+  if (disclosure)
+    return <ExpandableGroupedRow disclosure={disclosure} summary={identity} actions={actions} />;
   return (
     <GroupedRow>
       <View style={{ position: "relative", flex: 1, minWidth: 0 }}>
         {identity}
-        {game ? (
+        {Identity === Pressable && coverBadge ? (
           <View
             pointerEvents="box-none"
-            style={{ position: "absolute", left: 26, top: "50%", marginTop: 2, zIndex: 2 }}
+            style={{
+              position: "absolute",
+              start: 0,
+              top: "50%",
+              marginTop: -24,
+              width: 48,
+              height: 48,
+              zIndex: 2,
+            }}
           >
-            <GameCatalogMetadata name={name} game={game} visible={id === visibleId} />
+            {coverInfo}
           </View>
         ) : null}
       </View>

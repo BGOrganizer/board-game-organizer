@@ -1,6 +1,8 @@
 import type { ContactUser } from "@board-game-organizer/shared";
 import { act, fireEvent, screen, userEvent, waitFor, within } from "@testing-library/react-native";
-import { expect, it } from "vitest";
+import { DeviceEventEmitter } from "react-native";
+import { expect, it, vi } from "vitest";
+import { scrollNativeListToEnd } from "@/test/nativeListGeometry";
 import {
   contactPress,
   contactsApi,
@@ -268,19 +270,22 @@ it("paginates a connection source through the real list control and keeps previo
   ).toBe(true);
 });
 
-it("debounces real user discovery, distinguishes failures and empty results, and clears retained search state", async () => {
+it("debounces real user discovery, distinguishes failures and empty results, and clears search on Back", async () => {
   await renderContacts();
   await contactsReady();
   await contactTab("search");
+  await fireEvent(screen.getByTestId("contact-search-input"), "focus");
   await fireEvent.changeText(screen.getByTestId("contact-search-input"), "Tar");
   expect(contactsFixture.reads.filter((url) => url.pathname === "/api/users/search")).toHaveLength(
     0,
   );
   await fireEvent.changeText(screen.getByTestId("contact-search-input"), "Target");
   expect(await screen.findByText("Target Player")).toBeVisible();
+  await contactPress("Back");
   await contactTab("connections");
   await contactTab("search");
-  expect(screen.getByTestId("contact-search-input")).toHaveDisplayValue("Target");
+  expect(screen.getByTestId("contact-search-input")).toHaveDisplayValue("");
+  await fireEvent(screen.getByTestId("contact-search-input"), "focus");
   contactsFixture.searchStatus = 503;
   await fireEvent.changeText(screen.getByTestId("contact-search-input"), "Failure");
   expect(await screen.findByText("Could not load contacts")).toBeVisible();
@@ -293,9 +298,63 @@ it("debounces real user discovery, distinguishes failures and empty results, and
   expect(screen.getByTestId("contact-search-input")).toHaveDisplayValue("");
   expect(screen.queryByText("No users found")).toBeNull();
   expect(
-    contactsFixture.client?.getQueryState(["contacts", "search:Empty result", contactsApi, "owner"])
-      ?.status,
+    contactsFixture.client?.getQueryState([
+      "contacts",
+      "search:Empty result",
+      contactsApi,
+      "owner",
+      "pages",
+    ])?.status,
   ).toBe("success");
+});
+
+it("retries a failed directory page from the real scroll list and restores the address book on Android Back", async () => {
+  let finish: ((response: Response) => void) | undefined;
+  const pending = new Promise<Response>((resolve) => {
+    finish = resolve;
+  });
+  const next = fixtureUser({ id: "next-directory-user", name: "Next Directory User" });
+  const nextPage = vi
+    .fn()
+    .mockReturnValueOnce(pending)
+    .mockResolvedValueOnce(fixtureJson({ users: [next], nextCursor: null }));
+  contactsFixture.nextSearchPage = nextPage;
+  await renderContacts();
+  await contactsReady();
+  await contactTab("search");
+  const input = screen.getByTestId("contact-search-input");
+  await fireEvent(input, "focus");
+  await fireEvent.changeText(input, "@target");
+
+  const first = await screen.findByText("Target Player");
+  let list: typeof first | null = first;
+  while (list && typeof list.props.onScroll !== "function") list = list.parent;
+  if (!list) throw new Error("Expected the directory list scroll host");
+  await scrollNativeListToEnd(list);
+  await waitFor(() => expect(nextPage).toHaveBeenCalledOnce());
+  expect(first).toBeVisible();
+  await scrollNativeListToEnd(list, 1300);
+  expect(nextPage).toHaveBeenCalledOnce();
+
+  await act(async () => finish?.(fixtureJson({ error: "Page unavailable" }, 503)));
+  expect(await screen.findByRole("button", { name: "Retry" })).toBeEnabled();
+  expect(first).toBeVisible();
+  expect(screen.queryByText("Could not load contacts")).toBeNull();
+  await scrollNativeListToEnd(list, 1400);
+  expect(nextPage).toHaveBeenCalledOnce();
+  await contactPress("Retry");
+  expect(await screen.findByText("Next Directory User")).toBeVisible();
+  expect(first).toBeVisible();
+  expect(
+    contactsFixture.reads
+      .filter((url) => url.pathname === "/api/users/search")
+      .map((url) => url.searchParams.get("cursor")),
+  ).toEqual([null, "next-directory-result", "next-directory-result"]);
+
+  await act(() => DeviceEventEmitter.emit("hardwareBackPress"));
+  expect(screen.queryByText("Next Directory User")).toBeNull();
+  expect(screen.getByTestId("top-tab-search")).toBeSelected();
+  expect(input).toHaveDisplayValue("");
 });
 
 it("omits redacted pending and sent profiles without exposing an action, while retaining visible requests", async () => {
@@ -315,4 +374,40 @@ it("omits redacted pending and sent profiles without exposing an action, while r
   expect(screen.getAllByRole("button", { name: /^Actions:/ })).toHaveLength(1);
   expect(screen.queryByText(/redacted-(incoming|outgoing)/)).toBeNull();
   expect(socialWrites()).toEqual([]);
+});
+
+it("excludes existing relationships and requests from both mobile search modes", async () => {
+  const incoming = fixtureUser({ id: "incoming", name: "Incoming Contact" });
+  const outgoing = fixtureUser({ id: "outgoing", name: "Outgoing Contact" });
+  const follower = fixtureUser({ id: "follower", name: "Follower Contact" });
+  const unrelated = fixtureUser({ id: "new-contact", name: "New Contact" });
+  contactsFixture.suggestions = contactsFixture.searchUsers = [
+    incoming,
+    outgoing,
+    follower,
+    unrelated,
+  ];
+  relationship("pending", incoming);
+  relationship("sent", outgoing);
+  relationship("followers", follower);
+  await renderContacts();
+  await contactsReady();
+  expect(await screen.findByText("Follower Contact")).toBeVisible();
+  await contactTab("requests");
+  expect(await screen.findByText("Incoming Contact")).toBeVisible();
+  expect(screen.getByText("Outgoing Contact")).toBeVisible();
+  await contactTab("search");
+  expect(await screen.findByText("New Contact")).toBeVisible();
+  const excluded = [incoming, outgoing, follower];
+  for (const user of excluded) expect(screen.queryByText(user.name)).toBeNull();
+  const input = screen.getByTestId("contact-search-input");
+  await fireEvent(input, "focus");
+  await fireEvent.changeText(input, "Contact");
+  expect(await screen.findByText("New Contact")).toBeVisible();
+  for (const user of excluded) expect(screen.queryByText(user.name)).toBeNull();
+  expect(
+    contactsFixture.reads
+      .find((url) => url.pathname === "/api/users/search")
+      ?.searchParams.get("scope"),
+  ).toBe("discovery");
 });

@@ -1078,6 +1078,11 @@ msgstr "Rispondi a ogni opzione e scegli almeno un Sì o Se necessario in ciascu
 msgid "Anyone with the match link can request to join while planning and with free slots. The admin approves requests."
 msgstr "Chiunque abbia il link al match può chiedere di partecipare durante la pianificazione, se ci sono posti liberi. L'admin approva le richieste."
 
+#: apps/mobile/src/components/groups/GroupStatusBadge.tsx
+#: apps/web/src/components/groups/GroupStatusBadge.tsx
+msgid "Approval rejected"
+msgstr "Approvazione rifiutata"
+
 #: apps/web/src/components/groups/GroupMembers.tsx
 #: apps/web/src/components/groups/GroupReview.tsx
 msgid "Approve"
@@ -1103,6 +1108,12 @@ msgstr "Approva le informazioni proposte per l'organizzazione oppure rifiutale i
 #: apps/web/src/components/groups/GroupStatusBadge.tsx
 msgid "Approved"
 msgstr "Approvata"
+
+#. js-lingui-explicit-id
+#: apps/web/src/components/groups/GroupStatusBadge.tsx
+#: apps/mobile/src/components/groups/GroupStatusBadge.tsx
+msgid "group.review.approved"
+msgstr "Approvato"
 
 #: apps/web/src/components/groups/GroupCardIndicators.tsx
 #: apps/web/src/components/groups/GroupDetailsCard.tsx
@@ -2590,6 +2601,11 @@ msgstr "Data"
 msgid "Date and start/end time"
 msgstr "Data e orari di inizio/fine"
 
+#: apps/mobile/src/components/events/EventScheduleSummary.tsx
+#: apps/web/src/components/events/EventScheduleSummary.tsx
+msgid "Date and time:"
+msgstr "Data e Ora:"
+
 #: apps/web/src/components/events/EventProposalSection.tsx
 #: apps/web/src/components/events/EventScheduleFields.tsx
 msgid "Date and time"
@@ -3950,6 +3966,11 @@ msgstr "Archivio locale non disponibile. I dati verranno aggiornati online."
 #: apps/web/src/components/matches/Matches.tsx
 msgid "location"
 msgstr "location"
+
+#: apps/mobile/src/components/events/EventScheduleSummary.tsx
+#: apps/web/src/components/events/EventScheduleSummary.tsx
+msgid "Location:"
+msgstr "Luogo:"
 
 #: apps/web/src/components/events/EventScheduleFields.tsx
 #: apps/web/src/components/groups/GroupWizard.tsx
@@ -5819,6 +5840,11 @@ msgstr "Revoca l'esclusione dal gruppo"
 msgid "Revoking an exclusion does not restore membership or registrations. A new invitation or request is required."
 msgstr "La revoca dell'esclusione non ripristina l'appartenenza o le iscrizioni. È necessario un nuovo invito o una nuova richiesta."
 
+#: apps/mobile/src/components/common/ui/ArtworkStatusPopover.tsx
+#: apps/web/src/components/common/ui/ArtworkStatusPopover.tsx
+msgid "Role"
+msgstr "Ruolo"
+
 #: apps/web/src/components/common/ui/UserRoleBadge.tsx
 #: apps/web/src/components/events/EventRolePopover.tsx
 msgid "Roles and participation"
@@ -5932,6 +5958,11 @@ msgstr "Ricerca non riuscita. Riprova"
 #: apps/web/src/components/contacts/PeoplePicker.tsx
 msgid "Search friends"
 msgstr "Cerca amici"
+
+#: apps/mobile/src/components/groups/GroupSearch.tsx
+#: apps/web/src/components/groups/GroupSearch.tsx
+msgid "Search approved public groups by name or venue address. Use the filters to find nearby groups or groups with friends."
+msgstr "Cerca gruppi pubblici approvati per nome o indirizzo della sede. Usa i filtri per trovare i gruppi vicini o quelli con i tuoi amici."
 
 #: apps/web/src/components/events/EventGroupSelect.tsx
 #: apps/web/src/components/groups/GroupList.tsx
@@ -6346,6 +6377,11 @@ msgstr "L'inizio del tavolo deve essere successivo all'inizio dell'evento e prec
 #: apps/web/src/components/events/EventWizard.tsx
 msgid "Tables"
 msgstr "Tavoli"
+
+#: apps/mobile/src/components/events/EventCardIndicators.tsx
+#: apps/web/src/components/events/EventCardIndicators.tsx
+msgid "Tables:"
+msgstr "Tavoli:"
 
 msgid "Tables changed"
 msgstr "Tavoli modificati"
@@ -7199,6 +7235,14 @@ msgstr "Il tavolo è stato escluso dalla conferma."
 msgid "The invitation was not accepted before confirmation."
 msgstr "L’invito non è stato accettato prima della conferma."
 
+#: apps/web/src/components/events/EventTableCardIndicatorView.tsx
+msgid "Your roles at this table:"
+msgstr "In questo tavolo, hai i seguenti ruoli:"
+
+#: apps/web/src/components/events/EventCardIndicators.tsx
+msgid "Your roles in this event:"
+msgstr "In questo evento, hai i seguenti ruoli:"
+
 #: apps/web/src/lib/eventCardMessages.ts
 msgid "Your votes do not agree with the chosen date and time."
 msgstr "I tuoi voti non sono compatibili con la data e l’ora scelte."
@@ -7230,6 +7274,11 @@ msgstr "Nessun tavolo è pronto per la conferma."
 #: apps/web/src/components/events/EventCardIndicators.tsx
 msgid "Managers arrange seats and the waiting list. Confirmation requirements still apply."
 msgstr "Il responsabile gestisce posti e coda. Restano necessari i requisiti per la conferma."
+
+#: apps/mobile/src/components/groups/GroupStatusBadge.tsx
+#: apps/web/src/components/groups/GroupStatusBadge.tsx
+msgid "The approved version remains visible."
+msgstr "La versione approvata resta visibile."
 
 #: apps/web/src/components/events/EventCardIndicators.tsx
 msgid "The app seeks compatible players, dates, locations and games. A manager must still confirm."
@@ -7748,6 +7797,11 @@ msgstr "Eventi di gruppo in pianificazione a cui puoi iscriverti. Per quelli pri
 msgid "Finished events where you played or demonstrated at a confirmed table, or that you still manage."
 msgstr "Eventi conclusi in cui hai giocato o fatto da dimostratore a un tavolo confermato, oppure che gestisci ancora."
 
+#: apps/mobile/src/components/groups/GroupSearch.tsx
+#: apps/web/src/components/groups/GroupSearch.tsx
+msgid "Group search"
+msgstr "Ricerca Gruppi"
+
 #: apps/web/src/components/groups/GroupList.tsx
 msgid "Group search help"
 msgstr "Aiuto sulla ricerca dei gruppi"
@@ -7769,8 +7823,8 @@ msgid "Private groups you manage, belong to or have a pending invitation to join
 msgstr "Gruppi privati che gestisci, di cui sei membro o per i quali hai un invito in sospeso."
 
 #: apps/web/src/components/groups/GroupList.tsx
-msgid "Public groups you manage, belong to or have a pending invitation to join. Groups you manage may still be awaiting approval."
-msgstr "Gruppi pubblici che gestisci, di cui sei membro o per i quali hai un invito in sospeso. I gruppi che gestisci possono anche essere in attesa di approvazione."
+msgid "Public groups you manage or belong to, and groups with a pending request or invitation. Groups you manage may still be awaiting approval."
+msgstr "Gruppi pubblici che gestisci o di cui sei membro, e gruppi con una richiesta o un invito in attesa. I gruppi che gestisci possono essere in attesa di approvazione."
 
 #: apps/web/src/components/events/TableList.tsx
 msgid "Table history help"
@@ -7839,3 +7893,46 @@ msgstr "Se una categoria ha più opzioni, scegli almeno un Sì o Se necessario."
 
 msgid "Review the event and table settings, then vote in the sections shown."
 msgstr "Controlla le impostazioni dell’evento e del tavolo, poi vota nelle sezioni mostrate."
+
+#: apps/mobile/src/components/groups/GroupStatusBadge.tsx
+#: apps/web/src/components/groups/GroupStatusBadge.tsx
+msgid "The approval request was rejected. This group has not been published."
+msgstr "La richiesta di approvazione è stata rifiutata. Il gruppo non è stato pubblicato."
+
+#: apps/web/src/components/events/EventTableCardIndicatorView.tsx
+msgid "The game has ended."
+msgstr "La partita è terminata."
+
+#: apps/mobile/src/components/events/EventList.tsx
+#: apps/mobile/src/components/groups/GroupList.tsx
+#: apps/web/src/components/events/EventList.tsx
+#: apps/web/src/components/groups/GroupList.tsx
+#. js-lingui-explicit-id
+msgid "list.filter.admin"
+msgstr "Admin"
+#: apps/mobile/src/components/groups/GroupSearch.tsx
+#: apps/web/src/components/groups/GroupSearch.tsx
+msgid "Near me"
+msgstr "Vicino a me"
+
+#: apps/mobile/src/components/groups/GroupSearch.tsx
+#: apps/web/src/components/groups/GroupSearch.tsx
+msgid "No public groups with your friends"
+msgstr "Nessun gruppo pubblico con i tuoi amici"
+
+#: apps/web/src/components/groups/GroupSearchDistance.tsx
+msgid "Distance"
+msgstr "Distanza"
+
+#: apps/web/src/components/groups/GroupSearchDistance.tsx
+msgid "Distance, {value}"
+msgstr "Distanza, {value}"
+
+msgid "Search users by name, email, or username"
+msgstr "Cerca utenti per nome, email o username"
+
+msgid "Find BGO users by first name, last name, email, or username, including people outside your contacts."
+msgstr "Cerca utenti BGO per nome, cognome, email o username, anche se non sono nella tua rubrica."
+
+msgid "People already in Connections or Requests appear in those tabs."
+msgstr "Chi è già tra le connessioni o ha una richiesta in attesa compare nel relativo tab."

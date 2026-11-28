@@ -112,6 +112,13 @@ tags: [manual, tables, results]
 - tapOn: ${output.results.results}
 - assertNotVisible: "^Ranking$"
 - scrollUntilVisible:
+    element: '^(Game information|Informazioni sul gioco): .+'
+    direction: DOWN
+    timeout: 120000
+- tapOn: '^(Game information|Informazioni sul gioco): .+'
+- assertVisible: '^(BGG rating|Voto):$'
+- back
+- scrollUntilVisible:
     element:
       id: ${output.results.ratingTrigger1}
     direction: DOWN

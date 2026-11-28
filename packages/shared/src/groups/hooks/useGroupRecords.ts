@@ -13,8 +13,14 @@ import type {
   GroupRecord,
   GroupRecordListRole,
   GroupRecordResponse,
+  RecordListOrder,
 } from "@board-game-organizer/schemas";
-import { groupRecordListRoles, notificationItemId } from "@board-game-organizer/schemas";
+import {
+  defaultGroupDiscoveryRadiusKm,
+  groupRecordListRoles,
+  legacyGroupRecordListRoles,
+  notificationItemId,
+} from "@board-game-organizer/schemas";
 import {
   hashKey,
   infiniteQueryOptions,
@@ -72,8 +78,22 @@ import { isGroupManagerRole } from "../groupPolicy";
 import { groupRecordSeed } from "../groupRecordSeed";
 import { globalLeaderboardKey } from "./useLeaderboard";
 export type GroupRecordScope = "mine" | "public" | "moderation";
+export type GroupDiscoveryPosition = { latitude: number; longitude: number };
+export type GroupDiscoveryFilters = {
+  friends: boolean;
+  position?: GroupDiscoveryPosition;
+  radiusKm?: number;
+};
+
+export function isGroupDiscoveryKey(key: readonly unknown[]) {
+  return key[0] === "groups" && key[3] === "list" && key[4] === "public" && key[6] === "discovery";
+}
 export type GroupPeopleScope = "accepted" | "pending" | "bans";
 type KeyOwner = Pick<CommunityApiOptions, "apiUrl" | "userId">;
+const includesGroupAdmin = (roles: readonly string[]) =>
+  roles.includes("admin") || roles.includes("administrator");
+const hasCustomGroupOrder = (order?: RecordListOrder): order is RecordListOrder =>
+  order !== undefined && (order.sort !== "date" || order.direction !== "desc");
 export const groupRecordKeys = {
   root: (options: KeyOwner) => ["groups", options.apiUrl, options.userId] as const,
   mutation: (options: KeyOwner, id: string, action: string) =>
@@ -82,18 +102,32 @@ export const groupRecordKeys = {
     options: KeyOwner,
     scope: GroupRecordScope,
     query = "",
-    roles: readonly GroupRecordListRole[] = groupRecordListRoles,
+    roles: readonly GroupRecordListRole[] = legacyGroupRecordListRoles,
     type?: GroupRecord["type"],
+    order?: RecordListOrder,
+    discovery?: GroupDiscoveryFilters,
   ) =>
     [
       ...groupRecordKeys.root(options),
       "list",
       scope,
       query,
+      ...(scope === "public" && discovery
+        ? [
+            "discovery",
+            discovery.friends,
+            discovery.position ?? null,
+            discovery.position ? (discovery.radiusKm ?? defaultGroupDiscoveryRadiusKm) : null,
+          ]
+        : []),
       ...(scope === "mine"
         ? [groupRecordListRoles.filter((role) => roles.includes(role)).join(",")]
         : []),
-      ...(type ? [type] : []),
+      ...(scope === "mine" && hasCustomGroupOrder(order)
+        ? [type ?? null, order.sort, order.direction]
+        : type
+          ? [type]
+          : []),
     ] as const,
   detail: (options: KeyOwner, id: string, review = false) =>
     [...groupRecordKeys.root(options), "detail", id, ...(review ? ["review"] : [])] as const,
@@ -104,20 +138,35 @@ export function groupRecordsPageQuery(
   options: CommunityApiOptions,
   scope: GroupRecordScope = "mine",
   query = "",
-  roles: readonly GroupRecordListRole[] = groupRecordListRoles,
+  roles: readonly GroupRecordListRole[] = legacyGroupRecordListRoles,
   type?: GroupRecord["type"],
+  order?: RecordListOrder,
+  discovery?: GroupDiscoveryFilters,
 ) {
+  const publicFilters = scope === "public" ? discovery : undefined;
   const selected = groupRecordListRoles.filter((role) => roles.includes(role));
+  const sorting =
+    scope === "mine" && hasCustomGroupOrder(order)
+      ? `&sort=${order.sort}&direction=${order.direction}`
+      : "";
+  const filters = new URLSearchParams();
+  if (publicFilters?.friends) filters.set("friends", "true");
+  if (publicFilters?.position) {
+    filters.set("nearLat", String(publicFilters.position.latitude));
+    filters.set("nearLng", String(publicFilters.position.longitude));
+    filters.set("radiusKm", String(publicFilters.radiusKm ?? defaultGroupDiscoveryRadiusKm));
+  }
+  const filterParams = filters.size > 0 ? `&${filters}` : "";
   return infiniteQueryOptions({
-    queryKey: groupRecordKeys.list(options, scope, query, selected, type),
+    queryKey: groupRecordKeys.list(options, scope, query, selected, type, order, publicFilters),
     queryFn: async ({ pageParam, signal, client }) => {
       const result = await communityRequest<CommunityPageResponse<GroupRecordResponse>>(
         options,
         communityPagePath(
-          `groups?scope=${scope}${scope === "mine" ? `&roles=${selected.join(",")}` : ""}${type ? `&type=${encodeURIComponent(type)}` : ""}`,
+          `groups?scope=${scope}${scope === "mine" ? `&roles=${selected.join(",")}` : ""}${type ? `&type=${encodeURIComponent(type)}` : ""}${sorting}${filterParams}`,
           query,
           pageParam,
-          scope === "mine" ? 1 : 4,
+          scope === "mine" || publicFilters ? 1 : 4,
         ),
         "GET",
         undefined,
@@ -133,12 +182,12 @@ export function groupRecordsPageQuery(
       options.apiUrl &&
         options.userId &&
         options.enabled !== false &&
-        (scope !== "public" || query.length >= 4),
+        (scope !== "public" || publicFilters || query.length >= 4),
     ),
     initialPageParam: "",
     getNextPageParam: (page) => page.nextCursor ?? undefined,
-    staleTime: 5 * 60_000,
-    gcTime: 30 * 60_000,
+    staleTime: publicFilters ? 30_000 : 5 * 60_000,
+    gcTime: publicFilters ? 5 * 60_000 : 30 * 60_000,
   });
 }
 export function groupInviteesPageQuery(options: CommunityApiOptions, id: string, query = "") {
@@ -163,10 +212,12 @@ export function useGroupRecords(
   options: CommunityApiOptions,
   scope: GroupRecordScope = "mine",
   query = "",
-  roles: readonly GroupRecordListRole[] = groupRecordListRoles,
+  roles: readonly GroupRecordListRole[] = legacyGroupRecordListRoles,
   type?: GroupRecord["type"],
+  order?: RecordListOrder,
+  discovery?: GroupDiscoveryFilters,
 ) {
-  const config = groupRecordsPageQuery(options, scope, query, roles, type);
+  const config = groupRecordsPageQuery(options, scope, query, roles, type, order, discovery);
   const paging = useInfiniteQuery(config);
   const window = useRecordListWindow({
     scope: hashKey(config.queryKey),
@@ -180,7 +231,7 @@ export function useGroupRecords(
   );
   const actor = options.userId;
   const local =
-    actor && scope === "mine" && roles.includes("admin")
+    actor && scope === "mine" && includesGroupAdmin(roles)
       ? creations
           .map((intent) => groupCreationRecord(intent, actor))
           .filter(
@@ -711,8 +762,8 @@ export function useGroupRecordActions(options: CommunityApiOptions, groupId = ""
               query.queryHash !== hashKey(list.queryKey) &&
               query.isActive() &&
               typeof query.options.queryFn === "function" &&
-              (typeof key[6] !== "string" || key[6].split(",").includes("admin")) &&
-              (key[7] === undefined || key[7] === canonical.type) &&
+              (typeof key[6] !== "string" || includesGroupAdmin(key[6].split(","))) &&
+              (key[7] == null || key[7] === canonical.type) &&
               (typeof key[5] !== "string" ||
                 canonical.name.toLowerCase().includes(key[5].trim().toLowerCase()))
             );

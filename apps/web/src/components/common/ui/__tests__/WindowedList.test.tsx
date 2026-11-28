@@ -105,6 +105,38 @@ it("loads an underfilled page on user intent even when the document cannot scrol
   expect(more).toHaveBeenCalledOnce();
 });
 
+it("keeps viewport changes without rendering again when the same rows fit", () => {
+  const b = browser();
+  const renderRow = vi.fn(row);
+  const list = (items: { id: string }[]) => (
+    <div data-testid="scroll-owner" style={{ overflowY: "auto" }}>
+      <WindowedList
+        items={items}
+        itemKey={key}
+        renderItem={renderRow}
+        label="People"
+        estimatedRowHeight={76}
+        onEndReached={vi.fn()}
+      />
+    </div>
+  );
+  const view = render(list(items.slice(0, 2)));
+  const owner = screen.getByTestId("scroll-owner");
+  b.owner(owner, 0, 480);
+  renderRow.mockClear();
+  b.flush();
+  expect(renderRow).not.toHaveBeenCalled();
+
+  view.rerender(list(items.slice(0, 50)));
+  expect(screen.getByRole("button", { name: "Row 10" })).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Row 11" })).toBeNull();
+
+  b.owner(owner, 0, 600);
+  b.scroll(0);
+  b.flush();
+  expect(screen.getByRole("button", { name: "Row 11" })).toBeVisible();
+});
+
 it("leaves editing and selection keys in form controls without starting pagination", () => {
   const b = browser(),
     begin = vi.fn(),

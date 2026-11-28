@@ -1,6 +1,7 @@
-import { groupRecordMemberRoles } from "@board-game-organizer/schemas";
+import { eventListDefaultOrder, groupRecordMemberRoles } from "@board-game-organizer/schemas";
 import { QueryClient } from "@tanstack/react-query";
 import { afterEach, expect, it, vi } from "vitest";
+import { contactSuggestionsKey } from "../../contacts/hooks/useContacts";
 import { eventRecordsQuery, recordTablesQuery } from "../../events/hooks/useEventRecords";
 import { bggAccountQuery } from "../../games/hooks/useBggAccount";
 import { bggPickerQuery } from "../../games/hooks/useBggPicker";
@@ -95,7 +96,7 @@ it("starts only the four priority reads with at most three concurrent requests",
     fetch.mock.calls.find(([url]) => new URL(url).pathname === "/api/groups")?.[0] ?? "",
   );
   expect(groupRead.searchParams.get("type")).toBe("PRIVATE");
-  expect(groupRead.searchParams.get("roles")).toBe("admin,invited,accepted");
+  expect(groupRead.searchParams.get("roles")).toBe("administrator,moderator,member,pending");
   expect(
     client.getQueryData(
       groupRecordsPageQuery(options, "mine", "", groupRecordMemberRoles, "PRIVATE").queryKey,
@@ -160,19 +161,11 @@ it("progressively warms scoped first pages, linked events and authorized groups,
     new Headers(init?.headers).get("Authorization"),
   );
   expect(new Set(headers).size).toBe(22);
+  expect(client.getQueryData(contactSuggestionsKey(options.apiUrl, options.userId))).toBeDefined();
+  expect(client.getQueryData(contactSuggestionsKey(options.apiUrl, "other"))).toBeUndefined();
   expect(
-    client.getQueryData([
-      "contacts",
-      "suggestions",
-      options.apiUrl,
-      options.userId,
-      "device",
-      "pages-v1",
-    ]),
-  ).toBeDefined();
-  expect(
-    client.getQueryData(["contacts", "suggestions", options.apiUrl, "other", "device", "pages-v1"]),
-  ).toBeUndefined();
+    urls.find((url) => url.pathname === "/api/users/suggestions")?.searchParams.get("scope"),
+  ).toBe("discovery");
   expect(
     client
       .getQueryCache()
@@ -234,7 +227,7 @@ it("handles absent, empty and unlinked cached datasets without guessing IDs or s
   );
   for (const query of [
     recordTablesQuery(options, null),
-    eventRecordsQuery(options),
+    eventRecordsQuery(options, { order: eventListDefaultOrder.mine }),
     groupRecordsPageQuery(options, "mine", "", groupRecordMemberRoles, "PRIVATE"),
   ])
     client.setQueryData(query.queryKey, { pages: [], pageParams: [] });

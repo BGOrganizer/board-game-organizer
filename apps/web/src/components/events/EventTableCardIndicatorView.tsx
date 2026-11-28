@@ -1,8 +1,13 @@
 "use client";
 
-import type { BggSearchItem, PlannedTableResponse } from "@board-game-organizer/schemas";
+import type {
+  BggSearchItem,
+  PlannedTableResponse,
+  TableCardSummary,
+} from "@board-game-organizer/schemas";
 import {
   CARD_STATE_TONES,
+  formatUsername,
   tableCardGames,
   tableCardRoles,
   tableCardState,
@@ -16,6 +21,7 @@ import {
   Flag,
   ListOrdered,
   Mail,
+  Trophy,
   UserRoundCheck,
   UsersRound,
 } from "lucide-react";
@@ -28,6 +34,34 @@ import { EventCardTableSummaries } from "./EventCardTableSummaries";
 import { EventRolePopover } from "./EventRolePopover";
 import { EventTableRatingInfo } from "./EventTableRatingInfo";
 import { EventTableSchedulePopover } from "./EventTableSchedulePopover";
+
+function FinishedTableStatus({ winners }: { winners?: TableCardSummary["winners"] }) {
+  const { t } = useLingui();
+  return (
+    <>
+      <p>{t`The game has ended.`}</p>
+      {winners === undefined ? (
+        <Skeleton aria-label={t`Loading…`} className="h-5 w-48 rounded" />
+      ) : winners.length > 0 ? (
+        <div className="space-y-1">
+          <p className="flex items-start gap-2 font-bold">
+            <Trophy aria-hidden className="mt-0.5 size-4 shrink-0 text-warning-soft-foreground" />
+            {winners.length === 1 ? t`Winner` : t`Winners`}
+          </p>
+          <ul className="space-y-1">
+            {winners.map((winner) => (
+              <li key={winner.userId} className="break-words">
+                {winner.guestName ?? formatUsername(winner.username, t`Username unavailable`)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <p>{t`No winners.`}</p>
+      )}
+    </>
+  );
+}
 
 export function EventTableCardIndicatorView({
   table,
@@ -55,7 +89,11 @@ export function EventTableCardIndicatorView({
   ];
   return (
     <>
-      <EventRolePopover roles={roles} action={tablePendingAction(table)} />
+      <EventRolePopover
+        roles={roles}
+        action={tablePendingAction(table)}
+        description={t`Your roles at this table:`}
+      />
       <EventTableRatingInfo enabled={table.rankingEnabled} />
       <HelpPopover
         size="compact"
@@ -69,11 +107,7 @@ export function EventTableCardIndicatorView({
       >
         <div className="space-y-2">
           {state === "TERMINATED" ? (
-            summary ? (
-              <EventCardTableSummaries tables={[summary]} mode="results" showNames={false} />
-            ) : (
-              <Skeleton aria-label={t`Loading…`} className="h-5 w-48 rounded" />
-            )
+            <FinishedTableStatus winners={summary?.winners} />
           ) : (
             <>
               {state === "PLANNING" ? (
@@ -144,7 +178,7 @@ export function EventTableCardIndicatorView({
           )}
         </div>
       </HelpPopover>
-      {table.eventStatus !== "PLANNING" && table.confirmed ? (
+      {table.eventStatus === "CONFIRMED" && table.confirmed ? (
         <>
           <EventTableSchedulePopover table={table} kind="locations" />
           <EventTableSchedulePopover table={table} kind="dates" />

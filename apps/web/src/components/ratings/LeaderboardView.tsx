@@ -22,7 +22,6 @@ import { type Ref, useMemo, useSyncExternalStore } from "react";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { RankPositionBadge } from "@/components/common/ui/RankPositionBadge";
-import { SearchHelpLabel } from "@/components/common/ui/SearchHelpLabel";
 import { SearchInput } from "@/components/common/ui/SearchInput";
 import { SectionHeaderCard } from "@/components/common/ui/SectionHeaderCard";
 import { UserIdentity } from "@/components/common/ui/UserIdentity";
@@ -213,6 +212,7 @@ export function LeaderboardView({
               games={games.items}
               onChange={games.onChange}
               onClose={games.onClose}
+              focusUnderHeader
               footer={
                 games.hasNextPage ? (
                   <Button
@@ -237,12 +237,7 @@ export function LeaderboardView({
               <SearchInput
                 value={games.search}
                 onChange={games.onSearch}
-                label={
-                  <SearchHelpLabel
-                    label={t`Search board games`}
-                    help={t`Type at least 4 characters to search`}
-                  />
-                }
+                label={<Label className="sr-only">{t`Search board games`}</Label>}
                 placeholder={t`Search board games`}
               />
             </RatingGameSelect>
@@ -345,10 +340,10 @@ export function LeaderboardView({
                               <Accordion.Item id={player.userId}>
                                 {({ isExpanded }) => (
                                   <>
-                                    <div className="flex items-center gap-1 ps-2">
+                                    <div className="flex items-center gap-1 py-3 pe-3 ps-4">
                                       {identity(player)}
                                       <Accordion.Heading className="shrink-0">
-                                        <Accordion.Trigger className="min-h-11 gap-1.5 px-2 py-1">
+                                        <Accordion.Trigger className="min-h-11 gap-1.5 ps-2">
                                           <span className="sr-only">
                                             {t`Game statistics`}:{" "}
                                             {formatUsername(
@@ -375,7 +370,7 @@ export function LeaderboardView({
                                     </div>
                                     <Accordion.Panel>
                                       {isExpanded ? (
-                                        <Accordion.Body className="px-2 pt-0 pb-2">
+                                        <Accordion.Body className="pt-0 pe-3 pb-3 ps-4">
                                           <dl className="grid grid-cols-3 gap-2 border-separator border-t pt-2">
                                             {(["gamesPlayed", "gamesWon", "nd"] as const).map(
                                               (metric) => {
@@ -480,17 +475,19 @@ export function LeaderboardView({
                                 data-testid={`group-ranking-player-${player.userId}`}
                                 className={player.left ? "opacity-60" : undefined}
                               >
-                                <Table.Cell className="min-w-0">{identity(player)}</Table.Cell>
-                                <Table.Cell className="text-right tabular-nums">
+                                <Table.Cell className="min-w-0 py-3 ps-4">
+                                  {identity(player)}
+                                </Table.Cell>
+                                <Table.Cell className="px-3 py-3 text-right tabular-nums">
                                   {Math.max(0, player.gamesPlayed - player.nd)}
                                 </Table.Cell>
-                                <Table.Cell className="text-right tabular-nums">
+                                <Table.Cell className="px-3 py-3 text-right tabular-nums">
                                   {player.gamesWon}
                                 </Table.Cell>
-                                <Table.Cell className="text-right tabular-nums">
+                                <Table.Cell className="px-3 py-3 text-right tabular-nums">
                                   {player.nd}
                                 </Table.Cell>
-                                <Table.Cell>{rating(player)}</Table.Cell>
+                                <Table.Cell className="py-3 pe-3">{rating(player)}</Table.Cell>
                               </Table.Row>
                             ))}
                           </Table.Body>

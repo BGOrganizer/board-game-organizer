@@ -7,6 +7,7 @@ import {
 } from "@/test/nativePopoverGeometry";
 import {
   listApi,
+  listChooseSortField,
   listFixture,
   listId,
   listJson,
@@ -56,6 +57,10 @@ it("filters history with a short debounced query and clears it without discoveri
     </MainListFixture>,
   );
   await screen.findByText("History list table");
+  expect(screen.getByTestId("list-sort-field")).toHaveTextContent("Date");
+  await fireEvent(screen.getByTestId("list-search-input"), "focus");
+  expect(screen.queryByLabelText("Table history help")).toBeNull();
+  expect(screen.getByTestId("list-sort-field")).toHaveTextContent("Date");
   await fireEvent.changeText(screen.getByTestId("list-search-input"), "H");
   await waitFor(() =>
     expect(
@@ -65,6 +70,17 @@ it("filters history with a short debounced query and clears it without discoveri
     ).toBe(true),
   );
   await listPress("Clear filter");
+  await listChooseSortField("Number of players");
+  await listPress("Sort ascending");
+  await waitFor(() => {
+    const lastTableRead = listFixture.reads.filter((url) => url.pathname === "/api/tables").at(-1);
+    expect(lastTableRead?.searchParams.get("sort")).toBe("participants");
+    expect(lastTableRead?.searchParams.get("direction")).toBe("asc");
+    expect(lastTableRead?.searchParams.has("section")).toBe(false);
+  });
+  await listPress("Back");
+  expect(screen.getByLabelText("Table history help")).toBeOnTheScreen();
+  expect(screen.getByTestId("list-sort-field")).toHaveAccessibleName("Sort by Number of players");
   expect(screen.getByTestId("list-search-input")).toHaveDisplayValue("");
   expect(
     listFixture.reads

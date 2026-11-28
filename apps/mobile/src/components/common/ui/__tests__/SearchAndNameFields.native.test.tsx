@@ -230,11 +230,14 @@ it("renders no empty chip container and prevents a disabled filter from dispatch
       onToggle={toggle}
     />,
   );
-  expect(screen.getByRole("button", { name: "Accepted" })).toBeSelected();
+  const accepted = screen.getByRole("button", { name: "Accepted" });
+  expect(accepted).toBeSelected();
+  expect(accepted).toHaveStyle({ minHeight: 28, minWidth: 44 });
+  expect(accepted).toHaveProp("hitSlop", { top: 8, bottom: 8 });
   expect(screen.getByRole("button", { name: "Invited" })).toBeDisabled();
   await userEvent.setup().press(screen.getByRole("button", { name: "Invited" }));
   expect(toggle).not.toHaveBeenCalled();
-  await userEvent.setup().press(screen.getByRole("button", { name: "Accepted" }));
+  await userEvent.setup().press(accepted);
   expect(toggle).toHaveBeenCalledExactlyOnceWith("accepted");
 });
 

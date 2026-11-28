@@ -210,6 +210,16 @@ test("owned admin saves editable scores across reloads; excluded Tables never bl
   await page.getByRole("tab", { name: labels.results, exact: true }).click();
   await expect(page.getByRole("tab", { name: "Ranking", exact: true })).toHaveCount(0);
   const ratings = page.getByRole("region", { name: labels.results, exact: true });
+  const finishedGame = table.gamesDetail.find((game) => game.id === table.confirmed?.gameId);
+  if (!finishedGame) throw new Error("Expected the completed game in the table projection");
+  await ratings
+    .getByRole("button", {
+      name: `${it ? "Informazioni sul gioco" : "Game information"}: ${finishedGame.name}`,
+      exact: true,
+    })
+    .click();
+  await expect(page.getByRole("dialog", { name: finishedGame.name, exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
   const resultRow = ratings.getByRole("listitem").filter({
     has: page.getByText(firstRatingName, { exact: true }),
   });

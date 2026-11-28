@@ -1,5 +1,15 @@
 "use client";
-import { type EventListSection, eventListStatuses } from "@board-game-organizer/schemas";
+import {
+  type EventListFilterRole,
+  type EventListSection,
+  type EventListStatus,
+  eventListDefaultOrder,
+  eventListStatuses,
+  type RecordListOrder,
+  recordListSortFields,
+  scheduledEventFilterRoles,
+  terminatedEventFilterRoles,
+} from "@board-game-organizer/schemas";
 import {
   communityAccessDenied,
   useEventRecords,
@@ -14,42 +24,65 @@ import {
   CalendarClock,
   CalendarDays,
   CalendarSearch,
+  Clock3,
+  Crown,
   Flag,
   Plus,
+  ShieldCheck,
+  UserRoundCheck,
 } from "lucide-react";
+import { useState } from "react";
 import { EmptyList } from "@/components/common/ui/EmptyList";
 import { FloatingActions } from "@/components/common/ui/FloatingActions";
 import { HelpSectionCard } from "@/components/common/ui/HelpSectionCard";
+import { ListOrdering } from "@/components/common/ui/ListOrdering";
 import { ListPage } from "@/components/common/ui/ListPage";
 import { ListSearch } from "@/components/common/ui/ListSearch";
 import { WindowedList } from "@/components/common/ui/WindowedList";
 import { NotificationAttentionScope } from "@/components/notifications/NotificationAttentionScope";
 import { useCommunityApi } from "@/lib/useCommunityApi";
 import { useInfiniteScroll } from "@/lib/useInfiniteScroll";
+import { useListSearchHeader } from "@/lib/useListSearchHeader";
 import { EventCard } from "./EventCard";
+
+const noEventRoles: readonly EventListFilterRole[] = [];
 export function EventList({
   groupId,
   canCreate = true,
   section = "mine",
+  onSearchActiveChange,
 }: {
   groupId?: string;
   canCreate?: boolean;
   section?: EventListSection;
+  onSearchActiveChange?: (active: boolean) => void;
 }) {
+  const [order, setOrder] = useState<RecordListOrder>(eventListDefaultOrder[section]);
+  const roles =
+    section === "mine"
+      ? scheduledEventFilterRoles
+      : section === "terminated"
+        ? terminatedEventFilterRoles
+        : noEventRoles;
   const { t } = useLingui(),
     o = useCommunityApi(),
-    filters = useListSearch(eventListStatuses, 0),
+    filters = useListSearch<EventListStatus | EventListFilterRole>(
+      groupId ? eventListStatuses : roles,
+      0,
+    ),
     list = useEventRecords(o, {
       groupId,
       section: groupId ? undefined : section,
       statuses: groupId
-        ? filters.selected
+        ? eventListStatuses.filter((status) => filters.selected.includes(status))
         : section === "available"
           ? ["PLANNING"]
           : section === "terminated"
             ? ["TERMINATED"]
             : ["CONFIRMED", "PLANNING"],
       query: filters.search,
+      roles: groupId ? undefined : roles.filter((role) => filters.selected.includes(role)),
+      order,
     }),
     end = useInfiniteScroll({
       hasNextPage: !!list.hasNextPage,
@@ -57,6 +90,7 @@ export function EventList({
       isFetchNextPageError: list.isFetchNextPageError,
       fetchNextPage: list.fetchNextPage,
     });
+  const headerSearch = useListSearchHeader(filters.reset, onSearchActiveChange);
   // Share the creation picker's bounded, source-filtered cache before navigation.
   useGroupRecords({ ...o, enabled: o.enabled !== false && !groupId && canCreate }, "mine", "", [
     "admin",
@@ -81,6 +115,12 @@ export function EventList({
       description: t`Finished events where you played or demonstrated at a confirmed table, or that you still manage.`,
     },
   }[section];
+  const roleLabels = {
+    admin: { label: t({ id: "list.filter.admin", message: "Admin" }), icon: Crown },
+    moderator: { label: t`Moderator`, icon: ShieldCheck },
+    participant: { label: t`Participant`, icon: UserRoundCheck },
+    pending: { label: t`Pending`, icon: Clock3 },
+  };
   return (
     <NotificationAttentionScope
       options={o}
@@ -89,7 +129,7 @@ export function EventList({
         .map((row) => ({ kind: "event", id: row.id }))}
     >
       <ListPage hasFloatingActions={canCreate}>
-        {groupId ? null : (
+        {!groupId && !headerSearch.active ? (
           <HelpSectionCard
             title={sectionHelp.title}
             label={sectionHelp.label}
@@ -97,25 +137,29 @@ export function EventList({
           >
             <p>{sectionHelp.description}</p>
           </HelpSectionCard>
-        )}
-        <ListSearch
-          query={filters.query}
-          onQueryChange={filters.setQuery}
-          label={t`Filter`}
-          placeholder={t`Filter events`}
-          mode="filter"
-          selected={filters.selected}
-          onToggle={filters.toggle}
-          options={
-            !groupId
-              ? []
-              : [
-                  { key: "CONFIRMED", label: t`Confirmed events`, icon: CalendarCheck2 },
-                  { key: "PLANNING", label: t`Planning`, icon: CalendarClock },
-                  { key: "TERMINATED", label: t`Terminated events`, icon: Flag },
-                ]
-          }
-        />
+        ) : null}
+        <div className="space-y-2">
+          <ListSearch
+            headerSearch={headerSearch}
+            query={filters.query}
+            onQueryChange={filters.setQuery}
+            label={t`Filter`}
+            placeholder={t`Filter events`}
+            mode="filter"
+            selected={filters.selected}
+            onToggle={filters.toggle}
+            options={
+              !groupId
+                ? roles.map((key) => ({ key, ...roleLabels[key] }))
+                : [
+                    { key: "CONFIRMED", label: t`Confirmed events`, icon: CalendarCheck2 },
+                    { key: "PLANNING", label: t`Planning`, icon: CalendarClock },
+                    { key: "TERMINATED", label: t`Terminated events`, icon: Flag },
+                  ]
+            }
+          />
+          <ListOrdering fields={recordListSortFields} order={order} onChange={setOrder} />
+        </div>
         <WindowedList
           key={`${groupId ?? section}:${filters.search}`}
           items={communityAccessDenied(list.error) ? [] : list.items}
@@ -131,8 +175,12 @@ export function EventList({
             <EventCard
               event={event}
               context={groupId ? "group" : "personal"}
-              checking={list.isFetching}
-              onVerify={() => void list.refetch({ cancelRefetch: false })}
+              checking={event.optimistic?.phase === "verifying" && list.isFetching}
+              onVerify={
+                event.optimistic?.phase === "verifying"
+                  ? () => void list.refetch({ cancelRefetch: false })
+                  : undefined
+              }
             />
           )}
         />

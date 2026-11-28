@@ -1,6 +1,7 @@
 import type { User } from "@board-game-organizer/schemas";
 import { searchContactsParamsSchema } from "@board-game-organizer/schemas";
 import { getBlockedByUserIds, getBlockedUserIds } from "@/app/lib/contacts/blocks";
+import { pendingContactRequestIds } from "@/app/lib/contacts/pendingContactRequestIds";
 import { corsJson, corsOptions } from "@/app/lib/cors";
 import { COLLECTIONS, getDb } from "@/app/lib/db";
 import { bgoAuth } from "@/app/lib/mcp/actor";
@@ -18,7 +19,7 @@ const SEARCH_WINDOW_MS = 60_000;
 /**
  * GET /api/users/search?query=…
  *
- * Case-insensitive substring search over `users` name/email: surnames must
+ * Case-insensitive substring search over `users` name, email and username: surnames must
  * match even when they follow a given name. Escape user input before regex.
  * Block policy stays asymmetric:
  * - users `viewer` blocked  → excluded
@@ -50,6 +51,7 @@ export async function GET(request: Request) {
     "cursor",
     "limit",
     "friendsOnly",
+    "scope",
     "x-vercel-protection-bypass",
   ]);
   const hasInvalidParams =
@@ -60,17 +62,21 @@ export async function GET(request: Request) {
     return corsJson({ error: "Invalid query" }, { status: 400 }, request);
   }
 
-  const { query, limit, cursor, friendsOnly } = parsed.data;
+  const { query, limit, cursor, friendsOnly, scope } = parsed.data;
+  const text = { $regex: escapeRegex(query), $options: "i" };
+  const username = { $regex: escapeRegex(query.replace(/^@/, "")), $options: "i" };
   const db = await getDb();
-  const [blockedByMe, blockedMe, following, followers, friendPairs] = await Promise.all([
-    getBlockedUserIds(db, userId),
-    getBlockedByUserIds(db, userId),
-    db.collection(COLLECTIONS.FOLLOWS).find({ fromUserId: userId }).toArray(),
-    db.collection(COLLECTIONS.FOLLOWS).find({ toUserId: userId }).toArray(),
-    db.collection(COLLECTIONS.FRIEND_REQUESTS).find({ status: "accepted" }).toArray(),
-  ]);
-  const blockedByMeSet = new Set(blockedByMe);
-  const blockedMeSet = new Set(blockedMe);
+  const [blockedByMe, blockedMe, following, followers, friendPairs, pendingIds] = await Promise.all(
+    [
+      getBlockedUserIds(db, userId),
+      getBlockedByUserIds(db, userId),
+      db.collection(COLLECTIONS.FOLLOWS).find({ fromUserId: userId }).toArray(),
+      db.collection(COLLECTIONS.FOLLOWS).find({ toUserId: userId }).toArray(),
+      db.collection(COLLECTIONS.FRIEND_REQUESTS).find({ status: "accepted" }).toArray(),
+      scope === "discovery" ? pendingContactRequestIds(db, userId) : [],
+    ],
+  );
+  const excluded = new Set([userId, ...blockedByMe, ...blockedMe]);
   // Relationship state relative to the viewer: coherent buttons across all
   // contacts sections (search shows Unfollow when already followed).
   const followingSet = new Set(following.map((f) => f.toUserId));
@@ -83,16 +89,22 @@ export async function GET(request: Request) {
     friendDirections.set(otherId, (friendDirections.get(otherId) ?? 0) | direction);
   }
 
+  if (scope === "discovery") {
+    for (const id of followingSet) excluded.add(id);
+    for (const id of followerSet) excluded.add(id);
+    for (const id of pendingIds) excluded.add(id);
+    for (const [id, directions] of friendDirections) {
+      if (directions === 3) excluded.add(id);
+    }
+  }
+
   const users = await db
     .collection<User>(COLLECTIONS.USERS)
     .find(
       {
-        $or: [
-          { name: { $regex: escapeRegex(query), $options: "i" } },
-          { email: { $regex: escapeRegex(query), $options: "i" } },
-        ],
+        $or: [{ name: text }, { email: text }, { username }],
         clerkId: {
-          $nin: [userId, ...blockedByMeSet, ...blockedMeSet],
+          $nin: [...excluded],
           ...(cursor ? { $gt: cursor } : {}),
           ...(friendsOnly === "true"
             ? {
@@ -111,9 +123,7 @@ export async function GET(request: Request) {
 
   const result = users
     .slice(0, limit)
-    .filter(
-      (u) => u.clerkId !== userId && !blockedByMeSet.has(u.clerkId) && !blockedMeSet.has(u.clerkId),
-    )
+    .filter((user) => !excluded.has(user.clerkId))
     .map((u) => ({
       id: u.clerkId,
       name: u.name,

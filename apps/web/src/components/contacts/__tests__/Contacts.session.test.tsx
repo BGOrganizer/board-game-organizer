@@ -193,9 +193,13 @@ it("sends a pending Contacts search only after the session token becomes availab
   auth.token = null;
   mount(await ContactsPage());
   fireEvent.click(screen.getByRole("tab", { name: "Search" }));
-  fireEvent.change(screen.getByRole("searchbox", { name: "Search users by name or email" }), {
-    target: { value: "friends" },
-  });
+  fireEvent.focus(screen.getByRole("searchbox"));
+  fireEvent.change(
+    screen.getByRole("searchbox", { name: "Search users by name, email, or username" }),
+    {
+      target: { value: "friends" },
+    },
+  );
   await advance(310);
   expect(searches).toEqual([]);
   expect(heartbeats).toEqual([]);

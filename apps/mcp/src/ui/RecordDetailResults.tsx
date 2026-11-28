@@ -250,7 +250,7 @@ function TableDetail({
       }
       results={
         table.eventStatus === "TERMINATED" ? (
-          <TableFinalResults data={table} />
+          <TableFinalResults app={app} data={table} />
         ) : table.confirmed ? (
           <DetailPanel
             app={app}

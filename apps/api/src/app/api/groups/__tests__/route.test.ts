@@ -293,6 +293,30 @@ describe("unified Group HTTP contracts", () => {
       expect(response.headers.get("cache-control")).toBe("private, no-store");
     },
   );
+  it("passes combined public discovery criteria without enabling client-supplied friend IDs", async () => {
+    const response = await groupsRoute.GET(
+      request(
+        "GET",
+        undefined,
+        "?scope=public&query=R&friends=true&nearLat=41.9&nearLng=12.5&radiusKm=50",
+      ),
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(services.groups.list).toHaveBeenCalledWith("owner", "public", {
+      query: "R",
+      friends: true,
+      nearLat: 41.9,
+      nearLng: 12.5,
+      radiusKm: 50,
+      limit: 20,
+    });
+    const invalid = await groupsRoute.GET(
+      request("GET", undefined, "?scope=public&friendIds=guest"),
+    );
+    expect(invalid.status).toBe(400);
+    expect(services.groups.list).toHaveBeenCalledTimes(1);
+  });
   it("lists canonical roles and source searches; validates creates without changing immutable type", async () => {
     expect((await groupsRoute.GET(request("GET", undefined, "?roles=accepted,admin"))).status).toBe(
       200,

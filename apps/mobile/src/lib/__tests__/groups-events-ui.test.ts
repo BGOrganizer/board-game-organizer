@@ -5,18 +5,15 @@ import { expect, it } from "vitest";
 // Source contracts only. They do not establish native rendering/gesture acceptance.
 const source = (feature: string, file: string) =>
   readFileSync(new URL(`../../components/${feature}/${file}.tsx`, import.meta.url), "utf8");
-it("owns three top Group tabs, limits owned lists to member roles, and confines edit/create FABs to their contexts", () => {
+it("owns three top Group tabs, scopes list filters, and confines edit/create FABs to their contexts", () => {
   const tabs = source("groups", "Groups");
   expect(tabs).toContain('value="private"');
   expect(tabs).toContain('value="public"');
   expect(tabs.indexOf('value="private"')).toBeLessThan(tabs.indexOf('value="public"'));
   expect(tabs.indexOf('value="public"')).toBeLessThan(tabs.indexOf('value="search"'));
-  expect(source("groups", "GroupList")).toContain(
-    "useListSearch(groupRecordMemberRoles, minimumLength)",
-  );
-  expect(source("groups", "GroupList")).toContain('key: "invited"');
+  expect(source("groups", "GroupList")).toContain("useListSearch(groupRecordMemberRoles, 0)");
   expect(tabs).toContain('value="search"');
-  expect(tabs).toContain('section === "search" ? "public" : "mine"');
+  expect(tabs).toContain("<GroupSearch onActiveChange={setSearchActive}");
   expect(source("groups", "GroupList")).not.toContain('t("Search public groups")');
   expect(source("groups", "GroupDetail")).toContain('group.canEdit && tab === "info"');
   expect(source("events", "Events")).not.toContain("left={Boolean(groupId)}");
@@ -116,7 +113,8 @@ it("shares one horizontal Table card across feeds with only Back context varying
   const indicators =
     source("events", "EventTableCardIndicators") + source("events", "EventTableRatingInfo");
   expect(source("events", "TableList")).toContain('context="personal"');
-  expect(source("events", "EventDetail")).toContain('context="event"');
+  expect(source("events", "EventDetail")).toContain("<EventTables");
+  expect(source("events", "EventTables")).toContain('context="event"');
   expect(card).toContain('context === "event"');
   expect(card).toContain('artworkLayout="cover"');
   expect(card).toContain('presentation="cover"');

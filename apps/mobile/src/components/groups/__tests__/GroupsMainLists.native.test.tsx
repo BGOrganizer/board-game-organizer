@@ -1,3 +1,4 @@
+import { groupRecordMemberRoles } from "@board-game-organizer/schemas";
 import { groupRecordsPageQuery } from "@board-game-organizer/shared";
 import {
   act,
@@ -8,7 +9,8 @@ import {
   waitFor,
   within,
 } from "@testing-library/react-native";
-import { expect, it } from "vitest";
+import { BackHandler, Keyboard } from "react-native";
+import { expect, it, vi } from "vitest";
 import {
   installNativePopoverMeasurements,
   pressMeasuredPopover,
@@ -16,6 +18,7 @@ import {
 import {
   listApi,
   listBoundary,
+  listChooseSortField,
   listFixture,
   listGroup,
   listId,
@@ -54,7 +57,7 @@ it("retains independent private/public filter and native list owners while prese
   expect(screen.getAllByRole("tab", { selected: true })).toHaveLength(1);
 });
 
-it("keeps owned filtering independent of discovery's four-character minimum and clears it deliberately", async () => {
+it("keeps owned filtering separate and finds public groups by one character of the approved address", async () => {
   await render(
     <MainListFixture>
       <Groups />
@@ -71,33 +74,112 @@ it("keeps owned filtering independent of discovery's four-character minimum and 
   );
   await listPress("Clear filter");
   expect(screen.getByTestId("list-search-input")).toHaveDisplayValue("");
+  listFixture.groups = [
+    listFixture.groups[0],
+    listGroup("Public list group", {
+      id: listId(2),
+      type: "PUBLIC",
+      approved: {
+        name: "Public list group",
+        location: {
+          id: listId(4),
+          name: "Venue",
+          address: "X Street",
+          latitude: 41.9,
+          longitude: 12.5,
+        },
+      },
+    }),
+  ];
   await listTab("search");
-  await fireEvent.changeText(screen.getByTestId("list-search-input"), "Pub");
-  expect(
-    listFixture.reads.filter((url) => url.searchParams.get("scope") === "public"),
-  ).toHaveLength(0);
-  await fireEvent.changeText(screen.getByTestId("list-search-input"), "Public");
+  expect(screen.queryByRole("button", { name: "Friends" })).toBeNull();
+  expect(await screen.findByText("Public list group")).toBeVisible();
+  await fireEvent(screen.getByTestId("list-search-input"), "focus", { nativeEvent: { target: 1 } });
+
+  await fireEvent.changeText(screen.getByTestId("list-search-input"), "X");
+  await waitFor(() =>
+    expect(listFixture.reads.some((url) => url.searchParams.get("query") === "X")).toBe(true),
+  );
   expect(await screen.findByText("Public list group")).toBeVisible();
   expect(screen.queryByText("Private list group")).toBeNull();
   expect(screen.queryByRole("button", { name: "Create group" })).toBeNull();
 });
 
 it("passes exact role selection through owned group queries and keeps discovery free of role chips", async () => {
+  const remove = vi.fn();
+  const back = vi.spyOn(BackHandler, "addEventListener").mockReturnValue({ remove });
   await render(
     <MainListFixture>
       <Groups />
     </MainListFixture>,
   );
   await screen.findByText("Private list group");
-  expect(screen.getByTestId("list-filter-admin")).toBeSelected();
+  const input = screen.getByTestId("list-search-input");
+  const sort = screen.getByTestId("list-sort-field");
+  expect(screen.queryByTestId("list-filter-administrator")).toBeNull();
+  await fireEvent(input, "focus", { nativeEvent: { target: 1 } });
+  expect(screen.getByTestId("list-search-input")).toBe(input);
+  expect(screen.getByTestId("list-sort-field")).toBe(sort);
+  expect(screen.queryByTestId("top-tab-private")).toBeNull();
+  expect(listBoundary.setOptions).toHaveBeenLastCalledWith({ headerShown: false });
+  for (const role of groupRecordMemberRoles)
+    expect(screen.getByTestId(`list-filter-${role}`)).toBeSelected();
   await userEvent.setup().press(screen.getByRole("button", { name: "Admin", selected: true }));
   expect(await screen.findByText("No groups found")).toBeVisible();
   expect(
-    listFixture.reads.some((url) => url.searchParams.get("roles") === "invited,accepted"),
+    listFixture.reads.some((url) => url.searchParams.get("roles") === "moderator,member,pending"),
   ).toBe(true);
+  const dismiss = back.mock.calls.at(-1)?.[1];
+  if (!dismiss) throw Error("Expected native search Back handler");
+  await act(() => {
+    expect(dismiss({} as Parameters<typeof dismiss>[0])).toBe(true);
+  });
+  expect(remove).toHaveBeenCalled();
+  expect(screen.queryByTestId("list-filter-administrator")).toBeNull();
+  expect(screen.getByTestId("list-sort-field")).toBe(sort);
+  expect(listBoundary.setOptions).toHaveBeenLastCalledWith({ headerShown: true });
+  await listTab("public");
+  await screen.findByText("Public list group");
+  expect(screen.queryByTestId("list-filter-administrator")).toBeNull();
+  await fireEvent(screen.getByTestId("list-search-input"), "focus", { nativeEvent: { target: 1 } });
+  for (const role of groupRecordMemberRoles)
+    expect(screen.getByTestId(`list-filter-${role}`)).toBeSelected();
+  await listPress("Back");
   await listTab("search");
-  expect(screen.queryByTestId("list-filter-admin")).toBeNull();
-  expect(screen.queryByTestId("list-filter-invited")).toBeNull();
+  expect(screen.queryByTestId("list-filter-administrator")).toBeNull();
+  expect(screen.queryByTestId("list-filter-pending")).toBeNull();
+  expect(screen.queryByTestId("list-sort-field")).toBeNull();
+});
+
+it("applies Name and direction to the owned Group source, retaining separate tab state", async () => {
+  await render(
+    <MainListFixture>
+      <Groups />
+    </MainListFixture>,
+  );
+  await screen.findByText("Private list group");
+  await listChooseSortField("Name");
+  expect(screen.getByTestId("list-sort-field")).toHaveAccessibleName("Sort by Name");
+  await listPress("Sort ascending");
+  await waitFor(() =>
+    expect(
+      listFixture.reads.some((url) => {
+        const params = url.searchParams;
+        return (
+          params.get("type") === "PRIVATE" &&
+          params.get("sort") === "name" &&
+          params.get("direction") === "asc" &&
+          !params.has("cursor")
+        );
+      }),
+    ).toBe(true),
+  );
+  await listTab("public");
+  await screen.findByText("Public list group");
+  expect(screen.getByTestId("list-sort-field")).toHaveAccessibleName("Sort by Date");
+  await listTab("private");
+  expect(screen.getByTestId("list-sort-field")).toHaveAccessibleName("Sort by Name");
+  expect(screen.getByTestId("list-sort-direction")).toHaveAccessibleName("Sort descending");
 });
 
 it("keeps visited filters isolated by both stable account and API ownership", async () => {
@@ -191,7 +273,7 @@ it("reveals retained pages progressively without mutating or refetching the auth
     { ...listOptions(), getToken: async () => "fixture-list-token" },
     "mine",
     "",
-    ["admin", "invited", "accepted"],
+    groupRecordMemberRoles,
     "PRIVATE",
   ).queryKey;
   const cached = {
@@ -236,7 +318,12 @@ it("pages from actual native end geometry and retains a scoped retry after next-
 it.each([
   ["private", "Private groups", "Private groups help", /Private groups you manage/],
   ["public", "Public groups", "Public groups help", /may still be awaiting approval/],
-  ["search", "Search", "Group search help", /Search for approved public groups by name/],
+  [
+    "search",
+    "Group search",
+    "Group search help",
+    /Search approved public groups by name or venue address/,
+  ],
 ] as const)(
   "describes the %s Group list in the section popover",
   async (initialSection, title, label, description) => {
@@ -255,30 +342,225 @@ it.each([
   },
 );
 
-it("centers both discovery empty states and keeps the input accessible", async () => {
+it("keeps the focused input mounted, restores the native header and resets to Friends on Back", async () => {
+  const dismiss = vi.spyOn(Keyboard, "dismiss");
+  const remove = vi.fn();
+  const back = vi.spyOn(BackHandler, "addEventListener").mockReturnValue({ remove });
   await render(
     <MainListFixture>
       <Groups initialSection="search" />
     </MainListFixture>,
   );
-  const prompt = "Enter at least 4 characters to search";
   const input = screen.getByLabelText("Search groups");
+  expect(screen.getByRole("heading", { name: "Group search" })).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Friends" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Near me" })).toBeNull();
+  await fireEvent(input, "focus", { nativeEvent: { target: 1 } });
+  expect(screen.getByLabelText("Search groups")).toBe(input);
+  expect(screen.queryByTestId("top-tab-search")).toBeNull();
+  expect(screen.queryByRole("heading", { name: "Group search" })).toBeNull();
+  expect(listBoundary.setOptions).toHaveBeenLastCalledWith({ headerShown: false });
+  expect(dismiss).not.toHaveBeenCalled();
+  await fireEvent.changeText(input, "Public");
+  await listPress("Friends");
+  expect(screen.getByRole("button", { name: "Friends" })).not.toBeSelected();
+  expect(await screen.findByText("Public list group")).toBeVisible();
+  await listPress("Open group: Public list group");
+  expect(listBoundary.push).toHaveBeenCalledWith({
+    pathname: "/group/[groupId]",
+    params: { groupId: listId(2) },
+  });
+  expect(input).toHaveDisplayValue("Public");
+  const handleBack = back.mock.calls.at(-1)?.[1];
+  expect(handleBack).toBeDefined();
+  await act(() => {
+    expect(handleBack?.({} as Parameters<NonNullable<typeof handleBack>>[0])).toBe(true);
+  });
+  expect(remove).toHaveBeenCalled();
+  expect(dismiss).toHaveBeenCalled();
   expect(input).toHaveDisplayValue("");
-  expect(screen.queryByText("Search groups")).toBeNull();
-  expect(screen.queryByRole("button", { name: "Search groups: Search help" })).toBeNull();
-  expect(screen.getByText(prompt).parent).toHaveStyle({ alignItems: "center" });
-  await fireEvent.changeText(input, "abc");
-  expect(screen.getAllByText(prompt)).toHaveLength(1);
-  expect(
-    listFixture.reads.filter((url) => url.searchParams.get("scope") === "public"),
-  ).toHaveLength(0);
-  await fireEvent.changeText(input, "missing");
-  const empty = await screen.findByText("No groups found");
-  expect(empty.parent).toHaveStyle({ alignItems: "center" });
-  expect(screen.queryByText(prompt)).toBeNull();
-  await listPress("Clear search");
-  expect(screen.getByText(prompt)).toBeVisible();
+  expect(listBoundary.setOptions).toHaveBeenLastCalledWith({ headerShown: true });
+  expect(screen.queryByRole("button", { name: "Friends" })).toBeNull();
+  expect(screen.getByTestId("top-tab-search")).toBeSelected();
+  await fireEvent(input, "focus", { nativeEvent: { target: 1 } });
+  await listPress("Back");
+  expect(screen.getByTestId("top-tab-search")).toBeSelected();
+});
+
+it("uses Nearby with an empty query, applies both chips, and keeps Friends when location is unavailable", async () => {
+  listBoundary.locationPermission
+    .mockResolvedValueOnce({ granted: false, canAskAgain: true })
+    .mockResolvedValueOnce({ granted: false, canAskAgain: true });
+  await render(
+    <MainListFixture>
+      <Groups initialSection="search" />
+    </MainListFixture>,
+  );
+  expect(listBoundary.locationPermission).not.toHaveBeenCalled();
+  await fireEvent(screen.getByTestId("list-search-input"), "focus", { nativeEvent: { target: 1 } });
+  await listPress("Near me");
+  expect(await screen.findByText("Location unavailable")).toBeVisible();
+  expect(listBoundary.requestLocationPermission).toHaveBeenCalledOnce();
+  expect(listBoundary.position).not.toHaveBeenCalled();
+  expect(screen.getByRole("button", { name: "Friends" })).toBeSelected();
+  expect(screen.getByRole("button", { name: "Near me" })).not.toBeSelected();
+  expect(screen.queryByTestId("top-tab-search")).toBeNull();
+  await listPress("Near me");
+  await waitFor(() =>
+    expect(
+      listFixture.reads.some(
+        ({ searchParams }) =>
+          searchParams.get("scope") === "public" &&
+          searchParams.get("friends") === "true" &&
+          Number(searchParams.get("nearLat")) === 41.9 &&
+          Number(searchParams.get("nearLng")) === 12.5 &&
+          searchParams.get("radiusKm") === "25" &&
+          !searchParams.has("query"),
+      ),
+    ).toBe(true),
+  );
+  expect(screen.getByLabelText("Search groups")).toHaveDisplayValue("");
+  expect(screen.getByRole("button", { name: "Near me" })).toBeSelected();
+  await listPress("Back");
+  expect(screen.queryByRole("button", { name: "Friends" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Near me" })).toBeNull();
+});
+
+it("changes the distance with the anchored HeroUI popover and keeps it when Nearby is toggled", async () => {
+  const back = vi.spyOn(BackHandler, "addEventListener").mockReturnValue({ remove: vi.fn() });
+  await installNativePopoverMeasurements();
+  await render(
+    <MainListFixture>
+      <Groups initialSection="search" />
+    </MainListFixture>,
+  );
+  expect(screen.queryByTestId("group-search-distance")).toBeNull();
+  await fireEvent(screen.getByTestId("list-search-input"), "focus", { nativeEvent: { target: 1 } });
+  await listPress("Near me");
+  const trigger = await screen.findByRole("button", { name: "Distance, 25 km" });
+  await pressMeasuredPopover(trigger);
+  expect(screen.getByTestId("group-distance-25")).toBeSelected();
+  await fireEvent.press(screen.getByTestId("group-distance-50"));
+  await waitFor(() =>
+    expect(listFixture.reads.some((url) => url.searchParams.get("radiusKm") === "50")).toBe(true),
+  );
+  expect(listBoundary.position).toHaveBeenCalledOnce();
+  await pressMeasuredPopover(screen.getByRole("button", { name: "Distance, 50 km" }));
+  for (const radius of [5, 10, 25, 50, 100]) {
+    expect(screen.getByTestId(`group-distance-${radius}`)).toBeVisible();
+  }
+  expect(screen.queryByTestId("group-distance-custom")).toBeNull();
+  expect(screen.getByTestId("group-distance-50")).toBeSelected();
+  const dismissMenu = back.mock.calls.at(-1)?.[1];
+  if (!dismissMenu) throw new Error("Expected the native popover Back handler");
+  await act(() => {
+    expect(dismissMenu({} as Parameters<typeof dismissMenu>[0])).toBe(true);
+  });
+  expect(screen.queryByTestId("group-distance-100")).toBeNull();
+  await pressMeasuredPopover(screen.getByRole("button", { name: "Distance, 50 km" }));
+  await fireEvent.press(screen.getByTestId("group-distance-100"));
+  await waitFor(() =>
+    expect(listFixture.reads.some((url) => url.searchParams.get("radiusKm") === "100")).toBe(true),
+  );
+  await listPress("Near me");
+  expect(screen.queryByTestId("group-search-distance")).toBeNull();
+  await listPress("Near me");
+  expect(await screen.findByRole("button", { name: "Distance, 100 km" })).toBeVisible();
+});
+
+it("shows distinct discovery empty and retry paths in active search", async () => {
+  listFixture.groups = [];
+  await render(
+    <MainListFixture>
+      <Groups initialSection="search" />
+    </MainListFixture>,
+  );
+  expect((await screen.findByText("No public groups with your friends")).parent).toHaveStyle({
+    alignItems: "center",
+  });
+  listFixture.statuses.set("/api/groups", 503);
+  await fireEvent(screen.getByTestId("list-search-input"), "focus", { nativeEvent: { target: 1 } });
+  await listPress("Friends");
+  expect(await screen.findByText("Could not load groups")).toBeVisible();
   expect(screen.queryByText("No groups found")).toBeNull();
+  listFixture.statuses.delete("/api/groups");
+  await listPress("Try again");
+  expect((await screen.findByText("No groups found")).parent).toHaveStyle({ alignItems: "center" });
+});
+
+it("pages discovery results and retries the same cursor while keeping available groups visible", async () => {
+  listFixture.cursors.set("/api/groups", "next-discovery-page");
+  listFixture.nextGroups = [listGroup("Next discovery group", { type: "PUBLIC", id: listId(4) })];
+  await render(
+    <MainListFixture>
+      <Groups initialSection="search" />
+    </MainListFixture>,
+  );
+  expect(await screen.findByText("Public list group")).toBeVisible();
+  let finish: (response: Response) => void = () => {
+    throw new Error("Expected a discovery page request");
+  };
+  listFixture.pending.set(
+    "/api/groups",
+    new Promise((resolve) => {
+      finish = resolve;
+    }),
+  );
+  const nextReads = () =>
+    listFixture.reads.filter((url) => url.searchParams.get("cursor") === "next-discovery-page");
+  const list = screen.getByTestId("groups-scroll");
+  await scrollListEnd(list);
+  await waitFor(() => expect(nextReads()).toHaveLength(1));
+  expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+  expect(screen.getByText("Public list group")).toBeVisible();
+  await scrollListEnd(list);
+  expect(nextReads()).toHaveLength(1);
+  await act(() => {
+    listFixture.pending.delete("/api/groups");
+    finish(listJson({ error: "UNAVAILABLE" }, 503));
+  });
+  expect(await screen.findByRole("button", { name: "Could not load groups. Retry" })).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+  expect(screen.getByText("Public list group")).toBeVisible();
+  await listPress("Could not load groups. Retry");
+  expect(await screen.findByText("Next discovery group")).toBeVisible();
+  expect(nextReads()).toHaveLength(2);
+  for (const { searchParams } of nextReads()) {
+    expect(searchParams.get("scope")).toBe("public");
+    expect(searchParams.get("friends")).toBe("true");
+  }
+});
+
+it("hides cached discovery results when authorization is lost", async () => {
+  await render(
+    <MainListFixture>
+      <Groups initialSection="search" />
+    </MainListFixture>,
+  );
+  expect(await screen.findByText("Public list group")).toBeVisible();
+  listFixture.statuses.set("/api/groups", 403);
+  await act(() => listFixture.client?.invalidateQueries({ queryKey: ["groups"] }));
+  expect(await screen.findByText("Could not load groups")).toBeVisible();
+  expect(screen.queryByText("Public list group")).toBeNull();
+  expect(screen.queryByText("No groups found")).toBeNull();
+});
+
+it("continues discovery when a page has a cursor but contains no visible groups", async () => {
+  listFixture.groups = [];
+  listFixture.cursors.set("/api/groups", "next-visible-group");
+  listFixture.nextGroups = [listGroup("Later visible group", { type: "PUBLIC", id: listId(4) })];
+  await render(
+    <MainListFixture>
+      <Groups initialSection="search" />
+    </MainListFixture>,
+  );
+  const load = await screen.findByRole("button", { name: "Load more" });
+  expect(screen.queryByText("No public groups with your friends")).toBeNull();
+  await userEvent.setup().press(load);
+  expect(await screen.findByText("Later visible group")).toBeVisible();
+  expect(
+    listFixture.reads.filter((url) => url.searchParams.get("cursor") === "next-visible-group"),
+  ).toHaveLength(1);
 });
 
 it("keeps the first group page usable while suppressing repeated requests for the pending next cursor", async () => {

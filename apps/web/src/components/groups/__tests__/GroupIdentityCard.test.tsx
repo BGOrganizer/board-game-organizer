@@ -14,7 +14,7 @@ it.each([
   ["none", "Private"],
 ] as const)(
   "shows the existing %s role in a background Card without granting capabilities",
-  (role, label) => {
+  async (role, label) => {
     const group = { ...groupRecord, role, canViewEvents: false, eventCount: null };
     const { container } = renderWithI18n(<GroupIdentityCard group={group} />);
     const heading = screen.getByRole("heading", { name: group.name });
@@ -30,6 +30,12 @@ it.each([
     expect(container.textContent).not.toContain("Events");
     expect(screen.queryByRole("link")).toBeNull();
     expect(screen.queryByRole("button", { name: /^Accept invitation|Delete group/ })).toBeNull();
+    if (role === "admin" || role === "moderator" || role === "accepted") {
+      expect(indicator.querySelector(".lucide-id-card")).not.toBeNull();
+      fireEvent.click(indicator);
+      expect(await screen.findByRole("heading", { name: "Role" })).toBeVisible();
+      expect(screen.getByText(label)).toBeVisible();
+    }
   },
 );
 it("retains uploaded logos without cropping and preserves venue/moderation content outside the identity", async () => {

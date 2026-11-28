@@ -75,9 +75,9 @@ it("keeps date/time proposals and verified location add slots available only for
   const preview = source("events", "EventCard");
   expect(preview).toContain("titleAccessory=");
   expect(source("events", "EventCardIndicators")).toContain(
-    '<EventSchedulePopover event={event} kind="dates" />',
+    "<EventScheduleSummary event={event} />",
   );
-  expect(source("events", "EventSchedulePopover")).toContain('timeZone: "UTC"');
+  expect(source("events", "EventScheduleSummary")).toContain('timeZone="UTC"');
   expect(preview).not.toContain("eventRecordDisplayTimeZone");
   expect(preview).toContain('artworkLayout="cover"');
   expect(preview).toContain('presentation="cover"');

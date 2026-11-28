@@ -56,6 +56,12 @@ output.status = {
   filter: literal(it ? "Filtra" : "Filter"),
   clear: literal(it ? "Cancella filtro" : "Clear filter"),
   retry: literal(it ? "Riprova" : "Try again"),
+  sortDate: literal(it ? "Data" : "Date"),
+  sortName: literal(it ? "Nome" : "Name"),
+  sortByDate: literal(it ? "Ordina per Data" : "Sort by Date"),
+  sortByName: literal(it ? "Ordina per Nome" : "Sort by Name"),
+  sortAscending: literal(it ? "Ordina in ordine crescente" : "Sort ascending"),
+  sortDescending: literal(it ? "Ordina in ordine decrescente" : "Sort descending"),
   scheduled: literal(it ? "Schedulati" : "Scheduled"),
   available: literal(it ? "Disponibili" : "Available"),
   terminated: literal(it ? "Terminati" : "Terminated events"),
@@ -96,11 +102,25 @@ output.status = {
   historyCard: literal(`${tablePrefix}: ${input.history.name}`),
   historyTableName: literal(input.history.name),
   tableStatus: literal(it ? "Terminata" : "Terminated"),
+  eventDateTime: literal(it ? "Data e Ora:" : "Date and time:"),
+  eventVenue: literal(it ? "Luogo:" : "Location:"),
   dates: literal(`${it ? "Date e Orari" : "Dates and times"}: ${input.history.name}`),
   locations: literal(`${it ? "Luoghi" : "Locations"}: ${input.history.name}`),
   games: literal(`${it ? "Giochi da tavolo" : "Board games"}: ${input.history.name}`),
   minimum: literal(it ? "Giocatori minimi" : "Minimum players"),
   maximum: literal(it ? "Giocatori massimi" : "Maximum players"),
   waiting: literal(it ? "Lista d'attesa" : "Waiting list"),
-  winners: literal(input.history.winnerHandles.join(", ")),
+  tableRoles: literal(it ? "Ruoli e partecipazione" : "Roles and participation"),
+  rolesIntro: literal(it ? "In questo tavolo, hai i seguenti ruoli:" : "Your roles at this table:"),
+  finished: literal(it ? "La partita è terminata." : "The game has ended."),
+  winnerHeading: literal(
+    input.history.winnerHandles.length === 1
+      ? it
+        ? "Vincitore"
+        : "Winner"
+      : it
+        ? "Vincitori"
+        : "Winners",
+  ),
+  winnerRows: input.history.winnerHandles.map(literal),
 };

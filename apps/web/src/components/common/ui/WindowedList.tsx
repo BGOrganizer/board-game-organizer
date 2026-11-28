@@ -36,17 +36,13 @@ export function WindowedList<T>({
 }) {
   const root = useRef<HTMLUListElement>(null);
   const measured = useRef(new Map<string, number>());
-  const [viewport, setViewport] = useState({ top: 0, height: 600 });
+  const viewport = useRef({ top: 0, height: 600 });
   const [, setRevision] = useState(0);
   const [focused, setFocused] = useState<string | null>(null);
   const callbacks = useRef({ onBeginScroll, onEndReached });
   callbacks.current = { onBeginScroll, onEndReached };
   const active = useRef(false);
-  const geometry = useRef<{ keys: string[]; offsets: number[]; top: number }>({
-    keys: [],
-    offsets: [],
-    top: 0,
-  });
+  const geometry = useRef({ keys: [] as string[], offsets: [] as number[], start: 0, end: 0 });
   const frame = useRef<number | null>(null);
   const update = useCallback(() => {
     frame.current = null;
@@ -62,12 +58,23 @@ export function WindowedList<T>({
         )
       : windowedListViewport(window.innerHeight);
     const top = visible.top - box.top;
-    setViewport((old) =>
-      old.top === top && old.height === visible.height ? old : { top, height: visible.height },
-    );
+    if (viewport.current.top !== top || viewport.current.height !== visible.height) {
+      viewport.current = { top, height: visible.height };
+      const { keys, start, end } = geometry.current;
+      const next = windowedListLayout(
+        keys,
+        measured.current,
+        estimatedRowHeight,
+        gap,
+        top,
+        visible.height,
+      );
+      // Keep the latest scroll geometry even when every currently rendered row still fits.
+      if (next.start !== start || next.end !== end) setRevision((value) => value + 1);
+    }
     if (active.current && visible.height > 0 && box.bottom <= visible.top + visible.height + 300)
       callbacks.current.onEndReached();
-  }, []);
+  }, [estimatedRowHeight, gap]);
   const schedule = useCallback(() => {
     if (frame.current === null) frame.current = requestAnimationFrame(update);
   }, [update]);
@@ -122,6 +129,7 @@ export function WindowedList<T>({
     return () => {
       observer.disconnect();
       if (frame.current !== null) cancelAnimationFrame(frame.current);
+      frame.current = null;
       window.removeEventListener("scroll", schedule, true);
       window.removeEventListener("resize", schedule);
       window.removeEventListener("wheel", begin);
@@ -139,7 +147,7 @@ export function WindowedList<T>({
       const oldHeight = measured.current.get(key) ?? estimatedRowHeight;
       measured.current.set(key, height);
       const index = geometry.current.keys.indexOf(key);
-      if (active.current && index >= 0 && geometry.current.offsets[index] < geometry.current.top)
+      if (active.current && index >= 0 && geometry.current.offsets[index] < viewport.current.top)
         (scrollOwner(node) ?? window).scrollBy(0, height - oldHeight);
       setRevision((value) => value + 1);
     },
@@ -151,10 +159,10 @@ export function WindowedList<T>({
     measured.current,
     estimatedRowHeight,
     gap,
-    viewport.top,
-    viewport.height,
+    viewport.current.top,
+    viewport.current.height,
   );
-  geometry.current = { keys, offsets: layout.offsets, top: viewport.top };
+  geometry.current = { keys, offsets: layout.offsets, start: layout.start, end: layout.end };
   const indexes = Array.from(
     { length: layout.end - layout.start },
     (_, index) => layout.start + index,

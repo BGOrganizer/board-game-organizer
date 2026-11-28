@@ -35,7 +35,11 @@ import { requireBgoModerator } from "../organizations/community-role";
 import { type LeaderboardRepository, leaderboardPlayer } from "../ratings/leaderboard.repository";
 import type { UsersRepository } from "../users/users.repository";
 import type { GroupAssetsRepository } from "./group-assets.repository";
-import type { GroupRecordPage, GroupRecordsRepository } from "./group-records.repository";
+import type {
+  GroupRecordListPage,
+  GroupRecordPage,
+  GroupRecordsRepository,
+} from "./group-records.repository";
 
 export class GroupRecordsService {
   constructor(
@@ -165,16 +169,26 @@ export class GroupRecordsService {
     if (group.type !== "PUBLIC") throw new CommunityError(404, "GROUP_NOT_FOUND");
     return this.response(group, userId, true);
   }
-  async list(userId: string, scope: "mine" | "public" | "moderation", page: GroupRecordPage) {
+  async list(userId: string, scope: "mine" | "public" | "moderation", page: GroupRecordListPage) {
     if (scope === "moderation") await requireBgoModerator(userId);
-    const rows = await this.groups.list(userId, scope, page, new Date().toISOString());
+    let friendIds: string[] | undefined;
+    if (scope === "public" && page.friends) {
+      const blocked = await this.relationships.getBlockedUserIds(userId);
+      friendIds = (await this.relationships.listFriends(userId, blocked)).map(
+        (row) => row.toUserId,
+      );
+    }
+    const rows = await this.groups.list(userId, scope, page, new Date().toISOString(), friendIds);
     const items: GroupRecordResponse[] = [];
     for (const row of rows.slice(0, page.limit))
       items.push(await this.response(row, userId, scope === "moderation"));
     const last = items.at(-1);
     return {
       items,
-      nextCursor: rows.length > page.limit && last ? `${last.createdAt}|${last.id}` : null,
+      nextCursor:
+        rows.length > page.limit && last
+          ? `${page.sort === "name" ? `name:${last.name}` : last.createdAt}|${last.id}`
+          : null,
     };
   }
   private async releaseLogos(previous: GroupRecord | undefined, next: GroupRecord) {

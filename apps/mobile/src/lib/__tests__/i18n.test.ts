@@ -53,6 +53,11 @@ describe("createAppI18n", () => {
 });
 
 describe("translate (runtime)", () => {
+  it("uses the compact Admin label only when the filter requests its scoped ID", () => {
+    const italian = createAppI18n("it");
+    expect(italian._({ id: "list.filter.admin", message: "Admin" })).toBe("Admin");
+    expect(translate(italian, "Admin")).toBe("Amministratore");
+  });
   it.each([
     ["An update is available", "È disponibile un aggiornamento"],
     ["Update and restart", "Aggiorna e riavvia"],
@@ -117,6 +122,12 @@ describe("translate (runtime)", () => {
   ])("translates location control %s on both clients", (english, italian) => {
     expect(translate(createAppI18n("en"), english)).toBe(english);
     expect(translate(createAppI18n("it"), english)).toBe(italian);
+  });
+  it("uses a separate approval label for Groups", () => {
+    expect(translate(createAppI18n("en"), "group.review.approved")).toBe("Approved");
+    const italian = createAppI18n("it");
+    expect(translate(italian, "group.review.approved")).toBe("Approvato");
+    expect(translate(italian, "Approved")).toBe("Approvata");
   });
   it("resolves the shared catalog id from the English source", () => {
     const it = createAppI18n("it");

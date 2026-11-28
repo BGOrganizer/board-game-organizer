@@ -13,10 +13,11 @@ import {
 } from "react";
 import { Keyboard, Text } from "react-native";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { ScheduleOptionsPopover } from "@/components/common/ui/ScheduleOptionsPopover";
 import { ContactLegend } from "@/components/contacts/ContactLegend";
+import { EventCardIndicators } from "@/components/events/EventCardIndicators";
 import { EventPlayerCard } from "@/components/events/EventPlayerCard";
 import { EventResultTableCard } from "@/components/events/EventResultTableCard";
-import { EventSchedulePopover } from "@/components/events/EventSchedulePopover";
 import { EventTableScheduleCard } from "@/components/events/EventTableScheduleCard";
 import { EventTableSchedulePopover } from "@/components/events/EventTableSchedulePopover";
 import { ScoreIdentity } from "@/components/ratings/ScoreIdentity";
@@ -138,31 +139,65 @@ it("ScoreIdentity: explain position while retaining the provisional rating and s
   );
 });
 
+// Keep measuring the same two-row popover used by the old event trigger.
 it("EventSchedulePopover: show two proposed dates at their original wall times", async () => {
+  const starts = ["2030-06-03T20:00Z", "2030-06-04T18:15Z"];
+  await benchmark(
+    <ScheduleOptionsPopover
+      name={plannedEvent.name}
+      kind="dates"
+      planning
+      rows={starts.map((startsAt) => ({ id: startsAt, date: { startsAt, timeZone: "UTC" } }))}
+    />,
+    async () => {
+      await pressMeasuredPopover(
+        screen.getByRole("button", { name: `Dates and times: ${plannedEvent.name}` }),
+      );
+      for (const startsAt of starts) {
+        const date = new Date(startsAt);
+        const day = new Intl.DateTimeFormat("en", { timeZone: "UTC", dateStyle: "long" }).format(
+          date,
+        );
+        const clock = new Intl.DateTimeFormat("en", {
+          timeZone: "UTC",
+          hour: "2-digit",
+          minute: "2-digit",
+        }).format(date);
+        expect(screen.getByText(day)).toBeVisible();
+        expect(screen.getByText(clock)).toBeVisible();
+      }
+    },
+  );
+});
+
+it("Event status popover: shows the chosen date at its original wall time", async () => {
   const event = {
     ...plannedEvent,
+    status: "CONFIRMED" as const,
+    confirmed: {
+      dateId: "44444444-4444-4444-8444-444444444444",
+      locationId: plannedEvent.locations[0].id,
+      at: plannedEvent.createdAt,
+    },
     dates: [
       ...plannedEvent.dates,
       { id: "44444444-4444-4444-8444-444444444444", day: "2030-06-04", startTime: "18:15" },
     ],
   };
-  await benchmark(<EventSchedulePopover event={event} kind="dates" />, async () => {
-    await pressMeasuredPopover(
-      screen.getByRole("button", { name: `Dates and times: ${event.name}` }),
-    );
-    for (const time of ["2030-06-03T20:00Z", "2030-06-04T18:15Z"]) {
-      const date = new Date(time);
-      const day = new Intl.DateTimeFormat("en", { timeZone: "UTC", dateStyle: "long" }).format(
-        date,
-      );
-      const clock = new Intl.DateTimeFormat("en", {
-        timeZone: "UTC",
-        hour: "2-digit",
-        minute: "2-digit",
-      }).format(date);
-      expect(screen.getByText(day)).toBeVisible();
-      expect(screen.getByText(clock)).toBeVisible();
-    }
+  await benchmark(<EventCardIndicators event={event} />, async () => {
+    await pressMeasuredPopover(screen.getByRole("button", { name: "Confirmed" }));
+    const date = new Date("2030-06-04T18:15Z");
+    const day = new Intl.DateTimeFormat("en", { timeZone: "UTC", dateStyle: "long" }).format(date);
+    const clock = new Intl.DateTimeFormat("en", {
+      timeZone: "UTC",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(date);
+    expect(screen.getByText("Date and time:")).toBeVisible();
+    expect(screen.getByText("Location:")).toBeVisible();
+    expect(screen.getByText(day)).toBeVisible();
+    expect(screen.getByText(clock)).toBeVisible();
+    expect(screen.getByText(plannedEvent.locations[0].address)).toBeVisible();
   });
 });
 

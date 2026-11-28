@@ -1,13 +1,7 @@
 "use client";
 
 import { apiHeaders, withProtectionBypass } from "@board-game-organizer/shared";
-import {
-  hashKey,
-  useInfiniteQuery,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { hashKey, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo, useState } from "react";
 import { useOptimisticBusy } from "../../common/hooks/useOptimisticBusy";
 import type { MutationFeedback } from "../../common/mutationFeedback";
@@ -18,6 +12,7 @@ import {
 } from "../../common/optimisticOperation";
 import { CommunityApiError } from "../../community/communityApi";
 import { useRecordListWindow } from "../../events/hooks/useRecordListWindow";
+import { isGroupDiscoveryKey } from "../../groups/hooks/useGroupRecords";
 import { globalLeaderboardKey } from "../../groups/hooks/useLeaderboard";
 import { contactRelationshipIds } from "../contactRelationshipIds";
 import { contactRequestContext } from "../contactRequestContext";
@@ -80,7 +75,7 @@ export function relationshipListKey(
 }
 
 export function contactSuggestionsKey(apiUrl: string, userId: string | null | undefined) {
-  return ["contacts", "suggestions", apiUrl, userId, "device", "pages-v1"] as const;
+  return ["contacts", "suggestions", apiUrl, userId, "device", "pages-v2"] as const;
 }
 
 export interface ContactsApiOptions {
@@ -171,7 +166,7 @@ export async function fetchSuggestionPageWithToken(
 ): Promise<{ users: ContactUser[]; hasContacts: boolean; nextCursor: string | null }> {
   const params = new URLSearchParams({
     limit: "20",
-    scope: "contacts",
+    scope: "discovery",
     ...(cursor ? { cursor } : {}),
   });
   const res = await fetch(
@@ -227,15 +222,20 @@ export async function syncContactsWithToken(
   };
 }
 
+type ContactSearchPage = { users: ContactUser[]; nextCursor?: string | null };
+
 export function searchUsers(
   apiUrl: string,
   token: string,
   query: string,
   protectionBypass?: string | null,
-): Promise<{ users: ContactUser[] }> {
+  cursor = "",
+  signal?: AbortSignal,
+): Promise<ContactSearchPage> {
+  const after = cursor ? `&cursor=${encodeURIComponent(cursor)}` : "";
   return fetch(
     withProtectionBypass(
-      `${apiUrl}/api/users/search?query=${encodeURIComponent(query)}`,
+      `${apiUrl}/api/users/search?query=${encodeURIComponent(query)}&scope=discovery${after}`,
       protectionBypass,
     ),
     // GET: Authorization only — no Content-Type, so the request stays a
@@ -243,21 +243,11 @@ export function searchUsers(
     // forces an OPTIONS preflight; browsers then reject the response if
     // the allow-origin is "*" with allow-credentials, surfacing as
     // "Failed to fetch" with no response event at all.
-    { headers: { Authorization: `Bearer ${token}` } },
+    { headers: { Authorization: `Bearer ${token}` }, signal },
   ).then(async (res) => {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return (await res.json()) as { users: ContactUser[] };
+    return (await res.json()) as ContactSearchPage;
   });
-}
-
-async function searchUsersWithToken(
-  apiUrl: string,
-  token: string | null | undefined,
-  getToken: (() => Promise<string | null>) | undefined,
-  query: string,
-  protectionBypass?: string | null,
-): Promise<{ users: ContactUser[] }> {
-  return searchUsers(apiUrl, await resolveToken(token, getToken), query, protectionBypass);
 }
 
 /**
@@ -505,7 +495,8 @@ export function useContactActions(
       });
       void queryClient.invalidateQueries({
         queryKey: ["groups", apiUrl, currentUserId],
-        predicate: ({ queryKey }) => queryKey[3] === "people" || queryKey[3] === "invitees",
+        predicate: ({ queryKey }) =>
+          queryKey[3] === "people" || queryKey[3] === "invitees" || isGroupDiscoveryKey(queryKey),
       });
       // Search/suggestions may be observed by another hook instance or a retained tab.
       // Refetch eligibility from the source; a former connection is not automatically a device contact.
@@ -863,13 +854,36 @@ export function useContacts(
   );
 
   const [searchQuery, setSearchQuery] = useState("");
-  const searchResult = useQuery({
-    queryKey: ["contacts", `search:${searchQuery}`, apiUrl, currentUserId ?? token],
-    queryFn: () => searchUsersWithToken(apiUrl, token, getToken, searchQuery, protectionBypass),
+  const searchKey = ["contacts", `search:${searchQuery}`, apiUrl, currentUserId ?? token, "pages"];
+  const searchResult = useInfiniteQuery({
+    queryKey: searchKey,
+    queryFn: async ({ pageParam, signal }) =>
+      searchUsers(
+        apiUrl,
+        await resolveToken(token, getToken),
+        searchQuery,
+        protectionBypass,
+        pageParam,
+        signal,
+      ),
+    initialPageParam: "",
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
     enabled: enabled && searchQuery.length >= 4,
     staleTime: 30_000,
   });
-  const search = searchResult;
+  const searchWindow = useRecordListWindow({
+    scope: hashKey([searchKey, presentationScope]),
+    pages: searchResult.data?.pages,
+    getItems: suggestionUsers,
+    hasNextPage: searchResult.hasNextPage,
+    isFetching: searchResult.isFetching,
+    fetchNextPage: () => searchResult.fetchNextPage({ cancelRefetch: false }),
+  });
+  const search = {
+    ...searchResult,
+    ...searchWindow,
+    data: searchResult.data ? { users: searchWindow.items } : undefined,
+  };
 
   const refreshContacts = useCallback(
     () => queryClient.invalidateQueries({ queryKey: ["contacts"] }),

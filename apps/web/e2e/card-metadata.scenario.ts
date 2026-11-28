@@ -222,7 +222,13 @@ for (const width of [390, 1280])
           ["Search", "Group search help"],
         ]) {
       await page.getByRole("tab", { name: tab, exact: true }).click();
-      await expect(page.getByRole("heading", { name: tab, exact: true })).toBeVisible();
+      const heading =
+        label === (it ? "Aiuto sulla ricerca dei gruppi" : "Group search help")
+          ? it
+            ? "Ricerca Gruppi"
+            : "Group search"
+          : tab;
+      await expect(page.getByRole("heading", { name: heading, exact: true })).toBeVisible();
       await page.getByRole("button", { name: label, exact: true }).click();
       const help = page.getByRole("dialog");
       await expect(help.locator("p")).toBeVisible();
@@ -238,21 +244,40 @@ for (const width of [390, 1280])
       }),
     ).toHaveCount(0);
     await expect(
-      page.getByRole("status").filter({
-        hasText: it
-          ? "Inserisci almeno 4 caratteri per cercare"
-          : "Enter at least 4 characters to search",
-      }),
+      page.getByRole("button", { name: it ? "Amici" : "Friends", pressed: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: it ? "Vicino a me" : "Near me", pressed: false }),
     ).toBeVisible();
     const group = await open("/groups", groupName, "group");
     await inspectFrame(group);
     const groupLabels = await labels(group);
+    const groupRoleTrigger = group
+      .getByRole("button")
+      .filter({ has: page.locator(".lucide-id-card") });
+    await expect(groupRoleTrigger).toBeVisible();
+    await groupRoleTrigger.click();
+    await expect(
+      page.getByRole("dialog", { name: it ? "Ruolo" : "Role", exact: true }),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
     const title = await group.getByText(groupName, { exact: true }).evaluate((node) => {
       const s = getComputedStyle(node);
       return { size: s.fontSize, family: s.fontFamily, weight: s.fontWeight };
     });
     await group.getByRole("link").click();
     await inspectIdentity(groupName, groupLabels);
+    const groupIdentity = page.locator(".card").filter({
+      has: page.getByRole("heading", { name: groupName, exact: true }),
+    });
+    await groupIdentity
+      .getByRole("button")
+      .filter({ has: page.locator(".lucide-id-card") })
+      .click();
+    await expect(
+      page.getByRole("dialog", { name: it ? "Ruolo" : "Role", exact: true }),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
     await expect(
       page.getByRole("tab", { name: it ? "Dettagli" : "Details", exact: true }),
     ).toBeVisible();
@@ -299,6 +324,23 @@ for (const width of [390, 1280])
       await expect(popover.getByText(copy, { exact: true })).toBeVisible();
       await page.keyboard.press("Escape");
       await expect(popover).toHaveCount(0);
+      if (tab === (it ? "Eventi" : "Events")) {
+        const search = page.getByRole("searchbox", { name: it ? "Filtra" : "Filter", exact: true });
+        const planning = page.getByRole("button", {
+          name: it ? "In pianificazione" : "Planning",
+          exact: true,
+          pressed: true,
+        });
+        await expect(planning).toHaveCount(0);
+        await search.focus();
+        await expect(planning).toBeVisible();
+        await expect(page.getByRole("tab", { name: tab, exact: true })).toHaveCount(0);
+        await page.getByRole("button", { name: it ? "Indietro" : "Back", exact: true }).click();
+        await expect(
+          page.getByRole("tab", { name: tab, exact: true, selected: true }),
+        ).toBeVisible();
+        await expect(planning).toHaveCount(0);
+      }
     }
     const groupPerson = page.getByText(handle, { exact: true });
     await expect(groupPerson).toBeVisible();
@@ -334,9 +376,15 @@ for (const width of [390, 1280])
     });
     expect(eventGeometry).toEqual({ width: 96, height: 96 });
     const rolesLabel = it ? "Ruoli e partecipazione" : "Roles and participation";
+    const eventRolesIntro = it
+      ? "In questo evento, hai i seguenti ruoli:"
+      : "Your roles in this event:";
     const roleButton = event.getByRole("button", { name: rolesLabel, exact: true });
     await expect(roleButton).toBeVisible();
     await roleButton.click();
+    await expect(
+      page.getByRole("dialog").getByText(eventRolesIntro, { exact: true }),
+    ).toBeVisible();
     const acceptedRole = page
       .getByRole("dialog")
       .getByText(it ? "Partecipante accettato" : "Accepted participant", { exact: true });
@@ -364,7 +412,12 @@ for (const width of [390, 1280])
         event.getByRole("button", { name: `${label}: ${eventName}`, exact: true }),
       ).toHaveCount(0);
     await event.getByRole("link").click();
-    await inspectIdentity(eventName, eventLabels);
+    const eventIdentity = await inspectIdentity(eventName, eventLabels);
+    await eventIdentity.getByRole("button", { name: rolesLabel, exact: true }).click();
+    await expect(
+      page.getByRole("dialog").getByText(eventRolesIntro, { exact: true }),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
     await page.getByRole("tab", { name: it ? "Tavoli" : "Tables", exact: true }).click();
     const table = page
       .getByRole("link", {

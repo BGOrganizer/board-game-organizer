@@ -194,7 +194,12 @@ function Editor({
         clientDraft: draft,
         clientInitialGroupId: groupId,
         clientGroup: form.group
-          ? { id: form.group.id, name: form.group.name, type: form.group.type }
+          ? {
+              id: form.group.id,
+              name: form.group.name,
+              type: form.group.type,
+              role: form.group.role,
+            }
           : undefined,
       });
     const targetGroup = "groupId" in parsed.data ? parsed.data.groupId : event?.groupId;

@@ -87,36 +87,42 @@ it.each([
   ["available", ["PLANNING"]],
   ["terminated", ["TERMINATED"]],
 ] as const)(
-  "native %s sends fixed source states without chips and preserves Group context",
+  "native %s sends fixed source states and keeps Group context on the existing status filters",
   (section, statuses) => {
     const code = callArgument("events/EventList", "useEventRecords", 1);
     const filters = { selected: ["PLANNING", "TERMINATED"], search: "z" };
-    expect(runInNewContext(code, { section, filters, groupId: undefined })).toEqual({
+    const order = { sort: "date", direction: "asc" };
+    const eventListStatuses = ["CONFIRMED", "PLANNING", "TERMINATED"];
+    const context = { section, filters, order, roles: [], eventListStatuses };
+    expect(runInNewContext(code, { ...context, groupId: undefined })).toEqual({
       groupId: undefined,
       section,
       statuses: [...statuses],
       query: "z",
+      roles: [],
+      order,
     });
-    expect(runInNewContext(code, { section, filters, groupId: "club" })).toEqual({
+    expect(runInNewContext(code, { ...context, groupId: "club" })).toEqual({
       groupId: "club",
       section: undefined,
       statuses: filters.selected,
       query: "z",
+      roles: undefined,
+      order,
     });
     const options = expression("events/EventList", "ListSearch", "options");
-    const context = {
-      groupId: undefined,
+    const labels = {
+      groupId: "club",
       t: (s: string) => s,
       CalendarCheck2: "confirmed",
       CalendarClock: "planning",
       Flag: "terminated",
     };
-    expect(runInNewContext(options, context)).toEqual([]);
-    expect(
-      runInNewContext(options, { ...context, groupId: "club" }).map(
-        (row: { key: string }) => row.key,
-      ),
-    ).toEqual(["CONFIRMED", "PLANNING", "TERMINATED"]);
+    expect(runInNewContext(options, labels).map((row: { key: string }) => row.key)).toEqual([
+      "CONFIRMED",
+      "PLANNING",
+      "TERMINATED",
+    ]);
   },
 );
 it.each(["mine", "available", "terminated", "foreign", undefined])(
@@ -128,36 +134,19 @@ it.each(["mine", "available", "terminated", "foreign", undefined])(
     );
   },
 );
-it.each(["mine", "public"])(
-  "native Group %s keeps its filter or discovery mode and minimum",
-  (scope) => {
-    const mode = runInNewContext(expression("groups/GroupList", "ListSearch", "mode"), { scope });
-    expect(mode).toBe(scope === "mine" ? "filter" : "search");
-    const text = readFileSync(
-      new URL("../../components/groups/GroupList.tsx", import.meta.url),
-      "utf8",
-    );
-    expect(text).toContain('const minimumLength = scope === "public" ? 4 : 0');
-    expect(text).toContain("useListSearch(groupRecordMemberRoles, minimumLength)");
-  },
-);
-it("native History has one terminated source list, no section tabs or chips", () => {
-  const wrapper = readFileSync(
-    new URL("../../components/events/Tables.tsx", import.meta.url),
+it("native owned Groups keep source filters independent from discovery", () => {
+  const owned = readFileSync(
+    new URL("../../components/groups/GroupList.tsx", import.meta.url),
     "utf8",
   );
-  expect(wrapper).toContain("<TableList />");
-  expect(wrapper).not.toContain("Tabs");
-  const list = readFileSync(
-    new URL("../../components/events/TableList.tsx", import.meta.url),
+  const discovery = readFileSync(
+    new URL("../../components/groups/GroupSearch.tsx", import.meta.url),
     "utf8",
   );
-  expect(
-    runInNewContext(callArgument("events/TableList", "useRecordTables", 2), { f: { search: "z" } }),
-  ).toEqual({ query: "z", statuses: ["TERMINATED"] });
-  expect(runInNewContext(expression("events/TableList", "ListSearch", "options"))).toEqual([]);
-  expect(list).not.toContain("TableListHeading");
-  expect(list).not.toContain("TableListSection");
+  expect(owned).toContain('mode="filter"');
+  expect(owned).toContain("useListSearch(groupRecordMemberRoles, 0)");
+  expect(discovery).toContain("usePublicGroupSearch");
+  expect(discovery).not.toContain("groupRecordMemberRoles");
 });
 it("main native strips share Groups geometry while detail tabs retain independent spacing", () => {
   const shared = readFileSync(
@@ -186,16 +175,22 @@ it("main native strips share Groups geometry while detail tabs retain independen
     readFileSync(new URL("../../components/groups/GroupDetail.tsx", import.meta.url), "utf8"),
   ).toContain("marginTop: 8");
   const code = expression("events/EventList", "InputFlatList", "contentContainerStyle");
-  expect(
-    runInNewContext(code, { groupId: undefined, layout: { paddingBottom: 32 } }),
-  ).toMatchObject({
+  const options = { headerSearch: { active: false, top: 24 }, layout: { paddingBottom: 32 } };
+  expect(runInNewContext(code, { ...options, groupId: undefined })).toMatchObject({
     padding: 20,
     paddingTop: 8,
   });
-  expect(runInNewContext(code, { groupId: "group", layout: { paddingBottom: 32 } })).toMatchObject({
+  expect(runInNewContext(code, { ...options, groupId: "group" })).toMatchObject({
     padding: 20,
     paddingTop: 0,
   });
+  expect(
+    runInNewContext(code, {
+      ...options,
+      groupId: "group",
+      headerSearch: { active: true, top: 24 },
+    }),
+  ).toMatchObject({ padding: 20, paddingTop: 28 });
   expect(
     readFileSync(new URL("../../components/groups/GroupDetail.tsx", import.meta.url), "utf8"),
   ).toContain("contentContainerStyle={{ paddingTop: 0 }}");

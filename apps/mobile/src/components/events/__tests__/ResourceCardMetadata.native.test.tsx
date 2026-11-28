@@ -12,7 +12,7 @@ import {
   pressMeasuredPopover,
 } from "@/test/nativePopoverGeometry";
 import { plannedEvent, plannedTable } from "../../../../../web/src/test-fixtures/eventRecords";
-import { EventSchedulePopover } from "../EventSchedulePopover";
+import { EventScheduleSummary } from "../EventScheduleSummary";
 import { EventTableGamesPopover } from "../EventTableGamesPopover";
 import { EventTableScheduleCard } from "../EventTableScheduleCard";
 import { EventTableSchedulePopover } from "../EventTableSchedulePopover";
@@ -144,10 +144,16 @@ it("keeps an unknown timezone loading, an unnamed public guide explicit and an u
 });
 
 it.each(["en", "it"] as const)(
-  "preserves wall-time proposals rather than shifting either %s schedule date to the device timezone",
+  "preserves the chosen wall time in the %s schedule summary",
   async (locale) => {
     const event = {
       ...plannedEvent,
+      status: "CONFIRMED" as const,
+      confirmed: {
+        dateId: "44444444-4444-4444-8444-444444444444",
+        locationId: plannedEvent.locations[0].id,
+        at: plannedEvent.createdAt,
+      },
       dates: [
         ...plannedEvent.dates,
         { id: "44444444-4444-4444-8444-444444444444", day: "2030-06-04", startTime: "18:15" },
@@ -155,38 +161,40 @@ it.each(["en", "it"] as const)(
     };
     await render(
       <NativeTestProviders locale={locale}>
-        <EventSchedulePopover event={event} kind="dates" />
+        <EventScheduleSummary event={event} />
       </NativeTestProviders>,
     );
-    await pressMeasuredPopover(
-      screen.getByRole("button", {
-        name: `${locale === "it" ? "Date e Orari" : "Dates and times"}: ${event.name}`,
-      }),
-    );
-    for (const iso of ["2030-06-03T20:00Z", "2030-06-04T18:15Z"]) {
-      const date = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "UTC" }).format(
-        new Date(iso),
-      );
-      const time = new Intl.DateTimeFormat(locale, {
-        hour: "2-digit",
-        minute: "2-digit",
-        timeZone: "UTC",
-      }).format(new Date(iso));
-      expect(screen.getByText(date)).toBeVisible();
-      expect(screen.getByText(time)).toBeVisible();
-    }
+    const chosen = new Date("2030-06-04T18:15Z");
+    const date = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "UTC" });
+    const time = new Intl.DateTimeFormat(locale, {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "UTC",
+    });
+    expect(screen.getByText(locale === "it" ? "Data e Ora:" : "Date and time:")).toBeVisible();
+    expect(screen.getByText(date.format(chosen))).toBeVisible();
+    expect(screen.getByText(time.format(chosen))).toBeVisible();
+    expect(screen.queryByText(date.format(new Date("2030-06-03T20:00Z")))).toBeNull();
   },
 );
 
 it("renders verified location addresses without repeating optional venue names", async () => {
   await render(
     <NativeTestProviders>
-      <EventSchedulePopover event={plannedEvent} kind="locations" />
+      <EventScheduleSummary
+        event={{
+          ...plannedEvent,
+          status: "TERMINATED",
+          confirmed: {
+            dateId: plannedEvent.dates[0].id,
+            locationId: plannedEvent.locations[0].id,
+            at: plannedEvent.createdAt,
+          },
+        }}
+      />
     </NativeTestProviders>,
   );
-  await pressMeasuredPopover(
-    screen.getByRole("button", { name: `Locations: ${plannedEvent.name}` }),
-  );
+  expect(screen.getByText("Location:")).toBeVisible();
   expect(screen.getByText("Via Roma 1")).toBeVisible();
   expect(screen.queryByText("Club venue")).toBeNull();
 });

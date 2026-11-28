@@ -3,21 +3,13 @@ import { formatLocationAddress, groupPendingAction } from "@board-game-organizer
 import { useLingui } from "@lingui/react";
 import { useThemeColor } from "heroui-native/hooks";
 import { Typography } from "heroui-native/text";
-import {
-  CalendarDays,
-  CircleCheck,
-  CircleX,
-  Clock3,
-  Globe,
-  LockKeyhole,
-  MapPin,
-  UsersRound,
-} from "lucide-react-native";
+import { CalendarDays, Globe, LockKeyhole, MapPin, UsersRound } from "lucide-react-native";
 import { memo } from "react";
 import { ScrollView, useWindowDimensions, View } from "react-native";
 import { ArtworkStatusPopover } from "@/components/common/ui/ArtworkStatusPopover";
 import { HelpPopover } from "@/components/common/ui/HelpPopover";
 import { useT } from "@/lib/i18n";
+import { GroupStatusBadge } from "./GroupStatusBadge";
 
 export const GroupCardIndicators = memo(function GroupCardIndicators({
   group,
@@ -43,9 +35,6 @@ export const GroupCardIndicators = memo(function GroupCardIndicators({
               ? "request"
               : null;
   const visibility = publicGroup ? t("Public") : t("Private");
-  const rejected = group.reviewStatus === "REJECTED";
-  const pending = !group.approved || group.reviewStatus === "PENDING";
-  const review = rejected ? t("Changes rejected") : pending ? t("Awaiting review") : t("Approved");
   return (
     <>
       {indicator ? (
@@ -116,38 +105,7 @@ export const GroupCardIndicators = memo(function GroupCardIndicators({
           ) : null}
         </ScrollView>
       </HelpPopover>
-      {publicGroup && !group.optimistic ? (
-        <HelpPopover
-          size="compact"
-          label={review}
-          title={review}
-          icon={rejected ? CircleX : pending ? Clock3 : CircleCheck}
-          tone={rejected ? "danger" : pending ? "warning" : "success"}
-          triggerClassName="bg-default"
-          width="content-fit"
-        >
-          <ScrollView
-            style={{ maxHeight: Math.min(320, height * 0.5) }}
-            contentContainerStyle={{ gap: 8 }}
-          >
-            <Typography className="text-foreground">
-              {rejected
-                ? t("These changes were rejected.")
-                : pending
-                  ? t("This public group is awaiting review.")
-                  : t("This public group is approved.")}
-            </Typography>
-            {pending && group.approved && !rejected ? (
-              <Typography className="text-foreground">
-                {t("Approved information remains visible while changes are reviewed.")}
-              </Typography>
-            ) : null}
-            {rejected && group.rejectionReason ? (
-              <Typography className="text-foreground">{group.rejectionReason}</Typography>
-            ) : null}
-          </ScrollView>
-        </HelpPopover>
-      ) : null}
+      {publicGroup && !group.optimistic ? <GroupStatusBadge group={group} withPopover /> : null}
     </>
   );
 });
